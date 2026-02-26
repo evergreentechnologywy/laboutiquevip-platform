@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  PROVIDER
+  ADMIN
+}
+
+enum ProfileStatus {
+  DRAFT
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  EXPIRED
+  VOID
+}
+
+enum VerificationStatus {
+  CREATED
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ReportStatus {
+  OPEN
+  TRIAGED
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profile      Profile?
+}
+
+model Profile {
+  id          String         @id @default(cuid())
+  userId      String         @unique
+  slug        String         @unique
+  displayName String
+  city        String?
+  bio         String?
+  status      ProfileStatus  @default(DRAFT)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id])
+  photos      ProfilePhoto[]
+  tours       ProfileTour[]
+  tags        ProfileTag[]
+}
+
+model ProfilePhoto {
+  id        String  @id @default(cuid())
+  profileId String
+  key       String
+  sortOrder Int     @default(0)
+  profile   Profile @relation(fields: [profileId], references: [id])
+}
+
+model ProfileTour {
+  id        String   @id @default(cuid())
+  profileId String
+  city      String
+  startDate DateTime
+  endDate   DateTime
+  profile   Profile  @relation(fields: [profileId], references: [id])
+}
+
+model Tag {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  profiles ProfileTag[]
+}
+
+model ProfileTag {
+  profileId String
+  tagId     String
+  profile   Profile @relation(fields: [profileId], references: [id])
+  tag       Tag     @relation(fields: [tagId], references: [id])
+
+  @@id([profileId, tagId])
+}
+
+model Verification {
+  id        String             @id @default(cuid())
+  userId    String
+  provider  String
+  sessionId String             @unique
+  status    VerificationStatus @default(CREATED)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model VerificationEvent {
+  id              String   @id @default(cuid())
+  verificationId  String?
+  provider        String
+  externalEventId String
+  payload         Json
+  receivedAt      DateTime @default(now())
+
+  @@unique([provider, externalEventId])
+}
+
+model Product {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  name       String
+  priceCents Int
+  currency   String  @default("EUR")
+  isActive   Boolean @default(true)
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  status    String   @default("created")
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  orderId           String
+  provider          String
+  externalInvoiceId String        @unique
+  status            InvoiceStatus @default(DRAFT)
+  expiresAt         DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model InvoiceEvent {
+  id              String   @id @default(cuid())
+  invoiceId       String?
+  provider        String
+  externalEventId String
+  payload         Json
+  receivedAt      DateTime @default(now())
+
+  @@unique([provider, externalEventId])
+}
+
+model Entitlement {
+  id              String    @id @default(cuid())
+  userId          String
+  productCode     String
+  sourceInvoiceId String
+  grantedAt       DateTime  @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+}
+
+model Report {
+  id              String       @id @default(cuid())
+  reporterUserId  String?
+  targetProfileId String
+  reason          String
+  details         String?
+  status          ReportStatus @default(OPEN)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model Block {
+  id            String   @id @default(cuid())
+  blockerUserId String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+
+  @@unique([blockerUserId, blockedUserId])
+}
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  actorRole    String
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+}

@@ -1,0 +1,58 @@
+{
+  "name": "Booking",
+  "type": "object",
+  "properties": {
+    "provider_id": {
+      "type": "string",
+      "description": "Reference to Provider entity"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "client_email": {
+      "type": "string"
+    },
+    "client_phone": {
+      "type": "string"
+    },
+    "booking_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "booking_time": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "string",
+      "enum": [
+        "1 hour",
+        "2 hours",
+        "overnight"
+      ],
+      "default": "1 hour"
+    },
+    "total_amount": {
+      "type": "number"
+    },
+    "special_requests": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed"
+      ],
+      "default": "pending"
+    }
+  },
+  "required": [
+    "provider_id",
+    "client_name",
+    "client_email",
+    "booking_date",
+    "booking_time"
+  ]
+}

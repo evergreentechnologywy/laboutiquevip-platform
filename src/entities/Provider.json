@@ -1,0 +1,136 @@
+{
+  "name": "Provider",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to User entity"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Public display name"
+    },
+    "tagline": {
+      "type": "string",
+      "description": "Short tagline or headline"
+    },
+    "bio": {
+      "type": "string",
+      "description": "Full biography"
+    },
+    "location_city": {
+      "type": "string"
+    },
+    "location_state": {
+      "type": "string"
+    },
+    "location_country": {
+      "type": "string"
+    },
+    "age": {
+      "type": "number"
+    },
+    "ethnicity": {
+      "type": "string"
+    },
+    "height": {
+      "type": "string"
+    },
+    "body_type": {
+      "type": "string"
+    },
+    "services_offered": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rate_hourly": {
+      "type": "number"
+    },
+    "rate_two_hours": {
+      "type": "number"
+    },
+    "rate_overnight": {
+      "type": "number"
+    },
+    "availability": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Days of week available"
+    },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of photo URLs"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "website": {
+      "type": "string"
+    },
+    "social_media": {
+      "type": "object",
+      "properties": {
+        "instagram": {
+          "type": "string"
+        },
+        "twitter": {
+          "type": "string"
+        }
+      }
+    },
+    "is_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_premium": {
+      "type": "boolean",
+      "default": false
+    },
+    "subscription_tier": {
+      "type": "string",
+      "enum": [
+        "basic",
+        "premium",
+        "vip"
+      ],
+      "default": "basic"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "pending_verification",
+        "suspended"
+      ],
+      "default": "pending_verification"
+    },
+    "views_count": {
+      "type": "number",
+      "default": 0
+    },
+    "rating_average": {
+      "type": "number",
+      "default": 0
+    },
+    "reviews_count": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "display_name",
+    "location_city",
+    "location_state"
+  ]
+}
