@@ -4,11 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "typecheck": "tsc -p ./jsconfig.json",
-    "preview": "vite preview"
+    "dev": "node ./node_modules/vite/bin/vite.js",
+    "dev:frontend": "node ./node_modules/vite/bin/vite.js",
+    "dev:backend:typecheck": "node ./node_modules/typescript/bin/tsc -p backend/tsconfig.json --noEmit",
+    "build:backend": "node ./node_modules/typescript/bin/tsc -p backend/tsconfig.json",
+    "start:backend": "node backend/dist/server.js",
+    "dev:hybrid": "npm run dev:frontend",
+    "db:generate": "npx prisma generate --schema backend/prisma/schema.prisma",
+    "db:migrate:dev": "npx prisma migrate dev --schema backend/prisma/schema.prisma",
+    "db:migrate:deploy": "npx prisma migrate deploy --schema backend/prisma/schema.prisma",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "lint": "node ./node_modules/eslint/bin/eslint.js .",
+    "typecheck": "node ./node_modules/typescript/bin/tsc -p ./jsconfig.json",
+    "preview": "node ./node_modules/vite/bin/vite.js preview"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.3",
