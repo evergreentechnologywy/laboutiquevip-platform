@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String          @unique
+  role          String          @default("member")
+  status        String          @default("active")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  profiles      Profile[]
+  verifications Verification[]
+  orders        Order[]
+  reportsFiled  Report[]        @relation("reports_filed_by")
+  reportsTarget Report[]        @relation("reports_target_user")
+  blocksBy      Block[]         @relation("blocks_by")
+  blocksTarget  Block[]         @relation("blocks_target")
+  auditEvents   AuditEvent[]
+
+  @@map("users")
+}
+
+model Profile {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String         @map("user_id") @db.Uuid
+  displayName  String         @map("display_name")
+  bio          String?
+  city         String?
+  country      String?
+  status       String         @default("draft")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  user         User           @relation(fields: [userId], references: [id])
+  photos       ProfilePhoto[]
+  tours        ProfileTour[]
+  profileTags  ProfileTag[]
+  products     Product[]
+
+  @@map("profiles")
+}
+
+model ProfilePhoto {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String   @map("profile_id") @db.Uuid
+  storageKey String   @map("storage_key")
+  ordinal    Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  profile    Profile  @relation(fields: [profileId], references: [id])
+
+  @@map("profile_photos")
+}
+
+model ProfileTour {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String   @map("profile_id") @db.Uuid
+  videoUrl   String   @map("video_url")
+  title      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  profile    Profile  @relation(fields: [profileId], references: [id])
+
+  @@map("profile_tours")
+}
+
+model Tag {
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug       String       @unique
+  label      String
+  createdAt  DateTime     @default(now()) @map("created_at")
+  profileTag ProfileTag[]
+
+  @@map("tags")
+}
+
+model ProfileTag {
+  profileId  String   @map("profile_id") @db.Uuid
+  tagId      String   @map("tag_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  profile    Profile  @relation(fields: [profileId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([profileId, tagId])
+  @@map("profile_tags")
+}
+
+model Verification {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String              @map("user_id") @db.Uuid
+  type             String
+  status           String              @default("pending")
+  submittedAt      DateTime?           @map("submitted_at")
+  reviewedAt       DateTime?           @map("reviewed_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  user             User                @relation(fields: [userId], references: [id])
+  verificationLogs VerificationEvent[]
+
+  @@map("verifications")
+}
+
+model VerificationEvent {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  verificationId String       @map("verification_id") @db.Uuid
+  eventType      String       @map("event_type")
+  payload        Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  verification   Verification @relation(fields: [verificationId], references: [id])
+
+  @@map("verification_events")
+}
+
+model Product {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String   @map("profile_id") @db.Uuid
+  sku         String   @unique
+  name        String
+  description String?
+  amountCents Int      @map("amount_cents")
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  orders      Order[]
+
+  @@map("products")
+}
+
+model Order {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  productId     String        @map("product_id") @db.Uuid
+  status        String        @default("pending")
+  amountCents   Int           @map("amount_cents")
+  currency      String        @default("USD")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  user          User          @relation(fields: [userId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+  invoices      Invoice[]
+  entitlements  Entitlement[]
+
+  @@map("orders")
+}
+
+model Invoice {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String         @map("order_id") @db.Uuid
+  externalRef    String?        @unique @map("external_ref")
+  status         String         @default("draft")
+  amountCents    Int            @map("amount_cents")
+  currency       String         @default("USD")
+  issuedAt       DateTime?      @map("issued_at")
+  paidAt         DateTime?      @map("paid_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  order          Order          @relation(fields: [orderId], references: [id])
+  invoiceEvents  InvoiceEvent[]
+
+  @@map("invoices")
+}
+
+model InvoiceEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  eventType   String   @map("event_type")
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@map("invoice_events")
+}
+
+model Entitlement {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId      String   @map("order_id") @db.Uuid
+  entitlement  String
+  status       String   @default("active")
+  grantedAt    DateTime @default(now()) @map("granted_at")
+  revokedAt    DateTime? @map("revoked_at")
+  metadata     Json?
+  order        Order    @relation(fields: [orderId], references: [id])
+
+  @@map("entitlements")
+}
+
+model Report {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId    String   @map("reporter_id") @db.Uuid
+  targetUserId  String?  @map("target_user_id") @db.Uuid
+  reason        String
+  status        String   @default("open")
+  details       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  resolvedAt    DateTime? @map("resolved_at")
+  reporter      User     @relation("reports_filed_by", fields: [reporterId], references: [id])
+  targetUser    User?    @relation("reports_target_user", fields: [targetUserId], references: [id])
+
+  @@map("reports")
+}
+
+model Block {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockerId     String   @map("blocker_id") @db.Uuid
+  blockedUserId String   @map("blocked_user_id") @db.Uuid
+  reason        String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  blocker       User     @relation("blocks_by", fields: [blockerId], references: [id])
+  blockedUser   User     @relation("blocks_target", fields: [blockedUserId], references: [id])
+
+  @@map("blocks")
+}
+
+model AuditEvent {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  payload      Json?
+  requestId    String?  @map("request_id")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+  actor        User?    @relation(fields: [actorId], references: [id])
+
+  @@map("audit_events")
+}
