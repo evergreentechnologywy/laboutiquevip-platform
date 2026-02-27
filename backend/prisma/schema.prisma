@@ -23,8 +23,92 @@ model User {
   blocksBy      Block[]         @relation("blocks_by")
   blocksTarget  Block[]         @relation("blocks_target")
   auditEvents   AuditEvent[]
+  providerProfile ProviderProfile?
 
   @@map("users")
+}
+
+model ProviderProfile {
+  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String                    @unique @map("user_id") @db.Uuid
+  slug               String                    @unique
+  displayName        String                    @map("display_name")
+  city               String
+  citySlug           String                    @map("city_slug")
+  bio                String?
+  services           Json
+  rates              Json
+  contactPreferences Json                      @map("contact_preferences")
+  isPublished        Boolean                   @default(false) @map("is_published")
+  publishedAt        DateTime?                 @map("published_at")
+  isVerified         Boolean                   @default(false) @map("is_verified")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+  user               User                      @relation(fields: [userId], references: [id])
+  tags               ProviderProfileTag[]
+  availabilityBlocks ProviderAvailabilityBlock[]
+  tours              ProviderTour[]
+
+  @@index([city])
+  @@index([citySlug])
+  @@index([isPublished, isVerified])
+  @@map("provider_profiles")
+}
+
+model ModelTag {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String               @unique
+  label     String
+  createdAt DateTime             @default(now()) @map("created_at")
+  profiles  ProviderProfileTag[]
+
+  @@map("model_tags")
+}
+
+model ProviderProfileTag {
+  profileId  String          @map("profile_id") @db.Uuid
+  tagId      String          @map("tag_id") @db.Uuid
+  createdAt  DateTime        @default(now()) @map("created_at")
+  profile    ProviderProfile @relation(fields: [profileId], references: [id])
+  tag        ModelTag        @relation(fields: [tagId], references: [id])
+
+  @@id([profileId, tagId])
+  @@index([tagId])
+  @@map("provider_profile_tags")
+}
+
+model ProviderAvailabilityBlock {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String          @map("profile_id") @db.Uuid
+  city       String
+  citySlug   String          @map("city_slug")
+  startsAt   DateTime        @map("starts_at")
+  endsAt     DateTime        @map("ends_at")
+  isAvailable Boolean        @default(true) @map("is_available")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  profile    ProviderProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, startsAt, endsAt])
+  @@index([citySlug, startsAt])
+  @@map("provider_availability_blocks")
+}
+
+model ProviderTour {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String          @map("profile_id") @db.Uuid
+  city       String
+  citySlug   String          @map("city_slug")
+  startsAt   DateTime        @map("starts_at")
+  endsAt     DateTime        @map("ends_at")
+  notes      String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  profile    ProviderProfile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId, startsAt, endsAt])
+  @@index([citySlug, startsAt])
+  @@map("provider_tours")
 }
 
 model Profile {
