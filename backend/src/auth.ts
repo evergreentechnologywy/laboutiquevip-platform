@@ -1,4 +1,5 @@
 import type { ApiRequest, AuthContext, Role } from "./types.js";
+import { allowHeaderAuthTrust } from "./config/security.js";
 
 const ALLOWED_ROLES = new Set<Role>(["admin", "provider", "member", "service"]);
 
@@ -14,6 +15,13 @@ function parseRoles(raw: string | undefined): Role[] {
 }
 
 export function authFromHeaders(headers: ApiRequest["headers"]): AuthContext {
+  if (!allowHeaderAuthTrust()) {
+    return {
+      userId: null,
+      roles: [],
+    };
+  }
+
   const userIdHeader = headers["x-user-id"];
   const rolesHeader = headers["x-roles"];
 

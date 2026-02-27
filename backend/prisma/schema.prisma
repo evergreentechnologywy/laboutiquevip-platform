@@ -315,3 +315,16 @@ model AuditEvent {
 
   @@map("audit_events")
 }
+
+model WebhookEventReceipt {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider      String
+  eventKey      String   @map("event_key")
+  requestId     String?  @map("request_id")
+  payloadSha256 String?  @map("payload_sha256")
+  processedAt   DateTime @default(now()) @map("processed_at")
+
+  @@unique([provider, eventKey])
+  @@index([provider, processedAt])
+  @@map("webhook_event_receipts")
+}

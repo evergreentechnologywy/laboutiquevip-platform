@@ -1,0 +1,33 @@
+const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
+
+function envFlag(value: string | undefined, defaultValue = false): boolean {
+  if (!value) {
+    return defaultValue;
+  }
+  return TRUE_VALUES.has(value.trim().toLowerCase());
+}
+
+export function allowHeaderAuthTrust(): boolean {
+  return envFlag(process.env.ALLOW_HEADER_AUTH_TRUST, false);
+}
+
+export function corsAllowlist(): string[] {
+  const raw = process.env.CORS_ALLOWLIST;
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function webhookToleranceSeconds(): number {
+  const raw = Number(process.env.WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS ?? 300);
+  if (!Number.isFinite(raw) || raw < 30) {
+    return 300;
+  }
+  return raw;
+}
+

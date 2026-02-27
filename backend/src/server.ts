@@ -1,7 +1,19 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
 import { enforceRbac } from "./middleware/rbac.js";
+import { applyRateLimit } from "./middleware/rateLimit.js";
+import { corsHeaders, securityHeaders } from "./middleware/security.js";
+import {
+  adminBillingReconciliationHandler,
+  adminReportsQueueHandler,
+  adminReviewVerificationHandler,
+} from "./routes/admin.js";
+import {
+  createDiditSessionHandler,
+  diditWebhookHandler,
+} from "./routes/didit.js";
 import { healthHandler } from "./routes/health.js";
 import {
   deleteTourHandler,
@@ -14,31 +26,47 @@ import {
   putCalendarHandler,
   registerModelHandler,
 } from "./routes/models.js";
+import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchModelsHandler } from "./routes/search.js";
+import { confirmoWebhookHandler } from "./routes/webhookConfirmo.js";
 import type { ApiRequest, ApiResponse } from "./types.js";
 import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 
 const PORT = Number(process.env.API_PORT ?? 8787);
 
-function sendJson(res: http.ServerResponse, payload: ApiResponse): void {
+function sendResponse(res: http.ServerResponse, payload: ApiResponse): void {
   const statusCode = payload.statusCode;
+  const headers = payload.headers ?? {};
 
   if (statusCode === 204) {
-    res.writeHead(statusCode, payload.headers ?? {});
+    res.writeHead(statusCode, headers);
     res.end();
     return;
   }
 
-  res.writeHead(statusCode, {
-    "content-type": "application/json",
-    ...(payload.headers ?? {}),
-  });
+  if (typeof payload.rawBody === "string") {
+    res.writeHead(statusCode, headers);
+    res.end(payload.rawBody);
+    return;
+  }
+
+  if (typeof payload.body === "string") {
+    res.writeHead(statusCode, {
+      "content-type": headers["content-type"] ?? "text/plain; charset=utf-8",
+      ...headers,
+    });
+    res.end(payload.body);
+    return;
+  }
+
+  res.writeHead(statusCode, { "content-type": "application/json", ...headers });
   res.end(JSON.stringify(payload.body ?? {}));
 }
 
-async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method ?? "")) {
-    return undefined;
+async function readBody(req: http.IncomingMessage): Promise<{ rawBody: string | null; body: unknown }> {
+  const method = req.method ?? "GET";
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    return { rawBody: null, body: undefined };
   }
 
   const chunks: Buffer[] = [];
@@ -48,20 +76,41 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   }
 
   if (chunks.length === 0) {
-    return undefined;
+    return { rawBody: null, body: undefined };
   }
 
   const raw = Buffer.concat(chunks).toString("utf8").trim();
   if (!raw) {
-    return undefined;
+    return { rawBody: null, body: undefined };
   }
 
-  return JSON.parse(raw);
+  const contentType = req.headers["content-type"];
+  const resolvedType = Array.isArray(contentType) ? contentType[0] : contentType;
+  if (!resolvedType?.includes("application/json")) {
+    return { rawBody: raw, body: undefined };
+  }
+
+  return { rawBody: raw, body: JSON.parse(raw) };
 }
 
 function matchTourPath(pathname: string): string | null {
   const matched = pathname.match(/^\/api\/v1\/models\/me\/tours\/([^/]+)$/);
   return matched?.[1] ?? null;
+}
+
+function matchAdminVerificationReviewPath(pathname: string): string | null {
+  const matched = pathname.match(/^\/api\/admin\/verifications\/([^/]+)\/review$/);
+  return matched?.[1] ?? null;
+}
+
+function resolveRequestIp(req: http.IncomingMessage): string | null {
+  const forwarded = req.headers["x-forwarded-for"];
+  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  if (value?.trim()) {
+    return value.split(",")[0]?.trim() ?? null;
+  }
+
+  return req.socket.remoteAddress ?? null;
 }
 
 async function routeRequest(request: ApiRequest, context: { prisma: any; auditLogger: ImmutableAuditLogger }): Promise<ApiResponse> {
@@ -133,6 +182,43 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return searchModelsHandler(request, context);
   }
 
+  if (request.pathname === "/api/v1/webhooks/confirmo" && request.method === "POST") {
+    return confirmoWebhookHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/verifications/didit/session" && request.method === "POST") {
+    return createDiditSessionHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/webhooks/didit" && request.method === "POST") {
+    return diditWebhookHandler(request, context);
+  }
+
+  if (request.pathname === "/api/admin/reports" && request.method === "GET") {
+    return adminReportsQueueHandler(request, context);
+  }
+
+  const verificationId = matchAdminVerificationReviewPath(request.pathname);
+  if (verificationId && request.method === "POST") {
+    return adminReviewVerificationHandler(request, verificationId, context);
+  }
+
+  if (request.pathname === "/api/admin/billing/reconciliation" && request.method === "GET") {
+    return adminBillingReconciliationHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/seo/city-hubs" && request.method === "GET") {
+    return seoCityHubsHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/seo/profiles" && request.method === "GET") {
+    return seoProfilesHandler(request, context);
+  }
+
+  if ((request.pathname === "/api/v1/seo/sitemap.xml" || request.pathname === "/sitemap.xml") && request.method === "GET") {
+    return sitemapHandler(request, context);
+  }
+
   return {
     statusCode: 404,
     body: { error: "not_found" },
@@ -141,13 +227,26 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
+  const requestId = crypto.randomUUID();
+  const originHeader = req.headers.origin;
+  const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+  const baseHeaders = {
+    ...securityHeaders(),
+    ...corsHeaders(origin ?? null),
+    "x-request-id": requestId,
+  };
 
-  let body: unknown;
+  if ((req.method ?? "GET") === "OPTIONS") {
+    return sendResponse(res, { statusCode: 204, headers: baseHeaders });
+  }
+
+  let payload: { rawBody: string | null; body: unknown };
   try {
-    body = await readJsonBody(req);
+    payload = await readBody(req);
   } catch {
-    return sendJson(res, {
+    return sendResponse(res, {
       statusCode: 400,
+      headers: baseHeaders,
       body: {
         error: "invalid_json",
         message: "Body must be valid JSON",
@@ -161,16 +260,31 @@ const server = http.createServer(async (req, res) => {
     pathname: url.pathname,
     query: url.searchParams,
     headers: req.headers,
+    ipAddress: resolveRequestIp(req),
+    requestId,
+    rawBody: payload.rawBody,
     auth: authFromHeaders(req.headers),
-    body,
+    body: payload.body,
   };
+
+  const rateLimited = applyRateLimit(request);
+  if (rateLimited) {
+    return sendResponse(res, {
+      ...rateLimited,
+      headers: {
+        ...baseHeaders,
+        ...(rateLimited.headers ?? {}),
+      },
+    });
+  }
 
   let prisma: any;
   try {
     prisma = await getPrismaClient();
   } catch (error) {
-    return sendJson(res, {
+    return sendResponse(res, {
       statusCode: 500,
+      headers: baseHeaders,
       body: {
         error: "prisma_unavailable",
         message: "Prisma client is not available",
@@ -180,7 +294,13 @@ const server = http.createServer(async (req, res) => {
 
   const auditLogger = new ImmutableAuditLogger(prisma);
   const response = await routeRequest(request, { prisma, auditLogger });
-  return sendJson(res, response);
+  return sendResponse(res, {
+    ...response,
+    headers: {
+      ...baseHeaders,
+      ...(response.headers ?? {}),
+    },
+  });
 });
 
 export function startServer(): void {
