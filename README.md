@@ -15,13 +15,17 @@ This repo keeps the current Vite/Base44 frontend running while introducing a bac
 - Backend scaffold in `backend/`:
   - TypeScript API skeleton
   - Prisma schema + initial migration files
-  - RBAC middleware stub
-  - Immutable audit logging utility stub
+  - Model onboarding APIs (`/api/v1/models/*`)
+  - Calendar + tours APIs (`/api/v1/models/me/calendar`, `/api/v1/models/me/tours`)
+  - Public search APIs (`/api/v1/search/cities`, `/api/v1/search/models`)
+  - RBAC enforcement (provider self-service, admin override via `?user_id=`)
+  - Audit logging for provider profile and tour mutations
 
 ## Scripts
 - `npm run dev` / `npm run dev:frontend`: run current frontend (Vite)
 - `npm run dev:backend:typecheck`: typecheck backend TypeScript
 - `npm run build:backend`: compile backend to `backend/dist`
+- `npm run test:backend`: compile + run backend tests
 - `npm run start:backend`: start compiled backend server
 - `npm run dev:hybrid`: alias to frontend in Phase 0
 - `npm run db:generate`: prisma client generation

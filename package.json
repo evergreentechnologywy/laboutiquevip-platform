@@ -8,6 +8,7 @@
     "dev:frontend": "node ./node_modules/vite/bin/vite.js",
     "dev:backend:typecheck": "node ./node_modules/typescript/bin/tsc -p backend/tsconfig.json --noEmit",
     "build:backend": "node ./node_modules/typescript/bin/tsc -p backend/tsconfig.json",
+    "test:backend": "npm run build:backend && node --test backend/dist/**/*.test.js",
     "start:backend": "node backend/dist/server.js",
     "dev:hybrid": "npm run dev:frontend",
     "db:generate": "npx prisma generate --schema backend/prisma/schema.prisma",
