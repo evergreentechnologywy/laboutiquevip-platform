@@ -42,7 +42,9 @@ export function buildSearchModelFilters(query: SearchModelsQuery): SearchFilterR
   }
 
   if (query.availableFrom || query.availableTo) {
-    const overlapFilter: Record<string, unknown> = {};
+    const overlapFilter: Record<string, unknown> = {
+      isAvailable: true,
+    };
 
     if (query.availableFrom) {
       overlapFilter.endsAt = { gte: new Date(query.availableFrom) };
