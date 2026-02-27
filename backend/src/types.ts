@@ -8,6 +8,8 @@ export interface AuthContext {
 export interface ApiRequest {
   method: string;
   path: string;
+  pathname: string;
+  query: URLSearchParams;
   headers: Record<string, string | string[] | undefined>;
   auth?: AuthContext;
   body?: unknown;
