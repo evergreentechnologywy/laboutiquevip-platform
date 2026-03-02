@@ -1,61 +1,63 @@
-# Phase 0 Runbook
+# Production Runbook (laboutiquevip)
 
-## Purpose
-Operational baseline for running the hybrid frontend + backend foundation during migration.
+Canonical production host: **Hostinger**  
+Canonical domain: **https://www.laboutiquevip.net**
 
 ## Prerequisites
 - Node.js 22+
 - npm 10+
-- PostgreSQL 15+ (or compatible)
+- PostgreSQL 15+
+- Production env file with all required secrets
 
-## Environment
-1. Copy `.env.example` to `.env`.
-2. Populate required values without committing secrets.
-3. Keep `ALLOW_HEADER_AUTH_TRUST=false` in production.
-4. Set `CORS_ALLOWLIST` to explicit trusted origins only.
-5. Set webhook secrets and Didit/Confirmo credentials before enabling provider integrations.
+## Required environment variables (production)
+- `NODE_ENV=production`
+- `DATABASE_URL`
+- `PUBLIC_BASE_URL=https://www.laboutiquevip.net`
+- `CORS_ALLOWLIST` (explicit list, include canonical domain)
+- `CONFIRMO_WEBHOOK_SECRET`
+- `CONFIRMO_WEBHOOK_SIGNATURE_HEADER` (optional override)
+- `DIDIT_API_KEY`
+- `DIDIT_WORKFLOW_ID`
+- `DIDIT_WEBHOOK_SECRET`
+- `DIDIT_WEBHOOK_SIGNATURE_HEADER` (optional override)
+- `DIDIT_WEBHOOK_TIMESTAMP_HEADER` (optional override)
+- `ADMIN_IP_ALLOWLIST` (optional, comma-separated IPs)
 
-## Local Development
-1. Install deps:
+## Deploy steps
+1. Ensure env vars/secrets are exported in shell/service context.
+2. Run:
+   - `/srv/apps/trystlike/deploy/deploy.sh`
+3. Script order (enforced):
    - `npm ci`
-2. Run frontend (existing behavior):
-   - `npm run dev`
-3. Validate backend TypeScript:
-   - `npm run dev:backend:typecheck`
-4. Build backend:
    - `npm run build:backend`
-5. Start backend build output:
-   - `npm run start:backend`
-6. Optional webhook simulation:
-   - `curl -i -X POST http://localhost:8787/api/v1/webhooks/confirmo -H "content-type: application/json" -H "x-confirmo-signature: <hex>" -d '{"id":"evt_1","type":"paid","data":{"invoice_id":"inv_1"}}'`
-
-## Database Workflow
-1. Generate Prisma client:
-   - `npm run db:generate`
-2. Apply migrations in development:
-   - `npm run db:migrate:dev`
-3. Apply migrations in deployment:
+   - `npm run test:backend`
+   - `npm run build`
    - `npm run db:migrate:deploy`
+   - backend smoke check (`GET /api/health`)
 
-## Verification Checklist
-- Frontend routes load and render as before.
-- `GET /api/health` returns `200`.
-- `GET /api/v1/seo/sitemap.xml` returns XML.
-- Admin endpoints under `/api/admin/*` reject non-admin roles.
-- Duplicate webhook delivery returns `deduplicated: true`.
-- Prisma schema validates:
-  - `npx prisma validate --schema backend/prisma/schema.prisma`
-- No secrets added to git-tracked files.
+## Live test checklist
+1. **Health**
+   - `GET /api/health` returns `200`.
+2. **Webhook security**
+   - Invalid signatures for Confirmo/Didit return `401`.
+   - Invalid payload schema returns `400 validation_error`.
+   - Duplicate delivery returns `{ deduplicated: true }`.
+3. **NOWPayments policy behavior (Confirmo ingestion path)**
+   - `confirmed` or `finished` webhook => invoice paid + entitlement granted.
+   - `partially_paid` => invoice `pending_manual`, no entitlement granted.
+   - `paid` event after invoice expiry => entitlement still granted.
+4. **Verification flow**
+   - Didit session creation fails in production if Didit credentials are missing.
+   - Didit webhook updates verification status (`approved` / `rejected` / `under_review` / `pending`).
+5. **Admin protection**
+   - Non-admin role denied on `/api/admin/*`.
+   - Admin requests are rate-limited.
+   - If `ADMIN_IP_ALLOWLIST` is set, non-allowlisted IPs get `403`.
+6. **Data integrity & audit**
+   - Webhook receipts are idempotent per event key.
+   - Audit events created for webhook processed/rejected and admin denials.
 
-## Deploy script order
-1. `npm ci`
-2. `npm run build:backend`
-3. `npm run test:backend`
-4. `npm run build`
-5. `npm run db:migrate:deploy`
-6. Smoke check: boot backend and verify `/api/health`
-
-## Rollback (Phase 0)
-- Frontend rollback: deploy prior frontend artifact.
-- Backend rollback: disable backend service routing and deploy previous image/release.
-- Database rollback: restore from backup/snapshot if destructive issue occurs.
+## Rollback
+- Revert application release to prior known-good build.
+- Restore DB from backup/snapshot if required.
+- Re-run smoke + live test checklist before reopening traffic.

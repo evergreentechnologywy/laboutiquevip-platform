@@ -2,6 +2,8 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
+import { validateStartupOrThrow } from "./config/startup.js";
+import { adminIpAllowlist } from "./config/security.js";
 import { enforceRbac } from "./middleware/rbac.js";
 import { applyRateLimit } from "./middleware/rateLimit.js";
 import { corsHeaders, securityHeaders } from "./middleware/security.js";
@@ -119,6 +121,20 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
   }
 
   if (request.pathname.startsWith("/api/admin")) {
+    const allowlist = adminIpAllowlist();
+    if (allowlist.length > 0) {
+      const ip = request.ipAddress ?? "";
+      if (!allowlist.includes(ip)) {
+        await context.auditLogger.append({
+          actorId: request.auth?.userId ?? null,
+          action: "admin.ip_denied",
+          resourceType: "admin",
+          resourceId: null,
+          metadata: { path: request.pathname, method: request.method, ipAddress: ip || null },
+        });
+        return { statusCode: 403, body: { error: "forbidden", message: "Admin access denied for IP" } };
+      }
+    }
     const denied = enforceRbac(request, {
       resource: "admin",
       action: request.method,
@@ -304,6 +320,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 export function startServer(): void {
+  validateStartupOrThrow();
   server.listen(PORT, () => {
     process.stdout.write(`Backend listening on :${PORT}\n`);
   });

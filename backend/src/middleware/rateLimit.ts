@@ -33,6 +33,12 @@ const LIMIT_RULES: LimitRule[] = [
     windowMs: 60_000,
     maxRequests: 120,
   },
+  {
+    name: "admin",
+    matcher: (request) => request.pathname.startsWith("/api/admin"),
+    windowMs: 60_000,
+    maxRequests: 30,
+  },
 ];
 
 function maybeCleanup(now: number): void {

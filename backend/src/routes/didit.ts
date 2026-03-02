@@ -6,6 +6,7 @@ import {
   claimWebhookReceipt,
   verifyTimestampedHmacSha256Signature,
 } from "../services/webhooks.js";
+import { diditWebhookSchema } from "../validation/webhooks.js";
 
 interface DiditContext {
   prisma: any;
@@ -15,16 +16,6 @@ interface DiditContext {
 interface DiditSessionRequest {
   verificationId?: string;
   returnUrl: string;
-  metadata?: Record<string, unknown>;
-}
-
-interface DiditWebhookPayload {
-  id?: string;
-  event?: string;
-  status?: string;
-  verification_id?: string;
-  external_verification_ref?: string;
-  user_id?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -67,6 +58,14 @@ export async function createDiditSessionHandler(
     return json(400, { error: "validation_error", message: "returnUrl is required" });
   }
 
+  const hasCredentials = Boolean(process.env.DIDIT_API_KEY && process.env.DIDIT_WORKFLOW_ID);
+  if (!hasCredentials && process.env.NODE_ENV === "production") {
+    return json(503, {
+      error: "provider_unavailable",
+      message: "Didit integration is not configured for production",
+    });
+  }
+
   let verificationId = payload.verificationId;
   if (verificationId) {
     const existing = await context.prisma.verification.findFirst({
@@ -103,10 +102,9 @@ export async function createDiditSessionHandler(
     action: "verification.didit.session_created",
     resourceType: "verification",
     resourceId: verificationId ?? null,
-    metadata: { providerSessionId },
+    metadata: { providerSessionId, mode: hasCredentials ? "live_contract" : "placeholder_contract" },
   });
 
-  const hasCredentials = Boolean(process.env.DIDIT_API_KEY && process.env.DIDIT_WORKFLOW_ID);
   return json(201, {
     verificationId,
     provider: "didit",
@@ -146,11 +144,17 @@ export async function diditWebhookHandler(
     return json(401, { error: "invalid_signature" });
   }
 
-  const payload = (request.body ?? {}) as DiditWebhookPayload;
-  const eventKey = payload.id ? `didit:${payload.id}` : null;
-  if (!eventKey) {
-    return json(400, { error: "invalid_event", message: "Missing event id" });
+  const parsed = diditWebhookSchema.safeParse(request.body ?? {});
+  if (!parsed.success) {
+    return json(400, {
+      error: "validation_error",
+      message: "Invalid Didit webhook payload",
+      details: parsed.error.flatten(),
+    });
   }
+
+  const payload = parsed.data;
+  const eventKey = `didit:${payload.id}`;
 
   const claim = await claimWebhookReceipt(
     context.prisma,
@@ -163,10 +167,7 @@ export async function diditWebhookHandler(
     return json(200, { ok: true, deduplicated: true });
   }
 
-  const verificationRef = payload.verification_id ?? payload.external_verification_ref ?? null;
-  if (!verificationRef) {
-    return json(202, { ok: true, ignored: true, reason: "missing_verification_reference" });
-  }
+  const verificationRef = payload.verification_id ?? payload.external_verification_ref;
 
   const verification = await context.prisma.verification.findFirst({
     where: {

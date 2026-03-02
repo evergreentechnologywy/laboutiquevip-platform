@@ -7,6 +7,10 @@ function envFlag(value: string | undefined, defaultValue = false): boolean {
   return TRUE_VALUES.has(value.trim().toLowerCase());
 }
 
+export function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 export function allowHeaderAuthTrust(): boolean {
   return envFlag(process.env.ALLOW_HEADER_AUTH_TRUST, false);
 }
@@ -31,3 +35,11 @@ export function webhookToleranceSeconds(): number {
   return raw;
 }
 
+export function adminIpAllowlist(): string[] {
+  const raw = process.env.ADMIN_IP_ALLOWLIST;
+  if (!raw) {
+    return [];
+  }
+
+  return raw.split(",").map((ip) => ip.trim()).filter(Boolean);
+}
