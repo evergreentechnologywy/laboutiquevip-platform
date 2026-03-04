@@ -11,7 +11,6 @@ required_env=(
   DATABASE_URL
   PUBLIC_BASE_URL
   CORS_ALLOWLIST
-  CONFIRMO_WEBHOOK_SECRET
   DIDIT_API_KEY
   DIDIT_WORKFLOW_ID
   DIDIT_WEBHOOK_SECRET
@@ -24,16 +23,26 @@ for env_name in "${required_env[@]}"; do
   fi
 done
 
+if [[ -z "${CONFIRMO_WEBHOOK_SECRET:-}" && -n "${NOWPAYMENTS_IPN_SECRET:-}" ]]; then
+  export CONFIRMO_WEBHOOK_SECRET="${NOWPAYMENTS_IPN_SECRET}"
+fi
+
+if [[ -z "${CONFIRMO_WEBHOOK_SECRET:-}" ]]; then
+  echo "[deploy] missing required env: CONFIRMO_WEBHOOK_SECRET (or NOWPAYMENTS_IPN_SECRET)"
+  exit 1
+fi
+
 if [[ "${NODE_ENV}" != "production" ]]; then
   echo "[deploy] NODE_ENV must be production for deploy"
   exit 1
 fi
 
-npm ci
+NPM_CONFIG_PRODUCTION=false npm ci --include=dev
 npm run build:backend
 npm run test:backend
 npm run build
-npm run db:migrate:deploy
+npx -y prisma@6.16.0 generate --schema backend/prisma/schema.prisma
+npx -y prisma@6.16.0 migrate deploy --schema backend/prisma/schema.prisma
 
 echo "[deploy] running backend smoke check"
 API_PORT="${API_PORT:-18787}" node backend/dist/server.js >/tmp/trystlike-backend-smoke.log 2>&1 &

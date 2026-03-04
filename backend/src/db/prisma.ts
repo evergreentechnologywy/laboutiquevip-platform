@@ -7,7 +7,7 @@ const dynamicImport = new Function(
 
 async function loadPrismaModule(): Promise<any> {
   try {
-    return await dynamicImport("../generated/prisma-client/index.js");
+    return await dynamicImport("../../generated/prisma-client/index.js");
   } catch {
     return await dynamicImport("@prisma/client");
   }
