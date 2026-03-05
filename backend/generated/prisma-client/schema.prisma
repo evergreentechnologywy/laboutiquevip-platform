@@ -9,44 +9,44 @@ datasource db {
 }
 
 model User {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email         String          @unique
-  role          String          @default("member")
-  status        String          @default("active")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  profiles      Profile[]
-  verifications Verification[]
-  orders        Order[]
-  reportsFiled  Report[]        @relation("reports_filed_by")
-  reportsTarget Report[]        @relation("reports_target_user")
-  blocksBy      Block[]         @relation("blocks_by")
-  blocksTarget  Block[]         @relation("blocks_target")
-  auditEvents   AuditEvent[]
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String           @unique
+  role            String           @default("member")
+  status          String           @default("active")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  profiles        Profile[]
+  verifications   Verification[]
+  orders          Order[]
+  reportsFiled    Report[]         @relation("reports_filed_by")
+  reportsTarget   Report[]         @relation("reports_target_user")
+  blocksBy        Block[]          @relation("blocks_by")
+  blocksTarget    Block[]          @relation("blocks_target")
+  auditEvents     AuditEvent[]
   providerProfile ProviderProfile?
-  full_name      String?
-  password_hash  String?
+  full_name       String?
+  password_hash   String?
 
   @@map("users")
 }
 
 model ProviderProfile {
-  id                 String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId             String                    @unique @map("user_id") @db.Uuid
-  slug               String                    @unique
-  displayName        String                    @map("display_name")
+  id                 String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String                      @unique @map("user_id") @db.Uuid
+  slug               String                      @unique
+  displayName        String                      @map("display_name")
   city               String
-  citySlug           String                    @map("city_slug")
+  citySlug           String                      @map("city_slug")
   bio                String?
   services           Json
   rates              Json
-  contactPreferences Json                      @map("contact_preferences")
-  isPublished        Boolean                   @default(false) @map("is_published")
-  publishedAt        DateTime?                 @map("published_at")
-  isVerified         Boolean                   @default(false) @map("is_verified")
-  createdAt          DateTime                  @default(now()) @map("created_at")
-  updatedAt          DateTime                  @updatedAt @map("updated_at")
-  user               User                      @relation(fields: [userId], references: [id])
+  contactPreferences Json                        @map("contact_preferences")
+  isPublished        Boolean                     @default(false) @map("is_published")
+  publishedAt        DateTime?                   @map("published_at")
+  isVerified         Boolean                     @default(false) @map("is_verified")
+  createdAt          DateTime                    @default(now()) @map("created_at")
+  updatedAt          DateTime                    @updatedAt @map("updated_at")
+  user               User                        @relation(fields: [userId], references: [id])
   tags               ProviderProfileTag[]
   availabilityBlocks ProviderAvailabilityBlock[]
   tours              ProviderTour[]
@@ -68,11 +68,11 @@ model ModelTag {
 }
 
 model ProviderProfileTag {
-  profileId  String          @map("profile_id") @db.Uuid
-  tagId      String          @map("tag_id") @db.Uuid
-  createdAt  DateTime        @default(now()) @map("created_at")
-  profile    ProviderProfile @relation(fields: [profileId], references: [id])
-  tag        ModelTag        @relation(fields: [tagId], references: [id])
+  profileId String          @map("profile_id") @db.Uuid
+  tagId     String          @map("tag_id") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at")
+  profile   ProviderProfile @relation(fields: [profileId], references: [id])
+  tag       ModelTag        @relation(fields: [tagId], references: [id])
 
   @@id([profileId, tagId])
   @@index([tagId])
@@ -80,16 +80,16 @@ model ProviderProfileTag {
 }
 
 model ProviderAvailabilityBlock {
-  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profileId  String          @map("profile_id") @db.Uuid
-  city       String
-  citySlug   String          @map("city_slug")
-  startsAt   DateTime        @map("starts_at")
-  endsAt     DateTime        @map("ends_at")
-  isAvailable Boolean        @default(true) @map("is_available")
-  createdAt  DateTime        @default(now()) @map("created_at")
-  updatedAt  DateTime        @updatedAt @map("updated_at")
-  profile    ProviderProfile @relation(fields: [profileId], references: [id])
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId   String          @map("profile_id") @db.Uuid
+  city        String
+  citySlug    String          @map("city_slug")
+  startsAt    DateTime        @map("starts_at")
+  endsAt      DateTime        @map("ends_at")
+  isAvailable Boolean         @default(true) @map("is_available")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  profile     ProviderProfile @relation(fields: [profileId], references: [id])
 
   @@index([profileId, startsAt, endsAt])
   @@index([citySlug, startsAt])
@@ -97,16 +97,16 @@ model ProviderAvailabilityBlock {
 }
 
 model ProviderTour {
-  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profileId  String          @map("profile_id") @db.Uuid
-  city       String
-  citySlug   String          @map("city_slug")
-  startsAt   DateTime        @map("starts_at")
-  endsAt     DateTime        @map("ends_at")
-  notes      String?
-  createdAt  DateTime        @default(now()) @map("created_at")
-  updatedAt  DateTime        @updatedAt @map("updated_at")
-  profile    ProviderProfile @relation(fields: [profileId], references: [id])
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String          @map("profile_id") @db.Uuid
+  city      String
+  citySlug  String          @map("city_slug")
+  startsAt  DateTime        @map("starts_at")
+  endsAt    DateTime        @map("ends_at")
+  notes     String?
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  profile   ProviderProfile @relation(fields: [profileId], references: [id])
 
   @@index([profileId, startsAt, endsAt])
   @@index([citySlug, startsAt])
@@ -114,20 +114,20 @@ model ProviderTour {
 }
 
 model Profile {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String         @map("user_id") @db.Uuid
-  displayName  String         @map("display_name")
-  bio          String?
-  city         String?
-  country      String?
-  status       String         @default("draft")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
-  user         User           @relation(fields: [userId], references: [id])
-  photos       ProfilePhoto[]
-  tours        ProfileTour[]
-  profileTags  ProfileTag[]
-  products     Product[]
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  displayName String         @map("display_name")
+  bio         String?
+  city        String?
+  country     String?
+  status      String         @default("draft")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  user        User           @relation(fields: [userId], references: [id])
+  photos      ProfilePhoto[]
+  tours       ProfileTour[]
+  profileTags ProfileTag[]
+  products    Product[]
 
   @@map("profiles")
 }
@@ -144,12 +144,12 @@ model ProfilePhoto {
 }
 
 model ProfileTour {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profileId  String   @map("profile_id") @db.Uuid
-  videoUrl   String   @map("video_url")
-  title      String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  profile    Profile  @relation(fields: [profileId], references: [id])
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  videoUrl  String   @map("video_url")
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  profile   Profile  @relation(fields: [profileId], references: [id])
 
   @@map("profile_tours")
 }
@@ -165,11 +165,11 @@ model Tag {
 }
 
 model ProfileTag {
-  profileId  String   @map("profile_id") @db.Uuid
-  tagId      String   @map("tag_id") @db.Uuid
-  createdAt  DateTime @default(now()) @map("created_at")
-  profile    Profile  @relation(fields: [profileId], references: [id])
-  tag        Tag      @relation(fields: [tagId], references: [id])
+  profileId String   @map("profile_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  profile   Profile  @relation(fields: [profileId], references: [id])
+  tag       Tag      @relation(fields: [tagId], references: [id])
 
   @@id([profileId, tagId])
   @@map("profile_tags")
@@ -218,74 +218,74 @@ model Product {
 }
 
 model Order {
-  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId        String        @map("user_id") @db.Uuid
-  productId     String        @map("product_id") @db.Uuid
-  status        String        @default("pending")
-  amountCents   Int           @map("amount_cents")
-  currency      String        @default("USD")
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  user          User          @relation(fields: [userId], references: [id])
-  product       Product       @relation(fields: [productId], references: [id])
-  invoices      Invoice[]
-  entitlements  Entitlement[]
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  productId    String        @map("product_id") @db.Uuid
+  status       String        @default("pending")
+  amountCents  Int           @map("amount_cents")
+  currency     String        @default("USD")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  user         User          @relation(fields: [userId], references: [id])
+  product      Product       @relation(fields: [productId], references: [id])
+  invoices     Invoice[]
+  entitlements Entitlement[]
 
   @@map("orders")
 }
 
 model Invoice {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId        String         @map("order_id") @db.Uuid
-  externalRef    String?        @unique @map("external_ref")
-  status         String         @default("draft")
-  amountCents    Int            @map("amount_cents")
-  currency       String         @default("USD")
-  issuedAt       DateTime?      @map("issued_at")
-  paidAt         DateTime?      @map("paid_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  order          Order          @relation(fields: [orderId], references: [id])
-  invoiceEvents  InvoiceEvent[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId       String         @map("order_id") @db.Uuid
+  externalRef   String?        @unique @map("external_ref")
+  status        String         @default("draft")
+  amountCents   Int            @map("amount_cents")
+  currency      String         @default("USD")
+  issuedAt      DateTime?      @map("issued_at")
+  paidAt        DateTime?      @map("paid_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  order         Order          @relation(fields: [orderId], references: [id])
+  invoiceEvents InvoiceEvent[]
 
   @@map("invoices")
 }
 
 model InvoiceEvent {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  invoiceId   String   @map("invoice_id") @db.Uuid
-  eventType   String   @map("event_type")
-  payload     Json?
-  createdAt   DateTime @default(now()) @map("created_at")
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId String   @map("invoice_id") @db.Uuid
+  eventType String   @map("event_type")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
 
   @@map("invoice_events")
 }
 
 model Entitlement {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId      String   @map("order_id") @db.Uuid
-  entitlement  String
-  status       String   @default("active")
-  grantedAt    DateTime @default(now()) @map("granted_at")
-  revokedAt    DateTime? @map("revoked_at")
-  metadata     Json?
-  order        Order    @relation(fields: [orderId], references: [id])
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId     String    @map("order_id") @db.Uuid
+  entitlement String
+  status      String    @default("active")
+  grantedAt   DateTime  @default(now()) @map("granted_at")
+  revokedAt   DateTime? @map("revoked_at")
+  metadata    Json?
+  order       Order     @relation(fields: [orderId], references: [id])
 
   @@map("entitlements")
 }
 
 model Report {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reporterId    String   @map("reporter_id") @db.Uuid
-  targetUserId  String?  @map("target_user_id") @db.Uuid
-  reason        String
-  status        String   @default("open")
-  details       String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  resolvedAt    DateTime? @map("resolved_at")
-  reporter      User     @relation("reports_filed_by", fields: [reporterId], references: [id])
-  targetUser    User?    @relation("reports_target_user", fields: [targetUserId], references: [id])
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId   String    @map("reporter_id") @db.Uuid
+  targetUserId String?   @map("target_user_id") @db.Uuid
+  reason       String
+  status       String    @default("open")
+  details      String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  resolvedAt   DateTime? @map("resolved_at")
+  reporter     User      @relation("reports_filed_by", fields: [reporterId], references: [id])
+  targetUser   User?     @relation("reports_target_user", fields: [targetUserId], references: [id])
 
   @@map("reports")
 }
@@ -330,7 +330,6 @@ model WebhookEventReceipt {
   @@index([provider, processedAt])
   @@map("webhook_event_receipts")
 }
-
 
 model Provider {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

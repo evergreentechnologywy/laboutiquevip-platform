@@ -1,5 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
 import { validateStartupOrThrow } from "./config/startup.js";
@@ -17,6 +19,16 @@ import {
   diditWebhookHandler,
 } from "./routes/didit.js";
 import { healthHandler } from "./routes/health.js";
+import {
+  createEntityHandler,
+  listOrFilterEntityHandler,
+  loginHandler,
+  logoutHandler,
+  meHandler,
+  registerHandler,
+  updateProviderHandler,
+  uploadHandler,
+} from "./routes/base44Compat.js";
 import {
   deleteTourHandler,
   getCalendarHandler,
@@ -105,6 +117,17 @@ function matchAdminVerificationReviewPath(pathname: string): string | null {
   return matched?.[1] ?? null;
 }
 
+function matchEntityIdPath(pathname: string): { entity: string; id: string } | null {
+  const matched = pathname.match(/^\/api\/entities\/([^/]+)\/([^/]+)$/);
+  if (!matched) return null;
+  return { entity: matched[1] ?? "", id: matched[2] ?? "" };
+}
+
+function matchEntityPath(pathname: string): string | null {
+  const matched = pathname.match(/^\/api\/entities\/([^/]+)$/);
+  return matched?.[1] ?? null;
+}
+
 function resolveRequestIp(req: http.IncomingMessage): string | null {
   const forwarded = req.headers["x-forwarded-for"];
   const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
@@ -119,6 +142,22 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
   if (request.pathname === "/api/health" && request.method === "GET") {
     return healthHandler();
   }
+
+  if (request.pathname === "/api/auth/register" && request.method === "POST") return registerHandler(request, context);
+  if (request.pathname === "/api/auth/login" && request.method === "POST") return loginHandler(request, context);
+  if (request.pathname === "/api/auth/me" && request.method === "GET") return meHandler(request, context);
+  if (request.pathname === "/api/auth/logout" && request.method === "POST") return logoutHandler();
+
+  const entity = matchEntityPath(request.pathname);
+  if (entity && request.method === "GET") return listOrFilterEntityHandler(request, entity, context);
+  if (entity && request.method === "POST") return createEntityHandler(request, entity, context);
+
+  const entityId = matchEntityIdPath(request.pathname);
+  if (entityId && entityId.entity === "Provider" && request.method === "PATCH") {
+    return updateProviderHandler(request, entityId.id, context);
+  }
+
+  if (request.pathname === "/api/upload" && request.method === "POST") return uploadHandler(request);
 
   if (request.pathname.startsWith("/api/admin")) {
     const allowlist = adminIpAllowlist();
@@ -243,6 +282,19 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
+  if ((req.method ?? "GET") === "GET" && url.pathname.startsWith("/uploads/")) {
+    const filename = path.basename(url.pathname);
+    const fullPath = path.resolve(process.env.UPLOAD_DIR ?? "/srv/apps/trystlike/repo/backend/uploads", filename);
+    try {
+      const data = await fs.readFile(fullPath);
+      res.writeHead(200, { "content-type": "application/octet-stream" });
+      res.end(data);
+    } catch {
+      res.writeHead(404, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: "not_found" }));
+    }
+    return;
+  }
   const requestId = crypto.randomUUID();
   const originHeader = req.headers.origin;
   const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;

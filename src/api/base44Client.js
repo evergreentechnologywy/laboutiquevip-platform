@@ -1,13 +1,107 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+const TOKEN_KEY = 'auth_token';
 
-const { appId, serverUrl, token, functionsVersion } = appParams;
+const getToken = () => localStorage.getItem(TOKEN_KEY);
+const setToken = (token) => {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+};
+const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
-//Create a client with authentication required
-export const base44 = createClient({
-  appId,
-  serverUrl,
-  token,
-  functionsVersion,
-  requiresAuth: false
-});
+async function api(path, { method = 'GET', body, auth = false } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && getToken()) headers.Authorization = `Bearer ${getToken()}`;
+
+  const res = await fetch(path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin',
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function queryEntity(entity, where = {}, sort, limit) {
+  const params = new URLSearchParams();
+  params.set('where', JSON.stringify(where || {}));
+  if (sort) params.set('sort', sort);
+  if (limit) params.set('limit', String(limit));
+  return api(`/api/entities/${entity}?${params.toString()}`);
+}
+
+function createEntityClient(entity) {
+  return {
+    filter: (where, sort, limit) => queryEntity(entity, where, sort, limit),
+    list: (sort, limit) => queryEntity(entity, {}, sort, limit),
+    create: (data) => api(`/api/entities/${entity}`, { method: 'POST', body: data, auth: true }),
+    update: (id, data) => api(`/api/entities/${entity}/${id}`, { method: 'PATCH', body: data, auth: true }),
+  };
+}
+
+export const base44 = {
+  auth: {
+    me: async () => api('/api/auth/me', { auth: true }),
+    login: async (email, password) => {
+      const out = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+      setToken(out.token);
+      return out.user;
+    },
+    register: async (email, password, full_name) => {
+      const out = await api('/api/auth/register', { method: 'POST', body: { email, password, full_name } });
+      setToken(out.token);
+      return out.user;
+    },
+    logout: async (url) => {
+      try { await api('/api/auth/logout', { method: 'POST', auth: true }); } catch {}
+      clearToken();
+      if (url) window.location.href = url;
+    },
+    redirectToLogin: async (url) => {
+      const email = window.prompt('Email:');
+      if (!email) return;
+      const password = window.prompt('Password:');
+      if (!password) return;
+      try {
+        await base44.auth.login(email, password);
+      } catch {
+        const shouldRegister = window.confirm('Login failed. Create account with these credentials?');
+        if (!shouldRegister) return;
+        await base44.auth.register(email, password, email.split('@')[0]);
+      }
+      window.location.href = url || window.location.href;
+    },
+  },
+  entities: {
+    Provider: createEntityClient('Provider'),
+    Booking: createEntityClient('Booking'),
+    Message: createEntityClient('Message'),
+    Review: createEntityClient('Review'),
+    Query: {},
+  },
+  integrations: {
+    Core: {
+      UploadFile: async ({ file }) => {
+        const data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        return api('/api/upload', {
+          method: 'POST',
+          body: { filename: file.name, contentType: file.type, data },
+          auth: true,
+        });
+      },
+    },
+  },
+  appLogs: {
+    logUserInApp: async () => ({ ok: true }),
+  },
+};
