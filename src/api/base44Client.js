@@ -62,19 +62,15 @@ export const base44 = {
       clearToken();
       if (url) window.location.href = url;
     },
-    redirectToLogin: async (url) => {
-      const email = window.prompt('Email:');
-      if (!email) return;
-      const password = window.prompt('Password:');
-      if (!password) return;
-      try {
-        await base44.auth.login(email, password);
-      } catch {
-        const shouldRegister = window.confirm('Login failed. Create account with these credentials?');
-        if (!shouldRegister) return;
-        await base44.auth.register(email, password, email.split('@')[0]);
-      }
-      window.location.href = url || window.location.href;
+    redirectToLogin: (nextUrl) => {
+      const params = new URLSearchParams();
+      if (nextUrl) params.set('next', nextUrl);
+      window.location.href = `/login${params.toString() ? `?${params.toString()}` : ''}`;
+    },
+    redirectToRegister: (nextUrl) => {
+      const params = new URLSearchParams();
+      if (nextUrl) params.set('next', nextUrl);
+      window.location.href = `/register${params.toString() ? `?${params.toString()}` : ''}`;
     },
   },
   entities: {

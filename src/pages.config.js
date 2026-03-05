@@ -4,8 +4,9 @@ import ProviderDashboard from './pages/ProviderDashboard';
 import ViewProfile from './pages/ViewProfile';
 import ProviderSignup from './pages/ProviderSignup';
 import AdminDashboard from './pages/AdminDashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import __Layout from './Layout.jsx';
-
 
 export const PAGES = {
     "Browse": Browse,
@@ -14,6 +15,8 @@ export const PAGES = {
     "ViewProfile": ViewProfile,
     "ProviderSignup": ProviderSignup,
     "AdminDashboard": AdminDashboard,
+    "Login": Login,
+    "Register": Register,
 }
 
 export const pagesConfig = {
