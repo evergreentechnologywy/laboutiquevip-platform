@@ -5,6 +5,10 @@ import path from "node:path";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
 import { validateStartupOrThrow } from "./config/startup.js";
+import {
+  captureBackendException,
+  initBackendObservability,
+} from "./observability.js";
 import { adminIpAllowlist } from "./config/security.js";
 import { enforceRbac } from "./middleware/rbac.js";
 import { applyRateLimit } from "./middleware/rateLimit.js";
@@ -41,12 +45,19 @@ import {
   registerModelHandler,
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler } from "./routes/seo.js";
-import { searchCitiesHandler, searchModelsHandler } from "./routes/search.js";
+import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
 import { confirmoWebhookHandler } from "./routes/webhookConfirmo.js";
+import {
+  createOrderHandler,
+  getOrderHandler,
+  listUserOrdersHandler,
+} from "./routes/orders.js";
 import type { ApiRequest, ApiResponse } from "./types.js";
 import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 
 const PORT = Number(process.env.API_PORT ?? 8787);
+
+initBackendObservability();
 
 function sendResponse(res: http.ServerResponse, payload: ApiResponse): void {
   const statusCode = payload.statusCode;
@@ -125,6 +136,11 @@ function matchEntityIdPath(pathname: string): { entity: string; id: string } | n
 
 function matchEntityPath(pathname: string): string | null {
   const matched = pathname.match(/^\/api\/entities\/([^/]+)$/);
+  return matched?.[1] ?? null;
+}
+
+function matchOrderIdPath(pathname: string): string | null {
+  const matched = pathname.match(/^\/api\/v1\/orders\/([^/]+)$/);
   return matched?.[1] ?? null;
 }
 
@@ -237,8 +253,25 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return searchModelsHandler(request, context);
   }
 
+  if (request.pathname === "/api/v1/search/providers" && request.method === "GET") {
+    return searchProvidersHandler(request, context);
+  }
+
   if (request.pathname === "/api/v1/webhooks/confirmo" && request.method === "POST") {
     return confirmoWebhookHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/orders" && request.method === "POST") {
+    return createOrderHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/orders" && request.method === "GET") {
+    return listUserOrdersHandler(request, context);
+  }
+
+  const orderId = matchOrderIdPath(request.pathname);
+  if (orderId && request.method === "GET") {
+    return getOrderHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/verifications/didit/session" && request.method === "POST") {
@@ -279,6 +312,16 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     body: { error: "not_found" },
   };
 }
+
+process.on("uncaughtException", (error) => {
+  captureBackendException(error, { source: "uncaughtException" });
+  console.error("Uncaught exception", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  captureBackendException(reason, { source: "unhandledRejection" });
+  console.error("Unhandled rejection", reason);
+});
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
@@ -360,15 +403,32 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
-  const auditLogger = new ImmutableAuditLogger(prisma);
-  const response = await routeRequest(request, { prisma, auditLogger });
-  return sendResponse(res, {
-    ...response,
-    headers: {
-      ...baseHeaders,
-      ...(response.headers ?? {}),
-    },
-  });
+  try {
+    const auditLogger = new ImmutableAuditLogger(prisma);
+    const response = await routeRequest(request, { prisma, auditLogger });
+    return sendResponse(res, {
+      ...response,
+      headers: {
+        ...baseHeaders,
+        ...(response.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    captureBackendException(error, {
+      pathname: request.pathname,
+      method: request.method,
+      requestId,
+    });
+
+    return sendResponse(res, {
+      statusCode: 500,
+      headers: baseHeaders,
+      body: {
+        error: "internal_server_error",
+        message: "Unexpected server error",
+      },
+    });
+  }
 });
 
 export function startServer(): void {

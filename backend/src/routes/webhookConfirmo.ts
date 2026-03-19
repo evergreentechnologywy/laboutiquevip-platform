@@ -1,10 +1,15 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
 import type { AuditLogger } from "../utils/auditLogger.js";
+import { captureBackendException } from "../observability.js";
 import {
   appendInvoiceEventImmutable,
   claimWebhookReceipt,
   verifyHmacSha256Signature,
 } from "../services/webhooks.js";
+import {
+  sendPaymentConfirmedEmail,
+  sendPaymentNeedsReviewEmail,
+} from "../services/email.js";
 import { confirmoWebhookSchema, type ConfirmoWebhookPayload } from "../validation/webhooks.js";
 
 interface ConfirmoWebhookContext {
@@ -122,7 +127,18 @@ export async function confirmoWebhookHandler(
     where: {
       OR: [{ externalRef: invoiceRef }, { id: invoiceRef }],
     },
-    include: { order: true },
+    include: {
+      order: {
+        include: {
+          user: true,
+          product: {
+            include: {
+              profile: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!invoice) {
@@ -183,6 +199,33 @@ export async function confirmoWebhookHandler(
       requestId: request.requestId,
     },
   });
+
+  const recipientEmail = invoice.order?.user?.email ?? null;
+  if (recipientEmail) {
+    try {
+      if (entitlementGranted) {
+        await sendPaymentConfirmedEmail({
+          to: recipientEmail,
+          displayName: invoice.order?.product?.profile?.displayName ?? null,
+          amountCents: invoice.amountCents,
+          currency: invoice.currency,
+        });
+      } else if (invoiceStatus === "pending_manual") {
+        await sendPaymentNeedsReviewEmail({
+          to: recipientEmail,
+          displayName: invoice.order?.product?.profile?.displayName ?? null,
+          amountCents: invoice.amountCents,
+          currency: invoice.currency,
+        });
+      }
+    } catch (err) {
+      captureBackendException(err, {
+        route: "confirmoWebhookHandler.email",
+        invoiceId: invoice.id,
+        paymentStatus,
+      });
+    }
+  }
 
   return json(200, { ok: true, invoiceId: invoice.id, entitlementGranted, invoiceStatus });
 }
