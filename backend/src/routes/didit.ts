@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { ApiRequest, ApiResponse } from "../types.js";
 import type { AuditLogger } from "../utils/auditLogger.js";
+import { captureBackendException } from "../observability.js";
 import {
   appendVerificationEventImmutable,
   claimWebhookReceipt,
@@ -39,10 +40,43 @@ function mapDiditStatus(status: string): string {
   if (["rejected", "failed", "declined"].includes(normalized)) {
     return "rejected";
   }
-  if (["needs_review", "manual_review", "pending_review"].includes(normalized)) {
+  if (["needs_review", "manual_review", "pending_review", "in review", "under_review"].includes(normalized)) {
     return "under_review";
   }
+  if (["in_progress", "processing", "started"].includes(normalized)) {
+    return "in_progress";
+  }
   return "pending";
+}
+
+function normalizeCallbackUrl(input: string): string {
+  const base = process.env.FRONTEND_URL?.trim() || process.env.PUBLIC_BASE_URL?.trim() || "https://www.laboutiquevip.net";
+  const url = new URL(input, base);
+  return url.toString();
+}
+
+function resolveDiditLaunchUrl(payload: any): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const candidates = [
+    payload.url,
+    payload.launch_url,
+    payload.session_url,
+    payload.hosted_url,
+    payload.redirect_url,
+    payload.data?.url,
+    payload.data?.launch_url,
+    payload.data?.session_url,
+    payload.data?.hosted_url,
+    payload.data?.redirect_url,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && /^https?:\/\//i.test(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 export async function createDiditSessionHandler(
@@ -59,10 +93,10 @@ export async function createDiditSessionHandler(
   }
 
   const hasCredentials = Boolean(process.env.DIDIT_API_KEY && process.env.DIDIT_WORKFLOW_ID);
-  if (!hasCredentials && process.env.NODE_ENV === "production") {
+  if (!hasCredentials) {
     return json(503, {
       error: "provider_unavailable",
-      message: "Didit integration is not configured for production",
+      message: "Identity verification is not configured right now. Please contact support before continuing.",
     });
   }
 
@@ -91,27 +125,100 @@ export async function createDiditSessionHandler(
   }
 
   const providerSessionId = crypto.randomUUID();
-  await appendVerificationEventImmutable(context.prisma, verificationId, "didit.session.created", {
-    returnUrl: payload.returnUrl,
-    providerSessionId,
-    metadata: payload.metadata ?? {},
-  });
+  const callbackUrl = normalizeCallbackUrl(payload.returnUrl);
+  const verificationWebhookUrl = `${process.env.API_BASE_URL?.trim() || process.env.PUBLIC_BASE_URL?.trim() || "https://www.laboutiquevip.net"}/api/v1/webhooks/didit`;
 
-  await context.auditLogger.append({
-    actorId: request.auth.userId,
-    action: "verification.didit.session_created",
-    resourceType: "verification",
-    resourceId: verificationId ?? null,
-    metadata: { providerSessionId, mode: hasCredentials ? "live_contract" : "placeholder_contract" },
-  });
+  try {
+    const diditResponse = await fetch("https://verification.didit.me/v3/session/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": String(process.env.DIDIT_API_KEY),
+      },
+      body: JSON.stringify({
+        workflow_id: process.env.DIDIT_WORKFLOW_ID,
+        vendor_data: verificationId,
+        callback: callbackUrl,
+        callback_method: "both",
+        metadata: JSON.stringify({
+          verificationId,
+          userId: request.auth.userId,
+          ...(payload.metadata ?? {}),
+        }),
+        contact_details: {},
+      }),
+    });
 
-  return json(201, {
-    verificationId,
-    provider: "didit",
-    providerSessionId,
-    launchUrl: `https://verify.didit.me/session/${providerSessionId}`,
-    mode: hasCredentials ? "live_contract" : "placeholder_contract",
-  });
+    const diditPayload = await diditResponse.json().catch(() => ({}));
+    if (!diditResponse.ok) {
+      await appendVerificationEventImmutable(context.prisma, verificationId, "didit.session.failed", {
+        callbackUrl,
+        providerSessionId,
+        responseStatus: diditResponse.status,
+        payload: diditPayload,
+      });
+
+      return json(502, {
+        error: "provider_error",
+        message: "Could not start identity verification right now.",
+      });
+    }
+
+    const launchUrl = resolveDiditLaunchUrl(diditPayload);
+    if (!launchUrl) {
+      await appendVerificationEventImmutable(context.prisma, verificationId, "didit.session.invalid_response", {
+        callbackUrl,
+        providerSessionId,
+        payload: diditPayload,
+      });
+
+      return json(502, {
+        error: "provider_error",
+        message: "Identity verification provider did not return a valid launch URL.",
+      });
+    }
+
+    await appendVerificationEventImmutable(context.prisma, verificationId, "didit.session.created", {
+      returnUrl: callbackUrl,
+      providerSessionId,
+      verificationWebhookUrl,
+      metadata: payload.metadata ?? {},
+      providerPayload: diditPayload,
+    });
+
+    await context.auditLogger.append({
+      actorId: request.auth.userId,
+      action: "verification.didit.session_created",
+      resourceType: "verification",
+      resourceId: verificationId ?? null,
+      metadata: { providerSessionId, mode: "live_contract" },
+    });
+
+    return json(201, {
+      verificationId,
+      provider: "didit",
+      providerSessionId,
+      launchUrl,
+      mode: "live_contract",
+    });
+  } catch (error) {
+    captureBackendException(error, {
+      route: "createDiditSessionHandler",
+      verificationId,
+      userId: request.auth.userId,
+    });
+
+    await appendVerificationEventImmutable(context.prisma, verificationId, "didit.session.exception", {
+      callbackUrl,
+      providerSessionId,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    return json(502, {
+      error: "provider_error",
+      message: "Could not connect to identity verification provider.",
+    });
+  }
 }
 
 export async function diditWebhookHandler(
@@ -195,6 +302,18 @@ export async function diditWebhookHandler(
       submittedAt: verification.submittedAt ?? new Date(),
     },
   });
+
+  if (status === "approved") {
+    await context.prisma.provider.updateMany({
+      where: { user_id: verification.userId },
+      data: {
+        is_verified: true,
+        is_profile_approved: true,
+        status: "active",
+        rejection_reason: null,
+      },
+    });
+  }
 
   await appendVerificationEventImmutable(context.prisma, verification.id, `didit.${status}`, {
     eventKey,

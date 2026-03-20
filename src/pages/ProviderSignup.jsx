@@ -10,86 +10,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Crown, Sparkles, Star, Check, Upload, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
+import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
+import DiditVerification from "@/components/DiditVerification";
 
-const adPackages = [
-  {
-    id: "none",
-    name: "Free Listing",
-    price: 0,
-    duration: "Forever",
-    features: [
-      "Basic profile listing",
-      "Up to 3 photos",
-      "Standard search visibility",
-      "Contact form access"
-    ],
-    color: "zinc"
-  },
-  {
-    id: "basic",
-    name: "Basic Ads",
-    price: 25,
-    duration: "per week",
-    features: [
-      "Everything in Free",
-      "Up to 10 photos",
-      "Enhanced search ranking",
-      "Featured in category",
-      "Priority support"
-    ],
-    color: "blue",
-    popular: false
-  },
-  {
-    id: "featured",
-    name: "Featured",
-    price: 50,
-    duration: "per week",
-    features: [
-      "Everything in Basic",
-      "Unlimited photos",
-      "Homepage featured section",
-      "Top search results",
-      "Verified badge",
-      "Premium support"
-    ],
-    color: "rose",
-    popular: true
-  },
-  {
-    id: "premium",
-    name: "VIP Premium",
-    price: 75,
-    duration: "per week",
-    features: [
-      "Everything in Featured",
-      "Exclusive VIP badge",
-      "Priority homepage placement",
-      "Social media promotion",
-      "Dedicated account manager",
-      "Advanced analytics"
-    ],
-    color: "amber",
-    popular: false
-  },
-  {
-    id: "elite",
-    name: "Elite Cities",
-    price: 100,
-    duration: "per week",
-    features: [
-      "Everything in VIP Premium",
-      "Big city priority placement",
-      "Multiple city coverage",
-      "Premium marketing campaigns",
-      "VIP event invitations",
-      "Top search in major markets",
-      "Exclusive elite badge"
-    ],
-    color: "purple",
-    popular: false
-  }
-];
+function normalizeOptionalString(value) {
+  if (typeof value !== "string") return value ?? null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 
 export default function ProviderSignup() {
   const navigate = useNavigate();
@@ -109,6 +45,11 @@ export default function ProviderSignup() {
     verification_documents: []
   });
   const [uploading, setUploading] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState("");
+  const [cityChoice, setCityChoice] = React.useState(OTHER_CITY_OPTION);
+  const [billingPeriod, setBillingPeriod] = React.useState("weekly");
+
+  const availableCities = React.useMemo(() => cityOptionsForState(formData.location_state), [formData.location_state]);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -125,21 +66,37 @@ export default function ProviderSignup() {
 
   const createProviderMutation = useMutation({
     mutationFn: async (data) => {
-      const adPackageExpiry = data.ad_package !== "none" 
-        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const durationDays = data.ad_package !== "none"
+        ? (billingPeriod === "monthly" ? 30 : 7)
+        : 0;
+      const adPackageExpiry = durationDays > 0
+        ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
         : null;
 
-      return await base44.entities.Provider.create({
+      const payload = {
         ...data,
         user_id: user.id,
-        is_premium: data.ad_package === "premium" || data.ad_package === "featured",
+        display_name: data.display_name.trim(),
+        tagline: normalizeOptionalString(data.tagline),
+        bio: normalizeOptionalString(data.bio),
+        location_city: data.location_city.trim(),
+        location_state: data.location_state.trim(),
+        location_country: normalizeOptionalString(data.location_country) ?? "USA",
+        age: normalizeOptionalNumber(data.age),
+        phone: normalizeOptionalString(data.phone),
+        email: normalizeOptionalString(data.email),
         ad_package_expiry: adPackageExpiry,
         pending_photos: [],
-        status: "pending_verification"
-      });
+      };
+
+      return await base44.entities.Provider.create(payload);
     },
     onSuccess: () => {
-      navigate(createPageUrl("ProviderDashboard"));
+      setSubmitError("");
+      navigate(createPageUrl("ProviderDashboard"), { replace: true });
+    },
+    onError: (error) => {
+      setSubmitError(error?.data?.message || error?.data?.error || error?.message || "Could not create your profile.");
     },
   });
 
@@ -157,18 +114,21 @@ export default function ProviderSignup() {
         ...prev,
         verification_documents: [...prev.verification_documents, ...uploadedUrls]
       }));
+      setSubmitError("");
     } catch (error) {
-      alert("Error uploading files. Please try again.");
+      setSubmitError(error?.data?.message || error?.message || "Error uploading files. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
   const handleSubmit = () => {
-    if (!formData.display_name || !formData.location_city || !formData.location_state) {
-      alert("Please fill in all required fields");
+    if (!formData.display_name.trim() || !formData.location_city.trim() || !formData.location_state.trim()) {
+      setSubmitError("Please fill in your display name, country, and city.");
       return;
     }
+
+    setSubmitError("");
     createProviderMutation.mutate(formData);
   };
 
@@ -240,7 +200,7 @@ export default function ProviderSignup() {
                   <Input
                     type="number"
                     value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
                   />
                 </div>
@@ -269,27 +229,70 @@ export default function ProviderSignup() {
 
               <div className="grid md:grid-cols-3 gap-6">
                 <div>
+                  <Label className="text-zinc-300">Country *</Label>
+                  <Select
+                    value={formData.location_state || undefined}
+                    onValueChange={(value) => {
+                      setFormData({ ...formData, location_state: value, location_city: "" });
+                      setCityChoice(OTHER_CITY_OPTION);
+                    }}
+                  >
+                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2">
+                      <SelectValue placeholder="Select a country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stateOptions.map((state) => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label className="text-zinc-300">City *</Label>
-                  <Input
-                    value={formData.location_city}
-                    onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  />
+                  {availableCities.length > 0 ? (
+                    <>
+                      <Select
+                        value={availableCities.includes(formData.location_city) ? formData.location_city : cityChoice}
+                        onValueChange={(value) => {
+                          setCityChoice(value);
+                          setFormData({ ...formData, location_city: value === OTHER_CITY_OPTION ? "" : value });
+                        }}
+                      >
+                        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2">
+                          <SelectValue placeholder="Select a city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableCities.map((city) => (
+                            <SelectItem key={city} value={city}>{city}</SelectItem>
+                          ))}
+                          <SelectItem value={OTHER_CITY_OPTION}>{OTHER_CITY_OPTION}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {cityChoice === OTHER_CITY_OPTION && (
+                        <Input
+                          value={formData.location_city}
+                          onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-3"
+                          placeholder="Enter another city"
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <Input
+                      value={formData.location_city}
+                      onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
+                      className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
+                      placeholder="Enter city"
+                    />
+                  )}
                 </div>
                 <div>
-                  <Label className="text-zinc-300">State *</Label>
-                  <Input
-                    value={formData.location_state}
-                    onChange={(e) => setFormData({ ...formData, location_state: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  />
-                </div>
-                <div>
-                  <Label className="text-zinc-300">Country</Label>
+                  <Label className="text-zinc-300">Region / state</Label>
                   <Input
                     value={formData.location_country}
                     onChange={(e) => setFormData({ ...formData, location_country: e.target.value })}
                     className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
+                    placeholder="Optional region or state"
                   />
                 </div>
               </div>
@@ -328,61 +331,107 @@ export default function ProviderSignup() {
         {/* Step 2: Choose Package */}
         {step === 2 && (
           <div>
-            <h2 className="text-2xl font-bold text-zinc-100 mb-6 text-center">Choose Your Advertising Package</h2>
-            <div className="grid md:grid-cols-5 gap-4 mb-8">
-              {adPackages.map((pkg) => (
-                <Card
-                  key={pkg.id}
-                  className={`relative cursor-pointer transition-all ${
-                    formData.ad_package === pkg.id
-                      ? 'border-rose-500 shadow-xl shadow-rose-500/20'
-                      : 'border-zinc-800 hover:border-zinc-700'
-                  } bg-zinc-900`}
-                  onClick={() => setFormData({ ...formData, ad_package: pkg.id })}
+            <h2 className="text-2xl font-bold text-zinc-100 mb-4 text-center">Choose Your Advertising Package</h2>
+            <p className="text-center text-zinc-400 mb-6">Free listings can submit immediately. Paid tiers are selected here and payment activation is handled after approval.</p>
+
+            <div className="flex justify-center mb-6">
+              <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-900 p-1">
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriod("weekly")}
+                  className={`px-4 py-2 rounded-lg text-sm ${billingPeriod === "weekly" ? "bg-rose-500 text-white" : "text-zinc-400"}`}
                 >
-                  {pkg.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-rose-500 to-amber-500 border-0">
-                        <Star className="w-3 h-3 mr-1" />
-                        Most Popular
-                      </Badge>
-                    </div>
-                  )}
-                  <CardHeader>
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-${pkg.color}-500 to-${pkg.color}-600 flex items-center justify-center mb-4`}>
-                      {pkg.id === "none" && <Sparkles className="w-6 h-6 text-white" />}
-                      {pkg.id === "basic" && <Check className="w-6 h-6 text-white" />}
-                      {pkg.id === "featured" && <Star className="w-6 h-6 text-white" />}
-                      {pkg.id === "premium" && <Crown className="w-6 h-6 text-white" />}
-                      {pkg.id === "elite" && <Crown className="w-6 h-6 text-white" />}
-                    </div>
-                    <CardTitle className="text-zinc-100">{pkg.name}</CardTitle>
-                    <div className="mt-4">
-                      <span className="text-3xl font-bold text-zinc-100">${pkg.price}</span>
-                      <span className="text-zinc-500">/{pkg.duration}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {pkg.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm text-zinc-400">
-                          <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
+                  Weekly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingPeriod("monthly")}
+                  className={`px-4 py-2 rounded-lg text-sm ${billingPeriod === "monthly" ? "bg-rose-500 text-white" : "text-zinc-400"}`}
+                >
+                  Monthly
+                </button>
+              </div>
             </div>
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+              {adPackages.map((pkg) => {
+                const selected = formData.ad_package === pkg.id;
+                const colorClass = pkg.color === "blue"
+                  ? "from-blue-500 to-blue-600"
+                  : pkg.color === "rose"
+                    ? "from-rose-500 to-rose-600"
+                    : pkg.color === "amber"
+                      ? "from-amber-500 to-amber-600"
+                      : "from-zinc-600 to-zinc-700";
+
+                return (
+                  <Card
+                    key={pkg.id}
+                    className={`relative cursor-pointer transition-all ${selected ? 'border-rose-500 shadow-xl shadow-rose-500/20' : 'border-zinc-800 hover:border-zinc-700'} bg-zinc-900`}
+                    onClick={() => setFormData({ ...formData, ad_package: pkg.id })}
+                  >
+                    {pkg.recommended && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="bg-gradient-to-r from-rose-500 to-amber-500 border-0">
+                          <Star className="w-3 h-3 mr-1" />
+                          Most Popular
+                        </Badge>
+                      </div>
+                    )}
+                    <CardHeader>
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center mb-4`}>
+                        {pkg.id === "none" && <Sparkles className="w-6 h-6 text-white" />}
+                        {pkg.id === "basic" && <Check className="w-6 h-6 text-white" />}
+                        {pkg.id === "featured" && <Star className="w-6 h-6 text-white" />}
+                        {pkg.id === "premium" && <Crown className="w-6 h-6 text-white" />}
+                      </div>
+                      <CardTitle className="text-zinc-100">{pkg.name}</CardTitle>
+                      <div className="mt-4">
+                        <span className="text-3xl font-bold text-zinc-100">{formatPackagePrice(pkg, billingPeriod).replace(/\/(week|month)$/, '')}</span>
+                        <span className="text-zinc-500 ml-1">{pkg.id === "none" ? "/forever" : billingPeriod === "monthly" ? "/month" : "/week"}</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3">
+                        {pkg.features.map((feature, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-zinc-400">
+                            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <Card className="bg-zinc-900 border-zinc-800 mb-8">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-zinc-400">Selected package</p>
+                    <h3 className="text-xl font-semibold text-zinc-100">{getAdPackageById(formData.ad_package).name}</h3>
+                    <p className="text-sm text-zinc-400 mt-1">
+                      {formData.ad_package === "none"
+                        ? "Start with a free listing and complete verification now."
+                        : `${formatPackagePrice(getAdPackageById(formData.ad_package), billingPeriod)} after approval.`}
+                    </p>
+                  </div>
+                  {formData.ad_package !== "none" ? (
+                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Paid activation required after approval</Badge>
+                  ) : (
+                    <Badge className="bg-zinc-800 text-zinc-200 border-zinc-700">No payment required</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setStep(1)} className="border-zinc-700 text-zinc-300">
                 Back
               </Button>
-              <Button
-                onClick={() => setStep(3)}
-                className="bg-gradient-to-r from-rose-500 to-amber-500"
-              >
+              <Button onClick={() => setStep(3)} className="bg-gradient-to-r from-rose-500 to-amber-500">
                 Continue
               </Button>
             </div>
@@ -391,33 +440,47 @@ export default function ProviderSignup() {
 
         {/* Step 3: Verification */}
         {step === 3 && (
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-zinc-100">Verification Documents</CardTitle>
-              <CardDescription className="text-zinc-400">
-                Upload ID or verification documents for faster approval
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center">
-                <Upload className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                <p className="text-zinc-400 mb-4">Upload verification documents (optional)</p>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="doc-upload"
-                  disabled={uploading}
-                />
-                <label htmlFor="doc-upload">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-zinc-700 text-zinc-300"
+          <div className="space-y-6">
+            {/* Didit Identity Verification */}
+            <DiditVerification 
+              onVerificationComplete={(verification) => {
+                setFormData({ ...formData, verification_id: verification.id });
+              }}
+              onVerificationStatusChange={(status) => {
+                if (status === "approved") {
+                  setSubmitError(null);
+                }
+              }}
+            />
+
+            {/* Optional Document Upload */}
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Additional Documents (Optional)</CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Upload any additional verification documents or certifications
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center">
+                  <Upload className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                  <p className="text-zinc-400 mb-4">Upload additional documents (optional)</p>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="doc-upload"
                     disabled={uploading}
-                    onClick={() => document.getElementById('doc-upload').click()}
+                  />
+                  <label htmlFor="doc-upload">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-zinc-700 text-zinc-300"
+                      disabled={uploading}
+                      onClick={() => document.getElementById('doc-upload').click()}
                   >
                     {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
                     {uploading ? 'Uploading...' : 'Choose Files'}
@@ -438,37 +501,47 @@ export default function ProviderSignup() {
                   </ul>
                 </div>
               )}
-
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <p className="text-sm text-blue-400">
-                  ℹ️ Your profile will be reviewed by our team within 24-48 hours. You'll receive an email once approved.
-                </p>
-              </div>
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)} className="border-zinc-700 text-zinc-300">
-                  Back
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={createProviderMutation.isPending}
-                  className="bg-gradient-to-r from-rose-500 to-amber-500"
-                >
-                  {createProviderMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating Profile...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4 mr-2" />
-                      Submit for Review
-                    </>
-                  )}
-                </Button>
-              </div>
             </CardContent>
           </Card>
+
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
+            <p className="text-sm text-blue-400">
+              ℹ️ Once ID verification succeeds, your profile is approved automatically and your dashboard will show the listing as live.
+            </p>
+            <p className="text-sm text-blue-300/90">
+              Photo uploads are still reviewed manually, and ad text is filtered automatically to block explicit language.
+            </p>
+          </div>
+
+          {submitError ? (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <p className="text-sm text-red-300">{submitError}</p>
+            </div>
+          ) : null}
+
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={() => setStep(2)} className="border-zinc-700 text-zinc-300">
+              Back
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={createProviderMutation.isPending}
+              className="bg-gradient-to-r from-rose-500 to-amber-500"
+            >
+              {createProviderMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating Profile...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Submit for Review
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
         )}
       </div>
     </div>
