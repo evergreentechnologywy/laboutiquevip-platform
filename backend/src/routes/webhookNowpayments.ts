@@ -10,9 +10,9 @@ import {
   sendPaymentConfirmedEmail,
   sendPaymentNeedsReviewEmail,
 } from "../services/email.js";
-import { confirmoWebhookSchema, type ConfirmoWebhookPayload } from "../validation/webhooks.js";
+import { nowpaymentsWebhookSchema, type NowpaymentsWebhookPayload } from "../validation/webhooks.js";
 
-interface ConfirmoWebhookContext {
+interface NowpaymentsWebhookContext {
   prisma: any;
   auditLogger: AuditLogger;
 }
@@ -29,14 +29,14 @@ function getHeader(headers: ApiRequest["headers"], name: string): string | null 
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
-function resolveEventKey(payload: ConfirmoWebhookPayload): string {
+function resolveEventKey(payload: NowpaymentsWebhookPayload): string {
   if (payload.id) {
-    return `confirmo:${payload.id}`;
+    return `nowpayments:${payload.id}`;
   }
-  return `confirmo:invoice:${payload.data.invoice_id ?? payload.data.external_ref ?? payload.data.order_id}:${payload.type ?? "unknown"}`;
+  return `nowpayments:invoice:${payload.data.invoice_id ?? payload.data.external_ref ?? payload.data.order_id}:${payload.type ?? "unknown"}`;
 }
 
-function normalizePaymentStatus(payload: ConfirmoWebhookPayload): string {
+function normalizePaymentStatus(payload: NowpaymentsWebhookPayload): string {
   return (payload.data.status ?? payload.type).trim().toLowerCase();
 }
 
@@ -70,27 +70,27 @@ async function grantEntitlementIfMissing(
   });
 }
 
-export async function confirmoWebhookHandler(
+export async function nowpaymentsWebhookHandler(
   request: ApiRequest,
-  context: ConfirmoWebhookContext,
+  context: NowpaymentsWebhookContext,
 ): Promise<ApiResponse> {
   if (!request.rawBody) {
     return json(400, { error: "invalid_webhook", message: "Raw payload required" });
   }
 
-  const signatureHeader = process.env.CONFIRMO_WEBHOOK_SIGNATURE_HEADER ?? "x-confirmo-signature";
+  const signatureHeader = process.env.NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER ?? "x-nowpayments-signature";
   const signature = getHeader(request.headers, signatureHeader);
   const verified = verifyHmacSha256Signature({
     rawBody: request.rawBody,
     signature,
     timestamp: null,
-    secret: process.env.CONFIRMO_WEBHOOK_SECRET,
+    secret: process.env.NOWPAYMENTS_WEBHOOK_SECRET,
   });
 
   if (!verified.ok) {
     await context.auditLogger.append({
       actorId: null,
-      action: "confirmo.webhook.rejected",
+      action: "nowpayments.webhook.rejected",
       resourceType: "webhook",
       resourceId: null,
       metadata: { reason: verified.reason, requestId: request.requestId },
@@ -98,11 +98,11 @@ export async function confirmoWebhookHandler(
     return json(401, { error: "invalid_signature" });
   }
 
-  const parsed = confirmoWebhookSchema.safeParse(request.body ?? {});
+  const parsed = nowpaymentsWebhookSchema.safeParse(request.body ?? {});
   if (!parsed.success) {
     return json(400, {
       error: "validation_error",
-      message: "Invalid Confirmo/NOWPayments webhook payload",
+      message: "Invalid NOWPayments webhook payload",
       details: parsed.error.flatten(),
     });
   }
@@ -112,7 +112,7 @@ export async function confirmoWebhookHandler(
 
   const claim = await claimWebhookReceipt(
     context.prisma,
-    "confirmo",
+    "nowpayments",
     eventKey,
     request.requestId,
     request.rawBody,
@@ -144,7 +144,7 @@ export async function confirmoWebhookHandler(
   if (!invoice) {
     await context.auditLogger.append({
       actorId: null,
-      action: "confirmo.webhook.unmatched_invoice",
+      action: "nowpayments.webhook.unmatched_invoice",
       resourceType: "invoice",
       resourceId: null,
       metadata: { invoiceRef, eventKey },
@@ -153,7 +153,7 @@ export async function confirmoWebhookHandler(
   }
 
   const paymentStatus = normalizePaymentStatus(payload);
-  await appendInvoiceEventImmutable(context.prisma, invoice.id, `confirmo.${paymentStatus}`, {
+  await appendInvoiceEventImmutable(context.prisma, invoice.id, `nowpayments.${paymentStatus}`, {
     eventKey,
     payload,
     requestId: request.requestId,
@@ -171,7 +171,7 @@ export async function confirmoWebhookHandler(
 
     const entitlement = payload.data.entitlement ?? "purchase_access";
     await grantEntitlementIfMissing(context.prisma, invoice.orderId, entitlement, {
-      provider: "confirmo",
+      provider: "nowpayments",
       eventKey,
       invoiceId: invoice.id,
       paymentStatus,
@@ -188,7 +188,7 @@ export async function confirmoWebhookHandler(
 
   await context.auditLogger.append({
     actorId: null,
-    action: "confirmo.webhook.processed",
+    action: "nowpayments.webhook.processed",
     resourceType: "invoice",
     resourceId: invoice.id,
     metadata: {
@@ -220,7 +220,7 @@ export async function confirmoWebhookHandler(
       }
     } catch (err) {
       captureBackendException(err, {
-        route: "confirmoWebhookHandler.email",
+        route: "nowpaymentsWebhookHandler.email",
         invoiceId: invoice.id,
         paymentStatus,
       });

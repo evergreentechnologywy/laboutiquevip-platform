@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Users, UserCheck, UserX, Clock, TrendingUp, Eye, Star, DollarSign, Shield, AlertCircle, CheckCircle, XCircle, FileText } from "lucide-react";
+import { Users, UserCheck, UserX, Clock, TrendingUp, Eye, Star, Shield, AlertCircle, CheckCircle, XCircle, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
@@ -37,12 +38,6 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
-  const { data: allBookings = [] } = useQuery({
-    queryKey: ['all-bookings'],
-    queryFn: () => base44.entities.Booking.list('-created_date', 1000),
-    enabled: !!user,
-  });
-
   const { data: allReviews = [] } = useQuery({
     queryKey: ['all-reviews'],
     queryFn: () => base44.entities.Review.list('-created_date', 1000),
@@ -50,6 +45,7 @@ export default function AdminDashboard() {
   });
 
   const approveMutation = useMutation({
+    /** @param {{ id: string, notes: string }} variables */
     mutationFn: ({ id, notes }) => base44.entities.Provider.update(id, {
       status: 'active',
       is_verified: true,
@@ -57,32 +53,34 @@ export default function AdminDashboard() {
       admin_notes: notes
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['all-providers']);
+      queryClient.invalidateQueries({ queryKey: ['all-providers'] });
       setSelectedProvider(null);
       setAdminNotes("");
     },
   });
 
   const approvePhotosMutation = useMutation({
+    /** @param {{ id: string, pendingPhotos?: string[], currentPhotos?: string[] }} variables */
     mutationFn: ({ id, pendingPhotos, currentPhotos }) => base44.entities.Provider.update(id, {
       photos: [...(currentPhotos || []), ...(pendingPhotos || [])],
       pending_photos: [],
       status: 'active'
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['all-providers']);
+      queryClient.invalidateQueries({ queryKey: ['all-providers'] });
       setSelectedProvider(null);
     },
   });
 
   const rejectMutation = useMutation({
+    /** @param {{ id: string, reason: string, notes: string }} variables */
     mutationFn: ({ id, reason, notes }) => base44.entities.Provider.update(id, {
       status: 'rejected',
       rejection_reason: reason,
       admin_notes: notes
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['all-providers']);
+      queryClient.invalidateQueries({ queryKey: ['all-providers'] });
       setSelectedProvider(null);
       setRejectionReason("");
       setAdminNotes("");
@@ -90,12 +88,13 @@ export default function AdminDashboard() {
   });
 
   const suspendMutation = useMutation({
+    /** @param {{ id: string, notes: string }} variables */
     mutationFn: ({ id, notes }) => base44.entities.Provider.update(id, {
       status: 'suspended',
       admin_notes: notes
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['all-providers']);
+      queryClient.invalidateQueries({ queryKey: ['all-providers'] });
       setSelectedProvider(null);
     },
   });
@@ -103,7 +102,6 @@ export default function AdminDashboard() {
   const pendingProviders = allProviders.filter(p => p.status === 'pending_verification' || p.status === 'pending_photos');
   const activeProviders = allProviders.filter(p => p.status === 'active');
   const suspendedProviders = allProviders.filter(p => p.status === 'suspended');
-  const totalRevenue = allBookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + (b.total_amount || 0), 0);
   const pendingReviews = allReviews.filter(r => r.status === 'pending');
 
   if (!user) {
@@ -154,11 +152,11 @@ export default function AdminDashboard() {
           <Card className="bg-zinc-900 border-zinc-800">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
-                <DollarSign className="w-8 h-8 text-emerald-400" />
-                <span className="text-3xl font-bold text-zinc-100">${totalRevenue}</span>
+                <Shield className="w-8 h-8 text-blue-400" />
+                <span className="text-3xl font-bold text-zinc-100">{allProviders.filter(p => p.is_verified).length}</span>
               </div>
-              <p className="text-sm text-zinc-400">Total Revenue</p>
-              <p className="text-xs text-zinc-600 mt-2">From completed bookings</p>
+              <p className="text-sm text-zinc-400">Verified Providers</p>
+              <p className="text-xs text-zinc-600 mt-2">Approved and verified listings</p>
             </CardContent>
           </Card>
 

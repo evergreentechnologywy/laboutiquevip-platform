@@ -17,7 +17,7 @@ const buckets = new Map<string, Bucket>();
 const LIMIT_RULES: LimitRule[] = [
   {
     name: "auth",
-    matcher: (request) => request.pathname.startsWith("/api/v1/auth"),
+    matcher: (request) => request.pathname.startsWith("/api/v1/auth") || request.pathname.startsWith("/api/auth"),
     windowMs: 60_000,
     maxRequests: 30,
   },
@@ -38,6 +38,12 @@ const LIMIT_RULES: LimitRule[] = [
     matcher: (request) => request.pathname.startsWith("/api/admin"),
     windowMs: 60_000,
     maxRequests: 30,
+  },
+  {
+    name: "upload",
+    matcher: (request) => request.pathname === "/api/upload",
+    windowMs: 60_000,
+    maxRequests: 20,
   },
 ];
 

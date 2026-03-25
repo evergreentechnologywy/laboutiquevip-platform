@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { webhookToleranceSeconds } from "../config/security.js";
 
-export type WebhookProvider = "confirmo" | "didit";
+export type WebhookProvider = "nowpayments" | "didit";
 
 export interface SignatureVerificationInput {
   rawBody: string;
@@ -128,4 +128,3 @@ export async function appendVerificationEventImmutable(
     },
   });
 }
-

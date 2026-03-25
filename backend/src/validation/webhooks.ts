@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const confirmoWebhookSchema = z.object({
+export const nowpaymentsWebhookSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),
   data: z.object({
@@ -48,5 +48,5 @@ export const diditWebhookSchema = z.object({
   }
 });
 
-export type ConfirmoWebhookPayload = z.infer<typeof confirmoWebhookSchema>;
+export type NowpaymentsWebhookPayload = z.infer<typeof nowpaymentsWebhookSchema>;
 export type DiditWebhookPayload = z.infer<typeof diditWebhookSchema>;

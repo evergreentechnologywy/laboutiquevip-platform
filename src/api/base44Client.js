@@ -6,6 +6,17 @@ const setToken = (token) => {
 };
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+/**
+ * @typedef {Error & {
+ *   status?: number,
+ *   data?: any,
+ * }} ApiError
+ */
+
+/**
+ * @param {string} path
+ * @param {{ method?: string, body?: any, auth?: boolean }} [options]
+ */
 async function api(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth && getToken()) headers.Authorization = `Bearer ${getToken()}`;
@@ -19,6 +30,7 @@ async function api(path, { method = 'GET', body, auth = false } = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    /** @type {ApiError} */
     const err = new Error(data?.error || `HTTP ${res.status}`);
     err.status = res.status;
     err.data = data;
@@ -32,7 +44,7 @@ async function queryEntity(entity, where = {}, sort, limit) {
   params.set('where', JSON.stringify(where || {}));
   if (sort) params.set('sort', sort);
   if (limit) params.set('limit', String(limit));
-  return api(`/api/entities/${entity}?${params.toString()}`);
+  return api(`/api/entities/${entity}?${params.toString()}`, { auth: true });
 }
 
 function createEntityClient(entity) {
@@ -46,6 +58,7 @@ function createEntityClient(entity) {
 
 export const base44 = {
   auth: {
+    hasToken: () => Boolean(getToken()),
     me: async () => api('/api/auth/me', { auth: true }),
     login: async (email, password) => {
       const out = await api('/api/auth/login', { method: 'POST', body: { email, password } });
@@ -78,6 +91,7 @@ export const base44 = {
     Booking: createEntityClient('Booking'),
     Message: createEntityClient('Message'),
     Review: createEntityClient('Review'),
+    Verification: createEntityClient('Verification'),
     Query: {},
   },
   integrations: {

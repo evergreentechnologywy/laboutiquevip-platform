@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { authFromHeaders } from "../auth.js";
-import { createEntityHandler, updateProviderHandler } from "./base44Compat.js";
+import { createEntityHandler, listOrFilterEntityHandler, updateProviderHandler, uploadHandler } from "./base44Compat.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 
@@ -74,4 +74,203 @@ test("Provider update denied for non-owner non-admin", async () => {
     { prisma },
   );
   assert.equal(res.statusCode, 403);
+});
+
+test("Provider owner can pause an approved listing", async () => {
+  const prisma = {
+    provider: {
+      findUnique: async () => ({ id: "p1", user_id: "owner-1", is_profile_approved: true, status: "active", ad_package: "none" }),
+      update: async ({ data }: any) => ({ id: "p1", ...data }),
+    },
+  };
+  const res = await updateProviderHandler(
+    makeReq({ auth: { userId: "owner-1", roles: ["member"] }, body: { status: "paused" } }),
+    "p1",
+    { prisma },
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal((res.body as any).status, "paused");
+});
+
+test("Provider owner cannot pause an unapproved listing", async () => {
+  const prisma = {
+    provider: {
+      findUnique: async () => ({ id: "p1", user_id: "owner-1", is_profile_approved: false, status: "pending_verification", ad_package: "none" }),
+      update: async ({ data }: any) => ({ id: "p1", ...data }),
+    },
+  };
+  const res = await updateProviderHandler(
+    makeReq({ auth: { userId: "owner-1", roles: ["member"] }, body: { status: "paused" } }),
+    "p1",
+    { prisma },
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal((res.body as any).status, "pending_verification");
+});
+
+test("Admin can approve a provider and keep moderation fields", async () => {
+  let seenData: any = null;
+  const prisma = {
+    provider: {
+      findUnique: async () => ({
+        id: "p1",
+        user_id: "owner-1",
+        is_profile_approved: false,
+        status: "pending_verification",
+        ad_package: "premium",
+        photos: ["existing-photo"],
+        pending_photos: ["pending-photo"],
+        verification_documents: ["doc-1"],
+      }),
+      update: async ({ data }: any) => {
+        seenData = data;
+        return { id: "p1", ...data };
+      },
+    },
+  };
+
+  const res = await updateProviderHandler(
+    makeReq({
+      auth: { userId: "admin-1", roles: ["admin"] },
+      body: {
+        status: "active",
+        is_verified: true,
+        is_profile_approved: true,
+        admin_notes: "approved",
+      },
+    }),
+    "p1",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(seenData.status, "active");
+  assert.equal(seenData.is_verified, true);
+  assert.equal(seenData.is_profile_approved, true);
+  assert.equal(seenData.admin_notes, "approved");
+  assert.equal(seenData.is_premium, true);
+  assert.deepEqual(seenData.photos, ["existing-photo"]);
+  assert.deepEqual(seenData.pending_photos, ["pending-photo"]);
+  assert.deepEqual(seenData.verification_documents, ["doc-1"]);
+});
+
+test("Public provider reads apply the blocked-name guardrail", async () => {
+  let seenWhere: any = null;
+  let seenSelect: any = null;
+  const prisma = {
+    provider: {
+      findMany: async ({ where, select }: any) => {
+        seenWhere = where;
+        seenSelect = select;
+        return [];
+      },
+    },
+  };
+
+  const req = makeReq({
+    method: "GET",
+    auth: { userId: null, roles: [] },
+    query: new URLSearchParams({
+      where: JSON.stringify({ id: "p1" }),
+    }),
+  });
+
+  const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(seenWhere, {
+    AND: [
+      {
+        status: "active",
+        is_profile_approved: true,
+        NOT: [{ display_name: { equals: "Jarvis Test Listing", mode: "insensitive" } }],
+      },
+      { id: "p1" },
+    ],
+  });
+  assert.equal(seenSelect.phone, true);
+  assert.equal(seenSelect.email, true);
+});
+
+test("Provider owner can self-preview a non-public profile by id", async () => {
+  let seenWhere: any = null;
+  const prisma = {
+    provider: {
+      findMany: async ({ where }: any) => {
+        seenWhere = where;
+        return [{ id: "p1", user_id: "owner-1", status: "pending_verification" }];
+      },
+    },
+  };
+
+  const req = makeReq({
+    method: "GET",
+    auth: { userId: "owner-1", roles: ["member"] },
+    query: new URLSearchParams({
+      where: JSON.stringify({ id: "p1" }),
+    }),
+  });
+
+  const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
+  assert.equal(res.statusCode, 200);
+  assert.equal(Array.isArray(res.body), true);
+  assert.equal((res.body as any[]).length, 1);
+  assert.deepEqual(seenWhere, {
+    AND: [
+      {
+        OR: [
+          { user_id: "owner-1" },
+          {
+            status: "active",
+            is_profile_approved: true,
+            NOT: [{ display_name: { equals: "Jarvis Test Listing", mode: "insensitive" } }],
+          },
+        ],
+      },
+      { id: "p1" },
+    ],
+  });
+});
+
+test("Verification reads are scoped to the authenticated user", async () => {
+  let seenWhere: any = null;
+  const prisma = {
+    verification: {
+      findMany: async ({ where }: any) => {
+        seenWhere = where;
+        return [{ id: "v1", userId: "user-1", status: "approved" }];
+      },
+    },
+  };
+
+  const req = makeReq({
+    method: "GET",
+    auth: { userId: "user-1", roles: ["member"] },
+    query: new URLSearchParams({
+      where: JSON.stringify({ id: "v1" }),
+    }),
+  });
+
+  const res = await listOrFilterEntityHandler(req, "Verification", { prisma });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(seenWhere, {
+    AND: [
+      { userId: "user-1" },
+      { id: "v1" },
+    ],
+  });
+});
+
+test("Upload requires an authenticated user", async () => {
+  const res = await uploadHandler(
+    makeReq({
+      auth: { userId: null, roles: [] },
+      body: {
+        filename: "id.png",
+        contentType: "image/png",
+        data: "data:image/png;base64,aGVsbG8=",
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 401);
 });

@@ -1,7 +1,10 @@
 # Production Runbook (laboutiquevip)
 
-Canonical production host: **Hostinger**  
+Current production host: **Hostinger**
+Target migration host: **Hetzner VPS with Cloudflare in front**
 Canonical domain: **https://www.laboutiquevip.net**
+
+Migration reference: `docs/hetzner-cloudflare-migration-2026-03-20.md`
 
 ## Prerequisites
 - Node.js 22+
@@ -14,8 +17,10 @@ Canonical domain: **https://www.laboutiquevip.net**
 - `DATABASE_URL`
 - `PUBLIC_BASE_URL=https://www.laboutiquevip.net`
 - `CORS_ALLOWLIST` (explicit list, include canonical domain)
-- `CONFIRMO_WEBHOOK_SECRET`
-- `CONFIRMO_WEBHOOK_SIGNATURE_HEADER` (optional override)
+- `NOWPAYMENTS_API_KEY`
+- `NOWPAYMENTS_API_BASE_URL` (optional override, defaults to `https://api.nowpayments.io/v1`)
+- `NOWPAYMENTS_WEBHOOK_SECRET`
+- `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` (optional override)
 - `DIDIT_API_KEY`
 - `DIDIT_WORKFLOW_ID`
 - `DIDIT_WEBHOOK_SECRET`
@@ -39,10 +44,10 @@ Canonical domain: **https://www.laboutiquevip.net**
 1. **Health**
    - `GET /api/health` returns `200`.
 2. **Webhook security**
-   - Invalid signatures for Confirmo/Didit return `401`.
+   - Invalid signatures for NOWPayments/Didit return `401`.
    - Invalid payload schema returns `400 validation_error`.
    - Duplicate delivery returns `{ deduplicated: true }`.
-3. **NOWPayments policy behavior (Confirmo ingestion path)**
+3. **NOWPayments policy behavior**
    - `confirmed` or `finished` webhook => invoice paid + entitlement granted.
    - `partially_paid` => invoice `pending_manual`, no entitlement granted.
    - `paid` event after invoice expiry => entitlement still granted.
@@ -56,6 +61,12 @@ Canonical domain: **https://www.laboutiquevip.net**
 6. **Data integrity & audit**
    - Webhook receipts are idempotent per event key.
    - Audit events created for webhook processed/rejected and admin denials.
+
+## NOWPayments live-contract assumptions
+- Order creation posts to `${NOWPAYMENTS_API_BASE_URL}/invoice` with `x-api-key: ${NOWPAYMENTS_API_KEY}`.
+- Hosted payment URLs are resolved from `invoice_url`, then `payment_url`, then `url`.
+- Webhook verification expects a hex HMAC-SHA256 of the raw request body in `x-nowpayments-signature` unless `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` overrides it.
+- If the live NOWPayments contract differs, update both `backend/src/routes/orders.ts` and `backend/src/routes/webhookNowpayments.ts` together before production cutover.
 
 ## Rollback
 - Revert application release to prior known-good build.

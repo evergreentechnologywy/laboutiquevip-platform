@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation } from "@tanstack/react-query";
@@ -14,36 +15,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
 import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
 import DiditVerification from "@/components/DiditVerification";
+import { buildProviderSignupPayload } from "@/lib/providerPayload";
 
-function normalizeOptionalString(value) {
-  if (typeof value !== "string") return value ?? null;
-  const trimmed = value.trim();
-  return trimmed === "" ? null : trimmed;
-}
-
-function normalizeOptionalNumber(value) {
-  if (value === "" || value === null || value === undefined) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
+const initialFormData = {
+  display_name: "",
+  tagline: "",
+  bio: "",
+  location_city: "",
+  location_state: "",
+  location_country: "USA",
+  age: "",
+  phone: "",
+  email: "",
+  ad_package: "none",
+  verification_documents: [],
+  verification_id: null,
+};
 
 export default function ProviderSignup() {
   const navigate = useNavigate();
   const [step, setStep] = React.useState(1);
   const [user, setUser] = React.useState(null);
-  const [formData, setFormData] = React.useState({
-    display_name: "",
-    tagline: "",
-    bio: "",
-    location_city: "",
-    location_state: "",
-    location_country: "USA",
-    age: "",
-    phone: "",
-    email: "",
-    ad_package: "none",
-    verification_documents: []
-  });
+  const [formData, setFormData] = React.useState(initialFormData);
   const [uploading, setUploading] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
   const [cityChoice, setCityChoice] = React.useState(OTHER_CITY_OPTION);
@@ -65,37 +58,20 @@ export default function ProviderSignup() {
   }, []);
 
   const createProviderMutation = useMutation({
+    /** @param {typeof initialFormData} data */
     mutationFn: async (data) => {
-      const durationDays = data.ad_package !== "none"
-        ? (billingPeriod === "monthly" ? 30 : 7)
-        : 0;
-      const adPackageExpiry = durationDays > 0
-        ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-        : null;
-
-      const payload = {
-        ...data,
-        user_id: user.id,
-        display_name: data.display_name.trim(),
-        tagline: normalizeOptionalString(data.tagline),
-        bio: normalizeOptionalString(data.bio),
-        location_city: data.location_city.trim(),
-        location_state: data.location_state.trim(),
-        location_country: normalizeOptionalString(data.location_country) ?? "USA",
-        age: normalizeOptionalNumber(data.age),
-        phone: normalizeOptionalString(data.phone),
-        email: normalizeOptionalString(data.email),
-        ad_package_expiry: adPackageExpiry,
-        pending_photos: [],
-      };
-
+      const payload = buildProviderSignupPayload({
+        formData: data,
+        userId: user.id,
+        billingPeriod,
+      });
       return await base44.entities.Provider.create(payload);
     },
     onSuccess: () => {
       setSubmitError("");
       navigate(createPageUrl("ProviderDashboard"), { replace: true });
     },
-    onError: (error) => {
+    onError: (/** @type {Error & { data?: { message?: string, error?: string } }} */ error) => {
       setSubmitError(error?.data?.message || error?.data?.error || error?.message || "Could not create your profile.");
     },
   });
@@ -448,7 +424,7 @@ export default function ProviderSignup() {
               }}
               onVerificationStatusChange={(status) => {
                 if (status === "approved") {
-                  setSubmitError(null);
+                  setSubmitError("");
                 }
               }}
             />

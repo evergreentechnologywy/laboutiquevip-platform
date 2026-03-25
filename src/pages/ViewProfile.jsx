@@ -1,53 +1,37 @@
+// @ts-nocheck
 import React from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Calendar, Clock, MessageSquare, Check, Instagram, Twitter } from "lucide-react";
+import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const providerId = urlParams.get('id');
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
-  const [showBookingDialog, setShowBookingDialog] = React.useState(false);
-  const [showMessageDialog, setShowMessageDialog] = React.useState(false);
-  const [bookingData, setBookingData] = React.useState({
-    booking_date: '',
-    booking_time: '',
-    duration: '1 hour',
-    client_name: '',
-    client_email: '',
-    client_phone: '',
-    special_requests: ''
-  });
-  const [messageData, setMessageData] = React.useState({
-    sender_name: '',
-    sender_email: '',
-    subject: '',
-    message: ''
-  });
-
-  const queryClient = useQueryClient();
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
     queryFn: async () => {
       const providers = await base44.entities.Provider.filter({ id: providerId });
       if (providers.length === 0) return null;
-      
-      // Increment view count
-      const viewCount = (providers[0].views_count || 0) + 1;
-      await base44.entities.Provider.update(providerId, { views_count: viewCount });
-      
-      return { ...providers[0], views_count: viewCount };
+
+      const currentProvider = providers[0];
+      const viewCount = (currentProvider.views_count || 0) + 1;
+
+      // Public viewers may not be authenticated, so a failed analytics update
+      // must not block rendering the actual profile.
+      try {
+        await base44.entities.Provider.update(providerId, { views_count: viewCount });
+      } catch {
+        return currentProvider;
+      }
+
+      return { ...currentProvider, views_count: viewCount };
     },
     enabled: !!providerId,
   });
@@ -56,44 +40,6 @@ export default function ViewProfile() {
     queryKey: ['reviews', providerId],
     queryFn: () => base44.entities.Review.filter({ provider_id: providerId, status: 'approved' }, '-created_date'),
     enabled: !!providerId,
-  });
-
-  const bookingMutation = useMutation({
-    mutationFn: (data) => base44.entities.Booking.create({
-      ...data,
-      provider_id: providerId,
-      total_amount: provider.rate_hourly || 0,
-    }),
-    onSuccess: () => {
-      setShowBookingDialog(false);
-      setBookingData({
-        booking_date: '',
-        booking_time: '',
-        duration: '1 hour',
-        client_name: '',
-        client_email: '',
-        client_phone: '',
-        special_requests: ''
-      });
-      alert('Booking request sent successfully!');
-    },
-  });
-
-  const messageMutation = useMutation({
-    mutationFn: (data) => base44.entities.Message.create({
-      ...data,
-      provider_id: providerId,
-    }),
-    onSuccess: () => {
-      setShowMessageDialog(false);
-      setMessageData({
-        sender_name: '',
-        sender_email: '',
-        subject: '',
-        message: ''
-      });
-      alert('Message sent successfully!');
-    },
   });
 
   if (isLoading) {
@@ -196,6 +142,20 @@ export default function ViewProfile() {
                 </div>
               </div>
             </div>
+
+            <Card className="bg-amber-500/5 border-amber-500/20">
+              <CardContent className="pt-6 text-sm text-zinc-300">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-100 mb-1">Advertising and verification notice</p>
+                    <p className="leading-6">
+                      Verification badges and listing details reflect platform data at the time of publication. This website is for profile advertising and discovery, not direct booking or on-site messaging.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* About */}
             <Card className="bg-zinc-900 border-zinc-800">
@@ -327,95 +287,9 @@ export default function ViewProfile() {
                 
                 <Separator className="bg-zinc-800" />
                 
-                <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Book Appointment
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-                    <DialogHeader>
-                      <DialogTitle>Book Appointment</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Your Name</label>
-                        <Input
-                          value={bookingData.client_name}
-                          onChange={(e) => setBookingData({...bookingData, client_name: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Email</label>
-                        <Input
-                          type="email"
-                          value={bookingData.client_email}
-                          onChange={(e) => setBookingData({...bookingData, client_email: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Phone</label>
-                        <Input
-                          value={bookingData.client_phone}
-                          onChange={(e) => setBookingData({...bookingData, client_phone: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-zinc-400 mb-1 block">Date</label>
-                          <Input
-                            type="date"
-                            value={bookingData.booking_date}
-                            onChange={(e) => setBookingData({...bookingData, booking_date: e.target.value})}
-                            className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm text-zinc-400 mb-1 block">Time</label>
-                          <Input
-                            type="time"
-                            value={bookingData.booking_time}
-                            onChange={(e) => setBookingData({...bookingData, booking_time: e.target.value})}
-                            className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Duration</label>
-                        <Select value={bookingData.duration} onValueChange={(value) => setBookingData({...bookingData, duration: value})}>
-                          <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1 hour">1 Hour</SelectItem>
-                            <SelectItem value="2 hours">2 Hours</SelectItem>
-                            <SelectItem value="overnight">Overnight</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Special Requests</label>
-                        <Textarea
-                          value={bookingData.special_requests}
-                          onChange={(e) => setBookingData({...bookingData, special_requests: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                          rows={3}
-                        />
-                      </div>
-                      <Button
-                        onClick={() => bookingMutation.mutate(bookingData)}
-                        disabled={bookingMutation.isPending}
-                        className="w-full bg-gradient-to-r from-rose-500 to-amber-500"
-                      >
-                        {bookingMutation.isPending ? 'Sending...' : 'Send Booking Request'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400">
+                  This profile is published for advertising visibility. Contact details shown below are the only on-page contact route.
+                </div>
               </CardContent>
             </Card>
 
@@ -425,63 +299,6 @@ export default function ViewProfile() {
                 <CardTitle className="text-zinc-100">Contact</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full border-zinc-700 text-zinc-300 hover:bg-zinc-800">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Send Message
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-                    <DialogHeader>
-                      <DialogTitle>Send Message</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Your Name</label>
-                        <Input
-                          value={messageData.sender_name}
-                          onChange={(e) => setMessageData({...messageData, sender_name: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Your Email</label>
-                        <Input
-                          type="email"
-                          value={messageData.sender_email}
-                          onChange={(e) => setMessageData({...messageData, sender_email: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Subject</label>
-                        <Input
-                          value={messageData.subject}
-                          onChange={(e) => setMessageData({...messageData, subject: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Message</label>
-                        <Textarea
-                          value={messageData.message}
-                          onChange={(e) => setMessageData({...messageData, message: e.target.value})}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
-                          rows={5}
-                        />
-                      </div>
-                      <Button
-                        onClick={() => messageMutation.mutate(messageData)}
-                        disabled={messageMutation.isPending}
-                        className="w-full bg-gradient-to-r from-rose-500 to-amber-500"
-                      >
-                        {messageMutation.isPending ? 'Sending...' : 'Send Message'}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
                 {provider.phone && (
                   <div className="flex items-center gap-2 text-zinc-400">
                     <Phone className="w-4 h-4" />

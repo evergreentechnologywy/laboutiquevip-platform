@@ -11,6 +11,8 @@ required_env=(
   DATABASE_URL
   PUBLIC_BASE_URL
   CORS_ALLOWLIST
+  NOWPAYMENTS_API_KEY
+  NOWPAYMENTS_WEBHOOK_SECRET
   DIDIT_API_KEY
   DIDIT_WORKFLOW_ID
   DIDIT_WEBHOOK_SECRET
@@ -22,15 +24,6 @@ for env_name in "${required_env[@]}"; do
     exit 1
   fi
 done
-
-if [[ -z "${CONFIRMO_WEBHOOK_SECRET:-}" && -n "${NOWPAYMENTS_IPN_SECRET:-}" ]]; then
-  export CONFIRMO_WEBHOOK_SECRET="${NOWPAYMENTS_IPN_SECRET}"
-fi
-
-if [[ -z "${CONFIRMO_WEBHOOK_SECRET:-}" ]]; then
-  echo "[deploy] missing required env: CONFIRMO_WEBHOOK_SECRET (or NOWPAYMENTS_IPN_SECRET)"
-  exit 1
-fi
 
 if [[ "${NODE_ENV}" != "production" ]]; then
   echo "[deploy] NODE_ENV must be production for deploy"

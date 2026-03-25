@@ -363,6 +363,18 @@ model Provider {
 
   @@index([user_id])
   @@index([status])
+  @@index([status, is_profile_approved])
+  @@index([status, is_profile_approved, created_date])
+  @@index([location_state])
+  @@index([location_city])
+  @@index([location_country])
+  @@index([location_state, location_city])
+  @@index([is_verified])
+  @@index([is_premium])
+  @@index([rate_hourly])
+  @@index([created_date])
+  @@index([display_name])
+  @@index([status, is_profile_approved, location_state, location_city, created_date])
 }
 
 model Booking {

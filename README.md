@@ -18,6 +18,7 @@ This repo keeps the current Vite/Base44 frontend running while introducing a bac
   - Model onboarding APIs (`/api/v1/models/*`)
   - Calendar + tours APIs (`/api/v1/models/me/calendar`, `/api/v1/models/me/tours`)
   - Public search APIs (`/api/v1/search/cities`, `/api/v1/search/models`)
+  - NOWPayments order + webhook ingestion path (`/api/v1/orders`, `/api/v1/webhooks/nowpayments`)
   - RBAC enforcement (provider self-service, admin override via `?user_id=`)
   - Audit logging for provider profile and tour mutations
 
@@ -34,3 +35,7 @@ This repo keeps the current Vite/Base44 frontend running while introducing a bac
 
 ## Environment
 Use `.env.example` as the template. Do not commit secrets.
+
+## Deployment docs
+- Current production runbook: `runbook.md`
+- Hetzner + Cloudflare migration guide: `docs/hetzner-cloudflare-migration-2026-03-20.md`

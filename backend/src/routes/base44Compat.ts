@@ -10,10 +10,12 @@ import {
   messageCreateSchema,
   providerCreateSchema,
   providerUpdateSchema,
+  providerAdminUpdateSchema,
   registerSchema,
   reviewCreateSchema,
   uploadSchema,
 } from "../validation/base44Compat.js";
+import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -107,12 +109,144 @@ function normalizeDates<T extends Record<string, any>>(obj: T): T {
 }
 
 function modelFor(entity: string): string | null {
-  if (["Provider", "Booking", "Message", "Review"].includes(entity)) return entity;
+  if (["Provider", "Booking", "Message", "Review", "Verification"].includes(entity)) return entity;
   return null;
 }
 
+const PUBLIC_PROVIDER_FIELDS = {
+  id: true,
+  display_name: true,
+  tagline: true,
+  bio: true,
+  location_city: true,
+  location_state: true,
+  location_country: true,
+  age: true,
+  phone: true,
+  email: true,
+  photos: true,
+  is_premium: true,
+  is_verified: true,
+  views_count: true,
+  rating_average: true,
+  reviews_count: true,
+  rate_hourly: true,
+  created_date: true,
+  updated_date: true,
+} as const;
+
 function hasRole(request: ApiRequest, role: Role): boolean {
   return request.auth?.roles.includes(role) ?? false;
+}
+
+function isAdmin(request: ApiRequest): boolean {
+  return hasRole(request, "admin") || hasRole(request, "service");
+}
+
+function isProvider(request: ApiRequest): boolean {
+  return hasRole(request, "provider");
+}
+
+function getAuthUserId(request: ApiRequest): string | null {
+  return request.auth?.userId ?? null;
+}
+
+async function resolveOwnedProviderIds(prisma: any, userId: string | null): Promise<string[]> {
+  if (!userId) return [];
+  const rows = await prisma.provider.findMany({ where: { user_id: userId }, select: { id: true } });
+  return rows.map((row: { id: string }) => row.id);
+}
+
+async function buildEntityScope(req: ApiRequest, entity: string, prisma: any): Promise<{ where?: any; select?: any } | ApiResponse> {
+  if (entity === "Provider") {
+    const publicVisibilityWhere = publicProviderVisibilityWhere();
+
+    if (isAdmin(req)) {
+      return {};
+    }
+
+    const userId = getAuthUserId(req);
+    if (userId && (isProvider(req) || hasRole(req, "member"))) {
+      return {
+        where: {
+          OR: [
+            { user_id: userId },
+            publicVisibilityWhere,
+          ],
+        },
+      };
+    }
+
+    return {
+      where: publicVisibilityWhere,
+      select: PUBLIC_PROVIDER_FIELDS,
+    };
+  }
+
+  if (entity === "Booking" || entity === "Message") {
+    if (isAdmin(req)) {
+      return {};
+    }
+
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return { statusCode: 401, body: { error: "unauthorized" } };
+    }
+
+    const providerIds = await resolveOwnedProviderIds(prisma, userId);
+    if (providerIds.length === 0) {
+      return { where: { id: { in: [] } } };
+    }
+
+    return { where: { provider_id: { in: providerIds } } };
+  }
+
+  if (entity === "Review") {
+    if (isAdmin(req)) {
+      return {};
+    }
+
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return { where: { status: "approved" } };
+    }
+
+    const providerIds = await resolveOwnedProviderIds(prisma, userId);
+    if (providerIds.length === 0) {
+      return { where: { status: "approved" } };
+    }
+
+    return {
+      where: {
+        OR: [
+          { status: "approved" },
+          { provider_id: { in: providerIds } },
+        ],
+      },
+    };
+  }
+
+  if (entity === "Verification") {
+    if (isAdmin(req)) {
+      return {};
+    }
+
+    const userId = getAuthUserId(req);
+    if (!userId) {
+      return { statusCode: 401, body: { error: "unauthorized" } };
+    }
+
+    return { where: { userId } };
+  }
+
+  return {};
+}
+
+function combineWhere(...parts: Array<any | undefined>): any {
+  const filtered = parts.filter((part) => part && Object.keys(part).length > 0);
+  if (filtered.length === 0) return {};
+  if (filtered.length === 1) return filtered[0];
+  return { AND: filtered };
 }
 
 function validationError(error: z.ZodError): ApiResponse {
@@ -122,6 +256,34 @@ function validationError(error: z.ZodError): ApiResponse {
       error: "validation_error",
       issues: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
     },
+  };
+}
+
+function deriveProviderState(input: Record<string, any>, existing?: Record<string, any> | null, options?: { isAdmin?: boolean }) {
+  const isAdmin = options?.isAdmin ?? false;
+  const adPackage = input.ad_package ?? existing?.ad_package ?? "none";
+  const isPremium = ["featured", "premium", "elite"].includes(adPackage);
+  const requestedStatus = typeof input.status === "string" ? input.status : null;
+
+  let nextStatus = existing?.status ?? "pending_verification";
+  if (isAdmin) {
+    nextStatus = requestedStatus ?? nextStatus;
+  } else if (existing?.is_profile_approved && (requestedStatus === "active" || requestedStatus === "paused")) {
+    nextStatus = requestedStatus;
+  }
+
+  return {
+    ...input,
+    ad_package: adPackage,
+    is_premium: isPremium,
+    status: nextStatus,
+    photos: isAdmin
+      ? (Array.isArray(input.photos) ? input.photos : (existing?.photos ?? []))
+      : (existing?.photos ?? []),
+    pending_photos: Array.isArray(input.pending_photos) ? input.pending_photos : (existing?.pending_photos ?? []),
+    verification_documents: Array.isArray(input.verification_documents)
+      ? input.verification_documents
+      : (existing?.verification_documents ?? []),
   };
 }
 
@@ -178,12 +340,17 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
   const model = modelFor(entity);
   if (!model) return { statusCode: 404, body: { error: "unknown_entity" } };
 
-  const where = parseWhere(req.query.get("where"));
+  const requestedWhere = parseWhere(req.query.get("where"));
   const sort = req.query.get("sort");
   const limit = Number(req.query.get("limit") ?? 100);
+  const scoped = await buildEntityScope(req, entity, prisma);
+  if ("statusCode" in scoped) {
+    return scoped;
+  }
 
   const rows = await prisma[model.toLowerCase()].findMany({
-    where,
+    where: combineWhere(scoped.where, requestedWhere),
+    select: scoped.select,
     orderBy: parseSort(sort),
     take: Number.isFinite(limit) ? Math.min(limit, 1000) : 100,
   });
@@ -206,7 +373,8 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
       return { statusCode: 403, body: { error: "forbidden", message: "Can only create provider for your own account" } };
     }
 
-    const created = await prisma.provider.create({ data: parsed.data });
+    const data = deriveProviderState(parsed.data, null, { isAdmin });
+    const created = await prisma.provider.create({ data });
     return { statusCode: 200, body: normalizeDates(created) };
   }
 
@@ -254,18 +422,19 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
 export async function updateProviderHandler(req: ApiRequest, id: string, { prisma }: Ctx): Promise<ApiResponse> {
   if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
 
-  const parsed = providerUpdateSchema.safeParse({ ...((req.body ?? {}) as any) });
-  if (!parsed.success) return validationError(parsed.error);
-
   const existing = await prisma.provider.findUnique({ where: { id } });
   if (!existing) return { statusCode: 404, body: { error: "not_found" } };
 
   const isAdmin = hasRole(req, "admin");
+  const parsed = (isAdmin ? providerAdminUpdateSchema : providerUpdateSchema).safeParse({ ...((req.body ?? {}) as any) });
+  if (!parsed.success) return validationError(parsed.error);
+
   if (!isAdmin && existing.user_id !== req.auth.userId) {
     return { statusCode: 403, body: { error: "forbidden", message: "Can only update your own provider" } };
   }
 
-  const updated = await prisma.provider.update({ where: { id }, data: parsed.data });
+  const data = deriveProviderState(parsed.data, existing, { isAdmin });
+  const updated = await prisma.provider.update({ where: { id }, data });
   return { statusCode: 200, body: normalizeDates(updated) };
 }
 
@@ -275,6 +444,10 @@ function decodeBase64Payload(data: string): Buffer {
 }
 
 export async function uploadHandler(req: ApiRequest): Promise<ApiResponse> {
+  if (!req.auth?.userId) {
+    return { statusCode: 401, body: { error: "unauthorized" } };
+  }
+
   const parsed = uploadSchema.safeParse(req.body ?? {});
   if (!parsed.success) return validationError(parsed.error);
 

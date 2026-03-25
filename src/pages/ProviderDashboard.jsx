@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -126,6 +127,7 @@ export default function ProviderDashboard() {
   }, [queryClient]);
 
   const saveMutation = useMutation({
+    /** @param {typeof emptyProfile & { pending_photos?: string[], verification_documents?: string[] }} payload */
     mutationFn: async (payload) => {
       if (!provider) {
         return base44.entities.Provider.create({
@@ -153,6 +155,7 @@ export default function ProviderDashboard() {
   });
 
   const visibilityMutation = useMutation({
+    /** @param {string} nextStatus */
     mutationFn: async (nextStatus) => {
       if (!provider) throw new Error("Create your listing before changing visibility.");
       return base44.entities.Provider.update(provider.id, { status: nextStatus });

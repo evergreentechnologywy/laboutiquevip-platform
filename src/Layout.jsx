@@ -1,7 +1,8 @@
+// @ts-nocheck
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Search, User, LayoutDashboard, MessageSquare, Calendar, BarChart3, Settings, Crown, Shield } from "lucide-react";
+import { Home, Search, LayoutDashboard, MessageSquare, Calendar, Megaphone, Crown, Shield, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +17,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 
 const publicNavigation = [
@@ -24,12 +27,11 @@ const publicNavigation = [
 ];
 
 const providerNavigation = [
-  { title: "Dashboard", url: createPageUrl("ProviderDashboard"), icon: LayoutDashboard },
-  { title: "My Profile", url: createPageUrl("ProviderProfile"), icon: User },
-  { title: "Bookings", url: createPageUrl("ProviderBookings"), icon: Calendar },
-  { title: "Messages", url: createPageUrl("ProviderMessages"), icon: MessageSquare },
-  { title: "Analytics", url: createPageUrl("ProviderAnalytics"), icon: BarChart3 },
-  { title: "Settings", url: createPageUrl("ProviderSettings"), icon: Settings },
+  { title: "Overview", url: createPageUrl("ProviderDashboard?tab=overview"), icon: LayoutDashboard },
+  { title: "Profile", url: createPageUrl("ProviderDashboard?tab=profile"), icon: User },
+  { title: "Ads", url: createPageUrl("ProviderDashboard?tab=ads"), icon: Megaphone },
+  { title: "Bookings", url: createPageUrl("ProviderDashboard?tab=bookings"), icon: Calendar },
+  { title: "Messages", url: createPageUrl("ProviderDashboard?tab=messages"), icon: MessageSquare },
 ];
 
 const adminNavigation = [
@@ -39,25 +41,32 @@ const adminNavigation = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
-  const [isProvider, setIsProvider] = React.useState(false);
+  const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => localStorage.getItem("lbv_age_gate_accepted") === "yes");
 
   React.useEffect(() => {
     const loadUser = async () => {
+      if (!base44.auth.hasToken()) {
+        setUser(null);
+        return;
+      }
+
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-        
-        // Check if user has a provider profile
-        const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
-        setIsProvider(providers.length > 0);
-      } catch (error) {
-        console.log("User not logged in");
+      } catch {
+        setUser(null);
       }
     };
     loadUser();
   }, []);
 
   const isProviderPage = currentPageName?.startsWith("Provider") || currentPageName?.startsWith("Admin");
+  const fullPath = `${location.pathname}${location.search}`;
+
+  const acceptAgeGate = () => {
+    localStorage.setItem("lbv_age_gate_accepted", "yes");
+    setAgeGateAccepted(true);
+  };
 
   return (
     <SidebarProvider>
@@ -81,6 +90,32 @@ export default function Layout({ children, currentPageName }) {
         }
       `}</style>
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
+        {!isProviderPage && (
+          <Dialog open={!ageGateAccepted}>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 [&>button]:hidden">
+              <DialogHeader>
+                <DialogTitle>Adults only</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 text-sm text-zinc-300 leading-6">
+                <p>
+                  This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
+                </p>
+                <p className="text-zinc-400">
+                  Verification, availability, and premium placement are subject to review and may change. Booking requests are enquiries until confirmed.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={acceptAgeGate} className="flex-1 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600">
+                    I am 18+ and continue
+                  </Button>
+                  <Button variant="outline" className="flex-1 border-zinc-700 text-zinc-300" onClick={() => window.location.href = 'https://www.google.com'}>
+                    Leave site
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         {isProviderPage && user && (
           <Sidebar className="border-r border-zinc-800 bg-zinc-950">
             <SidebarHeader className="border-b border-zinc-800 p-4">
@@ -94,21 +129,19 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </div>
             </SidebarHeader>
-            
+
             <SidebarContent className="p-2">
               <SidebarGroup>
                 <SidebarGroupLabel className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-2 py-2">
-                  Menu
+                  Provider
                 </SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {providerNavigation.map((item) => (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton 
-                          asChild 
-                          className={`hover:bg-zinc-900 hover:text-rose-400 transition-colors duration-200 rounded-lg mb-1 ${
-                            location.pathname === item.url ? 'bg-zinc-900 text-rose-400' : 'text-zinc-400'
-                          }`}
+                        <SidebarMenuButton
+                          asChild
+                          className={`hover:bg-zinc-900 hover:text-rose-400 transition-colors duration-200 rounded-lg mb-1 ${fullPath === item.url ? "bg-zinc-900 text-rose-400" : "text-zinc-400"}`}
                         >
                           <Link to={item.url} className="flex items-center gap-3 px-3 py-2">
                             <item.icon className="w-4 h-4" />
@@ -117,13 +150,11 @@ export default function Layout({ children, currentPageName }) {
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
-                    {user?.role === 'admin' && adminNavigation.map((item) => (
+                    {user?.role === "admin" && adminNavigation.map((item) => (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton 
-                          asChild 
-                          className={`hover:bg-zinc-900 hover:text-amber-400 transition-colors duration-200 rounded-lg mb-1 ${
-                            location.pathname === item.url ? 'bg-zinc-900 text-amber-400' : 'text-zinc-400'
-                          }`}
+                        <SidebarMenuButton
+                          asChild
+                          className={`hover:bg-zinc-900 hover:text-amber-400 transition-colors duration-200 rounded-lg mb-1 ${location.pathname === item.url ? "bg-zinc-900 text-amber-400" : "text-zinc-400"}`}
                         >
                           <Link to={item.url} className="flex items-center gap-3 px-3 py-2">
                             <item.icon className="w-4 h-4" />
@@ -161,9 +192,7 @@ export default function Layout({ children, currentPageName }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-rose-500 to-amber-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium text-sm">
-                      {user?.full_name?.[0]?.toUpperCase() || 'U'}
-                    </span>
+                    <span className="text-white font-medium text-sm">{user?.full_name?.[0]?.toUpperCase() || "U"}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-zinc-100 text-sm truncate">{user?.full_name}</p>
@@ -185,42 +214,28 @@ export default function Layout({ children, currentPageName }) {
                       <Crown className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-lg font-bold bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent">
-                        La Boutique Vip
-                      </span>
+                      <span className="text-lg font-bold bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent">La Boutique Vip</span>
                       <span className="text-xs text-zinc-500">International</span>
                     </div>
                   </Link>
-                  
+
                   <div className="flex items-center gap-6">
                     {publicNavigation.map((item) => (
                       <Link
                         key={item.title}
                         to={item.url}
-                        className={`text-sm font-medium transition-colors ${
-                          location.pathname === item.url
-                            ? 'text-rose-400'
-                            : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
+                        className={`text-sm font-medium transition-colors ${location.pathname === item.url ? "text-rose-400" : "text-zinc-400 hover:text-zinc-200"}`}
                       >
                         {item.title}
                       </Link>
                     ))}
-                    
+
                     {user ? (
                       <>
-                        {isProvider && (
-                          <Link
-                            to={createPageUrl("ProviderDashboard")}
-                            className="text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors"
-                          >
-                            Backoffice
-                          </Link>
-                        )}
-                        <button
-                          onClick={() => base44.auth.logout()}
-                          className="text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
-                        >
+                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors">
+                          Dashboard
+                        </Link>
+                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
                           Logout
                         </button>
                       </>
@@ -250,9 +265,7 @@ export default function Layout({ children, currentPageName }) {
             </header>
           )}
 
-          <div className="flex-1 overflow-auto">
-            {children}
-          </div>
+          <div className="flex-1 overflow-auto">{children}</div>
         </main>
       </div>
     </SidebarProvider>

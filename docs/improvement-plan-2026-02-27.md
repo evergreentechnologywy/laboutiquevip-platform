@@ -8,7 +8,7 @@
    - Signature verification
    - Idempotency keys + unique event IDs
    - Immutable event persistence
-3. Confirmo integration
+3. NOWPayments integration
    - invoice create + callback handling
    - paid-status entitlement grants
    - late payment handling
@@ -34,4 +34,4 @@
 ## Current sprint focus
 - P0.1 Auth hardening
 - P0.2 webhook framework
-- P0.3 Didit + Confirmo handlers
+- P0.3 Didit + NOWPayments handlers

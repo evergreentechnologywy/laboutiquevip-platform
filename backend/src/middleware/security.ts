@@ -31,9 +31,8 @@ export function corsHeaders(origin: string | null): Record<string, string> {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "access-control-allow-headers": "authorization,content-type,x-request-id,x-signature,x-confirmo-signature,x-didit-signature",
+    "access-control-allow-headers": "authorization,content-type,x-request-id,x-signature,x-nowpayments-signature,x-didit-signature",
     "access-control-max-age": "600",
     vary: "Origin",
   };
 }
-

@@ -57,7 +57,7 @@ export async function createOrderHandler(
     },
   });
 
-  // Create invoice for Confirmo
+  // Create invoice for NOWPayments
   const invoice = await context.prisma.invoice.create({
     data: {
       orderId: order.id,
@@ -68,23 +68,24 @@ export async function createOrderHandler(
     },
   });
 
-  // If Confirmo is configured, create payment session
-  const hasConfirmo = Boolean(process.env.CONFIRMO_API_KEY);
+  // If NOWPayments is configured, create a hosted payment session
+  const hasNowpayments = Boolean(process.env.NOWPAYMENTS_API_KEY);
   let paymentUrl = null;
 
-  if (hasConfirmo) {
+  if (hasNowpayments) {
     try {
-      const confirmoResponse = await fetch("https://api.confirmo.net/v3/invoices", {
+      const nowpaymentsApiBaseUrl = process.env.NOWPAYMENTS_API_BASE_URL?.trim() || "https://api.nowpayments.io/v1";
+      const nowpaymentsResponse = await fetch(`${nowpaymentsApiBaseUrl}/invoice`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.CONFIRMO_API_KEY}`,
+          "x-api-key": String(process.env.NOWPAYMENTS_API_KEY),
         },
         body: JSON.stringify({
           amount: (payload.amountCents / 100).toFixed(2),
           currency: payload.currency || "USD",
           external_ref: invoice.externalRef,
-          callback_url: `${process.env.API_BASE_URL || "https://www.laboutiquevip.net"}/api/v1/webhooks/confirmo`,
+          callback_url: `${process.env.API_BASE_URL || "https://www.laboutiquevip.net"}/api/v1/webhooks/nowpayments`,
           success_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/dashboard?payment=success`,
           cancel_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/dashboard?payment=cancelled`,
           metadata: {
@@ -96,15 +97,15 @@ export async function createOrderHandler(
         }),
       });
 
-      if (confirmoResponse.ok) {
-        const confirmoData = await confirmoResponse.json();
-        paymentUrl = confirmoData.payment_url || confirmoData.url;
+      if (nowpaymentsResponse.ok) {
+        const nowpaymentsData = await nowpaymentsResponse.json();
+        paymentUrl = nowpaymentsData.invoice_url || nowpaymentsData.payment_url || nowpaymentsData.url || null;
 
         await context.prisma.invoice.update({
           where: { id: invoice.id },
           data: {
             status: "issued",
-            externalRef: confirmoData.id || invoice.externalRef,
+            externalRef: nowpaymentsData.id || nowpaymentsData.invoice_id || invoice.externalRef,
           },
         });
       }
@@ -114,7 +115,7 @@ export async function createOrderHandler(
         orderId: order.id,
         invoiceId: invoice.id,
       });
-      console.error("Confirmo invoice creation failed:", err);
+      console.error("NOWPayments invoice creation failed:", err);
     }
   }
 
@@ -144,7 +145,7 @@ export async function createOrderHandler(
     metadata: { 
       productId: payload.productId, 
       amountCents: payload.amountCents,
-      hasConfirmo,
+      hasNowpayments,
       paymentUrl: paymentUrl ? "created" : "failed",
     },
   });
@@ -158,7 +159,7 @@ export async function createOrderHandler(
       currency: order.currency,
     },
     paymentUrl,
-    mode: hasConfirmo ? "live" : "test_mode",
+    mode: hasNowpayments ? "live" : "test_mode",
   });
 }
 

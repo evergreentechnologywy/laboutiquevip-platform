@@ -20,7 +20,7 @@ Current repo is a hybrid migration scaffold (Base44 frontend + TypeScript/Prisma
 
 ## Critical gaps
 1. Authentication is header-trust based (`x-user-id`, `x-roles`) and can be spoofed.
-2. No webhook ingestion for payments (Confirmo) or verification (Didit).
+2. No webhook ingestion for payments (NOWPayments) or verification (Didit).
 3. No webhook idempotency and immutable event processing guarantees.
 4. No rate limiting middleware.
 5. No admin moderation UI/API for reports, verification review, billing reconciliation.
@@ -42,7 +42,7 @@ Current repo is a hybrid migration scaffold (Base44 frontend + TypeScript/Prisma
 ## Immediate implementation order
 1. Replace/guard header-trust auth (token-based context).
 2. Add webhook framework (raw capture + signature verify + idempotent store).
-3. Implement Confirmo webhook handler + entitlement grants.
+3. Implement NOWPayments webhook handler + entitlement grants.
 4. Implement Didit verification session + webhook source-of-truth updates.
 5. Build admin moderation/review APIs + UI.
 6. Add SEO city/profile sitemap generation.

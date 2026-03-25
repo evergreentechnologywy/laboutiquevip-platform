@@ -12,8 +12,7 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-export const providerCreateSchema = z.object({
-  user_id: z.string().uuid(),
+const providerEditableFields = {
   display_name: z.string().min(1).max(120),
   tagline: z.string().max(250).optional().nullable(),
   bio: z.string().max(4000).optional().nullable(),
@@ -24,9 +23,30 @@ export const providerCreateSchema = z.object({
   phone: z.string().max(50).optional().nullable(),
   email: z.string().email().max(320).optional().nullable(),
   rate_hourly: z.number().int().min(0).max(1000000).optional().nullable(),
-}).passthrough();
+  ad_package: z.enum(["none", "basic", "featured", "premium", "elite"]).optional().nullable(),
+  ad_package_expiry: z.string().max(50).optional().nullable(),
+  verification_documents: z.array(z.string().max(2000)).max(25).optional(),
+  photos: z.array(z.string().max(2000)).max(50).optional(),
+  pending_photos: z.array(z.string().max(2000)).max(50).optional(),
+  status: z.string().max(80).optional(),
+  is_premium: z.boolean().optional(),
+};
 
-export const providerUpdateSchema = providerCreateSchema.partial().omit({ user_id: true });
+export const providerCreateSchema = z.object({
+  user_id: z.string().uuid(),
+  ...providerEditableFields,
+}).strict();
+
+export const providerUpdateSchema = z.object(providerEditableFields).partial().strict();
+
+export const providerAdminUpdateSchema = providerUpdateSchema.extend({
+  status: z.string().max(80).optional(),
+  photos: z.array(z.string().max(2000)).max(50).optional(),
+  is_verified: z.boolean().optional(),
+  is_profile_approved: z.boolean().optional(),
+  admin_notes: z.string().max(4000).optional().nullable(),
+  rejection_reason: z.string().max(4000).optional().nullable(),
+}).strict();
 
 const guestEmailSchema = z.string().email().max(320);
 

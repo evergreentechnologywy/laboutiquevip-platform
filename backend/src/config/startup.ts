@@ -18,7 +18,8 @@ export function validateStartupOrThrow(): void {
 
   const missing = [
     requiredInProduction("DATABASE_URL"),
-    requiredInProduction("CONFIRMO_WEBHOOK_SECRET"),
+    requiredInProduction("NOWPAYMENTS_API_KEY"),
+    requiredInProduction("NOWPAYMENTS_WEBHOOK_SECRET"),
     requiredInProduction("DIDIT_API_KEY"),
     requiredInProduction("DIDIT_WORKFLOW_ID"),
     requiredInProduction("DIDIT_WEBHOOK_SECRET"),

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Search, MapPin, Star, Shield, Crown, TrendingUp } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { searchProviders } from "@/api/providerSearch";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -14,9 +16,16 @@ export default function Home() {
   const { data: featuredProviders = [] } = useQuery({
     queryKey: ['featured-providers'],
     queryFn: async () => {
-      const providers = await base44.entities.Provider.filter({ status: 'active', is_premium: true }, '-created_date', 6);
-      return providers;
+      const data = await searchProviders({
+        premium: true,
+        verified: true,
+        limit: 6,
+      });
+      return data.items || [];
     },
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const handleSearch = () => {
@@ -50,7 +59,7 @@ export default function Home() {
             </h1>
             <p className="text-2xl sm:text-3xl font-semibold text-zinc-500 mb-6">International</p>
             <p className="text-xl sm:text-2xl text-zinc-400 mb-12 max-w-3xl mx-auto">
-              Discover exceptional experiences with verified, professional companions
+              Discover polished, verified profiles with clear rates, direct contact options, and discreet enquiry tools.
             </p>
 
             {/* Search Box */}
@@ -92,6 +101,13 @@ export default function Home() {
 
       {/* Features */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="mb-8 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 text-left">
+          <p className="text-sm font-medium text-amber-100 mb-2">Adults only · trust & transparency</p>
+          <p className="text-sm text-zinc-300 leading-6">
+            This platform is intended only for adults 18+. Verification and featured placement are subject to review. Any premium placement, verification status, or billing-related benefits should be treated as active only after platform confirmation.
+          </p>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-8">
           <div className="text-center p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:border-rose-500/50 transition-all">
             <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-500/20">
@@ -216,7 +232,7 @@ export default function Home() {
               Join La Boutique Vip International and connect with discerning clients
             </p>
             <Button
-              onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderDashboard"))}
+              onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderSignup"))}
               className="h-14 px-8 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-semibold text-lg shadow-xl hover:shadow-rose-500/25 transition-all"
             >
               Get Started Today

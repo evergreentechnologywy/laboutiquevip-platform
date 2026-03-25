@@ -1,23 +1,16 @@
-import Browse from './pages/Browse';
-import Home from './pages/Home';
-import ProviderDashboard from './pages/ProviderDashboard';
-import ViewProfile from './pages/ViewProfile';
-import ProviderSignup from './pages/ProviderSignup';
-import AdminDashboard from './pages/AdminDashboard';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import React from 'react';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
-    "Browse": Browse,
-    "Home": Home,
-    "ProviderDashboard": ProviderDashboard,
-    "ViewProfile": ViewProfile,
-    "ProviderSignup": ProviderSignup,
-    "AdminDashboard": AdminDashboard,
-    "Login": Login,
-    "Register": Register,
-}
+    "Browse": React.lazy(() => import('./pages/Browse')),
+    "Home": React.lazy(() => import('./pages/Home')),
+    "ProviderDashboard": React.lazy(() => import('./pages/ProviderDashboard')),
+    "ViewProfile": React.lazy(() => import('./pages/ViewProfile')),
+    "ProviderSignup": React.lazy(() => import('./pages/ProviderSignup')),
+    "AdminDashboard": React.lazy(() => import('./pages/AdminDashboard')),
+    "Login": React.lazy(() => import('./pages/Login')),
+    "Register": React.lazy(() => import('./pages/Register')),
+};
 
 export const pagesConfig = {
     mainPage: "Home",

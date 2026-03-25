@@ -16,7 +16,7 @@ Build and operate a production-grade escort/directory platform for **www.labouti
 - Header-auth trust guard (`ALLOW_HEADER_AUTH_TRUST`)
 - Security headers + CORS allowlist + endpoint/IP rate limiting
 - Webhook idempotency receipts + immutable invoice/verification event append
-- Confirmo/NOWPayments webhook ingestion with entitlement policy enforcement
+- NOWPayments webhook ingestion with entitlement policy enforcement
 - Didit verification session + webhook-driven status updates
 - Admin moderation/reconciliation APIs with audit events
 - SEO route + sitemap endpoint stubs
@@ -25,7 +25,7 @@ Build and operate a production-grade escort/directory platform for **www.labouti
 - Identity & Auth
 - Provider Profiles / Tours / Availability
 - Discovery & SEO
-- Payments (Confirmo/NOWPayments)
+- Payments (NOWPayments)
 - Verification (Didit)
 - Moderation (reports, blocks, verification review)
 - Audit & Compliance

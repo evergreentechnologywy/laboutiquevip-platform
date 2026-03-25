@@ -46,7 +46,7 @@ import {
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
-import { confirmoWebhookHandler } from "./routes/webhookConfirmo.js";
+import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
   createOrderHandler,
   getOrderHandler,
@@ -257,8 +257,8 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return searchProvidersHandler(request, context);
   }
 
-  if (request.pathname === "/api/v1/webhooks/confirmo" && request.method === "POST") {
-    return confirmoWebhookHandler(request, context);
+  if (request.pathname === "/api/v1/webhooks/nowpayments" && request.method === "POST") {
+    return nowpaymentsWebhookHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/orders" && request.method === "POST") {
@@ -433,6 +433,10 @@ const server = http.createServer(async (req, res) => {
 
 export function startServer(): void {
   validateStartupOrThrow();
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
+  server.requestTimeout = 30_000;
+  server.maxRequestsPerSocket = 1000;
   server.listen(PORT, () => {
     process.stdout.write(`Backend listening on :${PORT}\n`);
   });

@@ -17,6 +17,12 @@
 - `DELETE /api/v1/models/me/tours/:tourId`
 - `GET /api/v1/search/cities?q=`
 - `GET /api/v1/search/models?city=&verified=&tag=&available_from=&available_to=&page=&limit=`
+- `POST /api/v1/orders`
+- `GET /api/v1/orders`
+- `GET /api/v1/orders/:orderId`
+- `POST /api/v1/webhooks/nowpayments`
+- `POST /api/v1/verifications/didit/session`
+- `POST /api/v1/webhooks/didit`
 
 ## Request examples
 `POST /api/v1/models/register`
