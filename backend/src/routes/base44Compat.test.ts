@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { authFromHeaders } from "../auth.js";
+import { setUploadStorageForTests } from "../storage/uploads.js";
 import { createEntityHandler, listOrFilterEntityHandler, updateProviderHandler, uploadHandler } from "./base44Compat.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
@@ -21,6 +22,10 @@ function makeReq(overrides: any = {}): any {
     ...overrides,
   };
 }
+
+test.afterEach(() => {
+  setUploadStorageForTests(null);
+});
 
 test("authFromHeaders accepts valid HS256 JWT with sub/role", () => {
   const token = jwt.sign({ sub: "user-123", role: "admin" }, JWT_SECRET, { algorithm: "HS256", expiresIn: "1h" });
@@ -273,4 +278,60 @@ test("Upload requires an authenticated user", async () => {
   );
 
   assert.equal(res.statusCode, 401);
+});
+
+test("Upload returns local file url when using local storage", async () => {
+  let uploaded: any = null;
+  setUploadStorageForTests({
+    kind: "local",
+    servesLocalUploads: true,
+    async upload(params) {
+      uploaded = params;
+      return { fileUrl: "/uploads/local-file.png", storageKey: "local-file.png" };
+    },
+  });
+
+  const res = await uploadHandler(
+    makeReq({
+      body: {
+        filename: "id.png",
+        contentType: "image/png",
+        data: "data:image/png;base64,aGVsbG8=",
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(uploaded, {
+    filename: "id.png",
+    contentType: "image/png",
+    fileBuffer: Buffer.from("hello"),
+  });
+  assert.equal((res.body as any).file_url, "/uploads/local-file.png");
+});
+
+test("Upload can return an absolute S3 url", async () => {
+  setUploadStorageForTests({
+    kind: "s3",
+    servesLocalUploads: false,
+    async upload() {
+      return {
+        fileUrl: "https://cdn.example.com/provider-photos/file.png",
+        storageKey: "provider-photos/file.png",
+      };
+    },
+  });
+
+  const res = await uploadHandler(
+    makeReq({
+      body: {
+        filename: "id.png",
+        contentType: "image/png",
+        data: "data:image/png;base64,aGVsbG8=",
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal((res.body as any).file_url, "https://cdn.example.com/provider-photos/file.png");
 });

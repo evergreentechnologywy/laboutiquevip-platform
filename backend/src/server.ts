@@ -1,9 +1,9 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import path from "node:path";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
+import { getLocalUploadPathFromRequestPath, shouldServeLocalUploads } from "./storage/uploads.js";
 import { validateStartupOrThrow } from "./config/startup.js";
 import {
   captureBackendException,
@@ -325,18 +325,19 @@ process.on("unhandledRejection", (reason) => {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
-  if ((req.method ?? "GET") === "GET" && url.pathname.startsWith("/uploads/")) {
-    const filename = path.basename(url.pathname);
-    const fullPath = path.resolve(process.env.UPLOAD_DIR ?? "/srv/apps/trystlike/repo/backend/uploads", filename);
-    try {
-      const data = await fs.readFile(fullPath);
-      res.writeHead(200, { "content-type": "application/octet-stream" });
-      res.end(data);
-    } catch {
-      res.writeHead(404, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "not_found" }));
+  if ((req.method ?? "GET") === "GET" && shouldServeLocalUploads()) {
+    const fullPath = getLocalUploadPathFromRequestPath(url.pathname);
+    if (fullPath) {
+      try {
+        const data = await fs.readFile(fullPath);
+        res.writeHead(200, { "content-type": "application/octet-stream" });
+        res.end(data);
+      } catch {
+        res.writeHead(404, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "not_found" }));
+      }
+      return;
     }
-    return;
   }
   const requestId = crypto.randomUUID();
   const originHeader = req.headers.origin;

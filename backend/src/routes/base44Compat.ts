@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import type { ApiRequest, ApiResponse, Role } from "../types.js";
@@ -15,12 +13,11 @@ import {
   reviewCreateSchema,
   uploadSchema,
 } from "../validation/base44Compat.js";
+import { storeUpload } from "../storage/uploads.js";
 import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? "/srv/apps/trystlike/repo/backend/uploads";
-const PUBLIC_UPLOAD_BASE = process.env.PUBLIC_UPLOAD_BASE ?? "/uploads";
 const ALLOWED_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ANTI_SPAM_WINDOW_MS = 15 * 60 * 1000;
@@ -464,19 +461,16 @@ export async function uploadHandler(req: ApiRequest): Promise<ApiResponse> {
     return { statusCode: 413, body: { error: "file_too_large", maxBytes: MAX_UPLOAD_BYTES } };
   }
 
-  const safeBaseName = path.basename(parsed.data.filename).replace(/[^a-zA-Z0-9._-]/g, "_");
-  const ext = path.extname(safeBaseName) || ".bin";
-  const safeName = `${Date.now()}-${crypto.randomUUID()}${ext}`;
+  try {
+    const uploaded = await storeUpload({
+      filename: parsed.data.filename,
+      contentType: parsed.data.contentType,
+      fileBuffer,
+    });
 
-  const fullDir = path.resolve(UPLOAD_DIR);
-  await fs.mkdir(fullDir, { recursive: true });
-
-  const targetPath = path.resolve(fullDir, safeName);
-  if (!targetPath.startsWith(`${fullDir}${path.sep}`)) {
-    return { statusCode: 400, body: { error: "invalid_filename" } };
+    return { statusCode: 200, body: { file_url: uploaded.fileUrl } };
+  } catch (error) {
+    console.error("Upload failed", error);
+    return { statusCode: 500, body: { error: "upload_failed" } };
   }
-
-  await fs.writeFile(targetPath, fileBuffer);
-
-  return { statusCode: 200, body: { file_url: `${PUBLIC_UPLOAD_BASE}/${safeName}` } };
 }

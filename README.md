@@ -36,6 +36,12 @@ This repo keeps the current Vite/Base44 frontend running while introducing a bac
 ## Environment
 Use `.env.example` as the template. Do not commit secrets.
 
+### Upload storage
+- Default behavior stays the same: uploads are written to `backend/uploads` and served by the backend from `PUBLIC_UPLOAD_BASE` (default `/uploads`).
+- To switch to S3-compatible storage, set `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`.
+- Recommended for production/CDN use: also set `S3_ENDPOINT` (for R2/MinIO/etc.) and `S3_PUBLIC_BASE_URL` so returned image URLs point at the public bucket/CDN host.
+- Optional knobs: `S3_REGION` (defaults to `auto`), `S3_KEY_PREFIX` (defaults to `uploads`), and `S3_FORCE_PATH_STYLE` (defaults to `true`, which is usually safer for S3-compatible providers).
+
 ## Deployment docs
 - Current production runbook: `runbook.md`
 - Hetzner + Cloudflare migration guide: `docs/hetzner-cloudflare-migration-2026-03-20.md`
