@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Star, Shield, Crown, Filter, X } from "lucide-react";
+import { Search, MapPin, Star, Shield, Crown, Filter, X, ArrowRight, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
+import { getProviderRatingMeta } from "@/lib/providerPresentation";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -20,6 +21,12 @@ function groupProvidersByCity(items) {
     return acc;
   }, {});
 }
+
+const trustNotes = [
+  "Verification badges appear after external identity checks and internal approval.",
+  "Reviews only appear after moderation and may be limited while rollout continues.",
+  "Rates and contact methods are supplied by advertisers and can change after publication.",
+];
 
 export default function Browse() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -70,128 +77,255 @@ export default function Browse() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-zinc-100 mb-2">Browse Companions</h1>
-          <p className="text-zinc-400">Discover verified professionals in your area</p>
-        </div>
-
-        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 mb-8">
-          <div className="grid md:grid-cols-4 gap-4 mb-4">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <Input placeholder="Search by name or services..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-zinc-800 border-zinc-700 text-zinc-100" />
-            </div>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <Input placeholder="City or state..." value={location} onChange={(e) => setLocation(e.target.value)} className="pl-10 bg-zinc-800 border-zinc-700 text-zinc-100" />
-            </div>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest</SelectItem>
-                <SelectItem value="rating">Highest Rated</SelectItem>
-                <SelectItem value="price_low">Price: Low to High</SelectItem>
-                <SelectItem value="price_high">Price: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+          <div className="max-w-3xl">
+            <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">Browse the directory</p>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">Refined discovery with clearer trust signals</h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
+              Explore live listings, transparent rate ranges, and profile details presented with a more measured trust layer.
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-zinc-500" />
-              <span className="text-sm text-zinc-400">Filters:</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => toggleFilter("verified")} className={`${selectedFilters.verified ? "bg-rose-500/20 border-rose-500 text-rose-400" : "bg-zinc-800 border-zinc-700 text-zinc-400"}`}><Shield className="w-3 h-3 mr-1" />Verified Only</Button>
-            <Button variant="outline" size="sm" onClick={() => toggleFilter("premium")} className={`${selectedFilters.premium ? "bg-amber-500/20 border-amber-500 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400"}`}><Crown className="w-3 h-3 mr-1" />Premium Only</Button>
-            <div className="flex-1 max-w-xs">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-sm text-zinc-400">Price Range:</span>
-                <span className="text-sm font-medium text-zinc-200">${priceRange[0]} - ${priceRange[1]}</span>
+          <div className="mt-10 rounded-[28px] border border-stone-200 bg-white/95 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)] backdrop-blur sm:p-6">
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <Input
+                  placeholder="Search by name or service"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
+                />
               </div>
-              <Slider value={priceRange} onValueChange={setPriceRange} max={2000} step={50} className="[&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-600" />
+              <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <Input
+                  placeholder="City or state"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
+                />
+              </div>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-12 rounded-2xl border-stone-200 bg-stone-50 text-stone-900">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="rating">Highest rated</SelectItem>
+                  <SelectItem value="price_low">Price: low to high</SelectItem>
+                  <SelectItem value="price_high">Price: high to low</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="text-zinc-400 hover:text-zinc-200"><X className="w-3 h-3 mr-1" />Clear All</Button>
+
+            <div className="mt-5 flex flex-col gap-4 border-t border-stone-200 pt-5 xl:flex-row xl:items-end xl:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-stone-500">
+                  <Filter className="h-4 w-4" />
+                  <span>Filters</span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => toggleFilter("verified")} className={selectedFilters.verified ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}>
+                  <Shield className="mr-1 h-3.5 w-3.5" />
+                  Verified only
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => toggleFilter("premium")} className={selectedFilters.premium ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}>
+                  <Crown className="mr-1 h-3.5 w-3.5" />
+                  Premium only
+                </Button>
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900">
+                  <X className="mr-1 h-3.5 w-3.5" />
+                  Clear all
+                </Button>
+              </div>
+
+              <div className="w-full max-w-sm">
+                <div className="mb-2 flex items-center justify-between text-sm text-stone-500">
+                  <span>Hourly rate</span>
+                  <span className="font-medium text-stone-700">${priceRange[0]} - ${priceRange[1]}</span>
+                </div>
+                <Slider value={priceRange} onValueChange={setPriceRange} max={2000} step={50} className="[&_[role=slider]]:border-stone-700 [&_[role=slider]]:bg-stone-900" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-3">
+            {trustNotes.map((note) => (
+              <div key={note} className="rounded-2xl border border-stone-200 bg-white/80 px-4 py-4 text-sm leading-6 text-stone-600">
+                {note}
+              </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        <div className="mb-6 flex flex-col gap-3">
-          <p className="text-zinc-400">{isLoading ? "Loading..." : `${total} companions found`}{isFetching && !isLoading ? " • refreshing" : ""}</p>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Results</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">Browse live advertiser profiles</h2>
+            <p className="mt-3 text-sm leading-6 text-stone-500">
+              {isLoading ? "Loading results..." : `${total} listing${total === 1 ? "" : "s"} found`}{isFetching && !isLoading ? " · refreshing" : ""}
+            </p>
+          </div>
+
           {isStateSearch && cityGroups.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {cityGroups.map((group) => (
-                <Badge key={`${group.city}-${group.state}`} className="bg-zinc-800 text-zinc-300 border-0">{group.city} ({group.count})</Badge>
+                <Badge key={`${group.city}-${group.state}`} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-stone-600 shadow-none">
+                  {group.city} ({group.count})
+                </Badge>
               ))}
             </div>
           )}
         </div>
 
         {isLoading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="rounded-2xl bg-zinc-900 border border-zinc-800 overflow-hidden"><Skeleton className="aspect-[3/4] w-full" /><div className="p-6 space-y-3"><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-full" /></div></div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="overflow-hidden rounded-[24px] border border-stone-200 bg-white">
+                <Skeleton className="aspect-[4/5] w-full" />
+                <div className="space-y-3 p-6">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
             ))}
           </div>
         ) : providers.length === 0 ? (
-          <div className="col-span-full text-center py-16"><div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"><Search className="w-8 h-8 text-zinc-600" /></div><h3 className="text-xl font-semibold text-zinc-300 mb-2">No results found</h3><p className="text-zinc-500 mb-6">Try adjusting your filters or search terms</p><Button onClick={clearFilters} variant="outline" className="border-zinc-700 text-zinc-300">Clear Filters</Button></div>
+          <div className="rounded-[28px] border border-stone-200 bg-white px-6 py-14 text-center shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)]">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <h3 className="mt-6 text-2xl font-semibold text-stone-900">No matching listings yet</h3>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">
+              Try broadening your search or explore how verified placement works. New approved listings and reviews appear on a rolling basis as external provider checks and moderation complete.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button onClick={clearFilters} className="rounded-full bg-stone-900 px-6 text-stone-50 hover:bg-stone-800">
+                Reset filters
+              </Button>
+              <Link to={createPageUrl("Trust")}>
+                <Button variant="outline" className="rounded-full border-stone-300 bg-white px-6 text-stone-700 hover:bg-stone-50">
+                  How verification works
+                </Button>
+              </Link>
+              <Link to={createPageUrl("Pricing")}>
+                <Button variant="outline" className="rounded-full border-stone-300 bg-white px-6 text-stone-700 hover:bg-stone-50">
+                  Advertise on La Boutique VIP
+                </Button>
+              </Link>
+            </div>
+          </div>
         ) : isStateSearch ? (
           <div className="space-y-10">
             {Object.entries(groupedProviders).map(([cityLabel, cityProviders]) => (
               <div key={cityLabel}>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold text-zinc-100">{cityLabel}</h2>
-                  <Badge className="bg-rose-500/15 text-rose-300 border-0">{cityProviders.length} listings</Badge>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="text-2xl font-semibold text-stone-900">{cityLabel}</h3>
+                  <Badge className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-stone-600 shadow-none">
+                    {cityProviders.length} listing{cityProviders.length === 1 ? "" : "s"}
+                  </Badge>
                 </div>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {cityProviders.map((provider) => <ProviderCard key={provider.id} provider={provider} />)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {providers.map((provider) => <ProviderCard key={provider.id} provider={provider} />)}
           </div>
         )}
 
         {totalPages > 1 && (
           <div className="mt-10 flex items-center justify-center gap-3">
-            <Button variant="outline" className="border-zinc-700 text-zinc-300" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-            <span className="text-sm text-zinc-400">Page {page} of {totalPages}</span>
-            <Button variant="outline" className="border-zinc-700 text-zinc-300" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button variant="outline" className="rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Previous
+            </Button>
+            <span className="text-sm text-stone-500">Page {page} of {totalPages}</span>
+            <Button variant="outline" className="rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
 
 function ProviderCard({ provider }) {
+  const ratingMeta = getProviderRatingMeta(provider);
+
   return (
-    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group">
-      <div className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-rose-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-rose-500/10">
-        <div className="aspect-[3/4] overflow-hidden bg-zinc-800 relative">
-          {provider.photos?.[0] ? <img src={provider.photos[0]} alt={provider.display_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /> : <div className="w-full h-full flex items-center justify-center"><Crown className="w-16 h-16 text-zinc-700" /></div>}
-          {provider.is_premium && <div className="absolute top-4 right-4"><Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0"><Crown className="w-3 h-3 mr-1" />Premium</Badge></div>}
-        </div>
-        <div className="p-6">
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <h3 className="text-xl font-semibold text-zinc-100 group-hover:text-rose-400 transition-colors">{provider.display_name}</h3>
-              <p className="text-sm text-zinc-400">{provider.location_city}, {provider.location_state}</p>
+    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
+      <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
+        <div className="relative aspect-[4/5] overflow-hidden bg-stone-100">
+          {provider.photos?.[0] ? (
+            <img
+              src={provider.photos[0]}
+              alt={provider.display_name}
+              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-stone-300">
+              <Crown className="h-14 w-14" />
             </div>
-            {provider.is_verified && <div className="bg-rose-500/20 p-2 rounded-lg"><Shield className="w-4 h-4 text-rose-400" /></div>}
-          </div>
-          {provider.tagline && <p className="text-sm text-zinc-500 mb-4 line-clamp-2">{provider.tagline}</p>}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1"><Star className="w-4 h-4 fill-amber-400 text-amber-400" /><span className="text-sm font-medium text-zinc-300">{provider.rating_average?.toFixed(1) || "5.0"}</span><span className="text-sm text-zinc-500">({provider.reviews_count || 0})</span></div>
-            {provider.rate_hourly && <span className="text-sm font-semibold text-rose-400">${provider.rate_hourly}/hr</span>}
+          )}
+          <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+            {provider.is_verified && (
+              <Badge className="rounded-full bg-stone-900 px-3 py-1 text-stone-50 shadow-none">
+                <Shield className="mr-1 h-3 w-3" />
+                Verified
+              </Badge>
+            )}
+            {provider.is_premium && (
+              <Badge className="rounded-full bg-amber-100 px-3 py-1 text-amber-900 shadow-none">
+                <Crown className="mr-1 h-3 w-3" />
+                Premium
+              </Badge>
+            )}
           </div>
         </div>
-      </div>
+
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-semibold text-stone-900 transition group-hover:text-stone-700">
+                {provider.display_name}
+              </h3>
+              <p className="mt-1 text-sm text-stone-500">
+                {provider.location_city}, {provider.location_state}
+              </p>
+            </div>
+            {provider.rate_hourly && (
+              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-medium text-stone-900">
+                ${provider.rate_hourly}/hr
+              </span>
+            )}
+          </div>
+
+          {provider.tagline && (
+            <p className="mt-4 line-clamp-2 text-sm leading-6 text-stone-600">{provider.tagline}</p>
+          )}
+
+          <div className="mt-6 flex items-center justify-between gap-4 text-sm">
+            <div className="flex items-center gap-2 text-stone-600">
+              <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-stone-300"}`} />
+              <span className="font-medium text-stone-700">{ratingMeta.value}</span>
+              <span className="text-stone-400">{ratingMeta.detail}</span>
+            </div>
+            <span className="inline-flex items-center gap-2 font-medium text-stone-900">
+              View profile
+              <ArrowRight className="h-4 w-4" />
+            </span>
+          </div>
+        </div>
+      </article>
     </Link>
   );
 }

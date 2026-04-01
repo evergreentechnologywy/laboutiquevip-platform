@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
 import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
+import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 
 const emptyProfile = {
   display_name: "",
@@ -39,6 +40,12 @@ const emptyProfile = {
   age: "",
   phone: "",
   email: "",
+  verification_provider: "",
+  verification_username: "",
+  verification_url: "",
+  review_provider: "",
+  review_username: "",
+  review_url: "",
   rate_hourly: "",
   ad_package: "none",
 };
@@ -202,6 +209,12 @@ export default function ProviderDashboard() {
       age: normalizeOptionalNumber(formData.age),
       phone: normalizeOptionalString(formData.phone),
       email: normalizeOptionalString(formData.email),
+      verification_provider: normalizeOptionalString(formData.verification_provider),
+      verification_username: normalizeOptionalString(formData.verification_username),
+      verification_url: normalizeOptionalUrl(formData.verification_url),
+      review_provider: normalizeOptionalString(formData.review_provider),
+      review_username: normalizeOptionalString(formData.review_username),
+      review_url: normalizeOptionalUrl(formData.review_url),
       rate_hourly: normalizeOptionalNumber(formData.rate_hourly),
     };
 
@@ -430,7 +443,7 @@ export default function ProviderDashboard() {
             <Card className="bg-zinc-900 border-zinc-800">
               <CardHeader>
                 <CardTitle className="text-zinc-100">Manage profile</CardTitle>
-                <CardDescription className="text-zinc-400">Edit your public listing, rates, and contact details.</CardDescription>
+                <CardDescription className="text-zinc-400">Edit your public listing, contact details, and external trust references.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
@@ -496,6 +509,43 @@ export default function ProviderDashboard() {
 
                 <div className="grid md:grid-cols-1 gap-6">
                   <Field label="Hourly rate"><Input type="number" value={formData.rate_hourly} onChange={(e) => handleChange("rate_hourly", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" min={0} /></Field>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
+                  <div className="mb-4">
+                    <h3 className="font-medium text-zinc-100">External trust accounts</h3>
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      Add the third-party accounts you want shown publicly. Use a username, a direct link, or both. Verification and review publication on those services remain controlled by the external providers.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium text-zinc-200">Verification account</p>
+                      <Field label="Verification provider">
+                        <Input value={formData.verification_provider || ""} onChange={(e) => handleChange("verification_provider", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="Example: Preferred Verifier" />
+                      </Field>
+                      <Field label="Verification username">
+                        <Input value={formData.verification_username || ""} onChange={(e) => handleChange("verification_username", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="@username or account handle" />
+                      </Field>
+                      <Field label="Verification link">
+                        <Input value={formData.verification_url || ""} onChange={(e) => handleChange("verification_url", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="https://..." />
+                      </Field>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium text-zinc-200">Review account</p>
+                      <Field label="Review provider">
+                        <Input value={formData.review_provider || ""} onChange={(e) => handleChange("review_provider", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="Example: Trusted Reviews" />
+                      </Field>
+                      <Field label="Review username">
+                        <Input value={formData.review_username || ""} onChange={(e) => handleChange("review_username", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="@username or profile handle" />
+                      </Field>
+                      <Field label="Review link">
+                        <Input value={formData.review_url || ""} onChange={(e) => handleChange("review_url", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="https://..." />
+                      </Field>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4">

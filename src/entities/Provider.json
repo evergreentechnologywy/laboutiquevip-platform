@@ -74,6 +74,24 @@
     "email": {
       "type": "string"
     },
+    "verification_provider": {
+      "type": "string"
+    },
+    "verification_username": {
+      "type": "string"
+    },
+    "verification_url": {
+      "type": "string"
+    },
+    "review_provider": {
+      "type": "string"
+    },
+    "review_username": {
+      "type": "string"
+    },
+    "review_url": {
+      "type": "string"
+    },
     "website": {
       "type": "string"
     },

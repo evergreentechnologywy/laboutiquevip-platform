@@ -344,6 +344,12 @@ model Provider {
   age                    Int?
   phone                  String?
   email                  String?
+  verification_provider  String?
+  verification_username  String?
+  verification_url       String?
+  review_provider        String?
+  review_username        String?
+  review_url             String?
   ad_package             String?  @default("none")
   ad_package_expiry      String?
   verification_documents Json?

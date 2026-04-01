@@ -8,18 +8,19 @@ import { Search, MapPin, Star, Shield, Crown, ArrowRight, BadgeCheck, Gem, Messa
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { searchProviders } from "@/api/providerSearch";
+import { getProviderRatingMeta } from "@/lib/providerPresentation";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
   { label: "Transparent Rates", icon: Gem },
   { label: "Discreet Contact", icon: MessageCircleMore },
-  { label: "Trusted Reviews", icon: Star },
+  { label: "Approved Reviews", icon: Star },
 ];
 
 const whyItems = [
   {
     title: "Verified authenticity",
-    body: "Every featured profile is reviewed for authenticity, clarity, and presentation.",
+    body: "Verification status is shown after checks handled through external identity providers and internal moderation.",
     icon: Shield,
   },
   {
@@ -29,7 +30,7 @@ const whyItems = [
   },
   {
     title: "Trust-led discovery",
-    body: "Clear information and trusted reviews help create a more confident browsing experience.",
+    body: "Clear profile information and approved feedback help support more confident browsing as live data matures.",
     icon: Star,
   },
 ];
@@ -186,8 +187,15 @@ export default function Home() {
                     <div className="mt-6 flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 text-stone-600">
                         <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                        <span className="font-medium text-stone-700">{provider.rating_average?.toFixed(1) || "5.0"}</span>
-                        <span className="text-stone-400">({provider.reviews_count || 0})</span>
+                        {(() => {
+                          const ratingMeta = getProviderRatingMeta(provider);
+                          return (
+                            <>
+                              <span className="font-medium text-stone-700">{ratingMeta.value}</span>
+                              <span className="text-stone-400">{ratingMeta.detail}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                       {provider.rate_hourly && (
                         <span className="font-medium text-stone-900">${provider.rate_hourly}/hr</span>
@@ -262,13 +270,15 @@ export default function Home() {
             <div className="flex flex-wrap gap-6 text-sm text-stone-600">
               <Link to={createPageUrl("Home")} className="hover:text-stone-900">Home</Link>
               <Link to={createPageUrl("Browse")} className="hover:text-stone-900">Browse</Link>
+              <Link to={createPageUrl("Pricing")} className="hover:text-stone-900">Pricing</Link>
+              <Link to={createPageUrl("Trust")} className="hover:text-stone-900">Trust</Link>
               <button onClick={() => base44.auth.redirectToLogin()} className="hover:text-stone-900">Sign In</button>
             </div>
           </div>
 
           <div className="pt-6 text-sm leading-7 text-stone-500">
             <p>
-              This platform is intended only for adults 18+. Verification, featured placement, and profile visibility are subject to review and confirmation by the platform.
+              This platform is intended only for adults 18+. Verification and review workflows rely on external service providers plus internal moderation before anything is shown publicly.
             </p>
           </div>
         </div>

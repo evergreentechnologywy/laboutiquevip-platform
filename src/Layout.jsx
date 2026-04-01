@@ -24,6 +24,8 @@ import { base44 } from "@/api/base44Client";
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home"), icon: Home },
   { title: "Browse", url: createPageUrl("Browse"), icon: Search },
+  { title: "Pricing", url: createPageUrl("Pricing"), icon: Crown },
+  { title: "Trust", url: createPageUrl("Trust"), icon: Shield },
 ];
 
 const providerNavigation = [
@@ -101,7 +103,7 @@ export default function Layout({ children, currentPageName }) {
                   This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
                 </p>
                 <p className="text-stone-500">
-                  Verification, availability, and premium placement are subject to review and may change. Booking requests are enquiries until confirmed.
+                  Verification and reviews depend on external providers plus internal moderation. Availability and placement may change after publication.
                 </p>
                 <div className="flex gap-3 pt-2">
                   <Button onClick={acceptAgeGate} className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">

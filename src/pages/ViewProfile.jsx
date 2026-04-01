@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { getProviderRatingMeta } from "@/lib/providerPresentation";
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -41,6 +42,8 @@ export default function ViewProfile() {
     queryFn: () => base44.entities.Review.filter({ provider_id: providerId, status: 'approved' }, '-created_date'),
     enabled: !!providerId,
   });
+
+  const ratingMeta = getProviderRatingMeta(provider, reviews.length);
 
   if (isLoading) {
     return (
@@ -136,7 +139,7 @@ export default function ViewProfile() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>{provider.rating_average?.toFixed(1) || '5.0'} ({reviews.length} reviews)</span>
+                      <span>{ratingMeta.value} · {ratingMeta.detail}</span>
                     </div>
                   </div>
                 </div>
@@ -150,7 +153,7 @@ export default function ViewProfile() {
                   <div>
                     <p className="font-medium text-amber-100 mb-1">Advertising and verification notice</p>
                     <p className="leading-6">
-                      Verification badges and listing details reflect platform data at the time of publication. This website is for profile advertising and discovery, not direct booking or on-site messaging.
+                      Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval, and linked third-party accounts remain subject to those providers&apos; own policies and availability.
                     </p>
                   </div>
                 </div>
@@ -222,13 +225,16 @@ export default function ViewProfile() {
             )}
 
             {/* Reviews */}
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-zinc-100">Reviews ({reviews.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {reviews.length === 0 ? (
-                  <p className="text-zinc-500 text-center py-8">No reviews yet</p>
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">Reviews ({reviews.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {reviews.length === 0 ? (
+                  <div className="py-8 text-center text-zinc-500">
+                    <p>No approved reviews are live yet.</p>
+                    <p className="mt-2 text-sm text-zinc-600">Reviews appear after moderation and may remain limited while rollout continues.</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {reviews.map((review) => (
@@ -321,6 +327,43 @@ export default function ViewProfile() {
                 )}
               </CardContent>
             </Card>
+
+            {(provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">External trust references</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  {(provider.verification_provider || provider.verification_username || provider.verification_url) && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Verification account</p>
+                      <p className="mt-1 text-zinc-400">{provider.verification_provider || "External provider"}</p>
+                      {provider.verification_username && <p className="mt-2 text-zinc-300">@{String(provider.verification_username).replace(/^@/, "")}</p>}
+                      {provider.verification_url && (
+                        <a href={provider.verification_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                          View external account
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  {(provider.review_provider || provider.review_username || provider.review_url) && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Review account</p>
+                      <p className="mt-1 text-zinc-400">{provider.review_provider || "External provider"}</p>
+                      {provider.review_username && <p className="mt-2 text-zinc-300">@{String(provider.review_username).replace(/^@/, "")}</p>}
+                      {provider.review_url && (
+                        <a href={provider.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                          View external account
+                        </a>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs leading-6 text-zinc-500">
+                    These links point to third-party services and are displayed for reference only. Availability, verification status, and review publication on those services are handled externally.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Social Media */}
             {(provider.social_media?.instagram || provider.social_media?.twitter) && (

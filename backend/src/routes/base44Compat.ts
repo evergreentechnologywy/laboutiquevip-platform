@@ -121,6 +121,12 @@ const PUBLIC_PROVIDER_FIELDS = {
   age: true,
   phone: true,
   email: true,
+  verification_provider: true,
+  verification_username: true,
+  verification_url: true,
+  review_provider: true,
+  review_username: true,
+  review_url: true,
   photos: true,
   is_premium: true,
   is_verified: true,
@@ -372,6 +378,28 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
 
     const data = deriveProviderState(parsed.data, null, { isAdmin });
     const created = await prisma.provider.create({ data });
+
+    // Fix race condition: if ID verification was already approved before the
+    // provider record existed, apply the approval now.
+    console.log("[racefix] Checking for approved verification for user_id:", parsed.data.user_id);
+    const approvedVerification = await prisma.verification.findFirst({
+      where: { userId: parsed.data.user_id, status: "approved" },
+      orderBy: { createdAt: "desc" },
+    });
+    console.log("[racefix] Found:", approvedVerification?.id ?? "none");
+    if (approvedVerification) {
+      const updated = await prisma.provider.update({
+        where: { id: created.id },
+        data: {
+          is_verified: true,
+          is_profile_approved: true,
+          status: "active",
+          rejection_reason: null,
+        },
+      });
+      return { statusCode: 200, body: normalizeDates(updated) };
+    }
+
     return { statusCode: 200, body: normalizeDates(created) };
   }
 

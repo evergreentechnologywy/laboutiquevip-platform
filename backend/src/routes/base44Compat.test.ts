@@ -194,6 +194,10 @@ test("Public provider reads apply the blocked-name guardrail", async () => {
   });
   assert.equal(seenSelect.phone, true);
   assert.equal(seenSelect.email, true);
+  assert.equal(seenSelect.verification_provider, true);
+  assert.equal(seenSelect.verification_url, true);
+  assert.equal(seenSelect.review_provider, true);
+  assert.equal(seenSelect.review_url, true);
 });
 
 test("Provider owner can self-preview a non-public profile by id", async () => {

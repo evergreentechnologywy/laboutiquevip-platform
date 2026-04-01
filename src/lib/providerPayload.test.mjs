@@ -40,3 +40,29 @@ test("buildProviderSignupPayload strips frontend-only fields and normalizes valu
   });
   assert.equal("verification_id" in payload, false);
 });
+
+test("buildProviderSignupPayload ignores external account fields that are not part of signup payload", () => {
+  const payload = buildProviderSignupPayload({
+    userId: "user-2",
+    billingPeriod: "monthly",
+    formData: {
+      display_name: "Another Listing",
+      location_city: "Miami",
+      location_state: "Florida",
+      ad_package: "none",
+      verification_provider: "Preferred Verifier",
+      verification_username: "provider-handle",
+      verification_url: "https://verifier.example/provider-handle",
+      review_provider: "Preferred Reviews",
+      review_username: "provider-reviews",
+      review_url: "https://reviews.example/provider-reviews",
+    },
+  });
+
+  assert.equal("verification_provider" in payload, false);
+  assert.equal("verification_username" in payload, false);
+  assert.equal("verification_url" in payload, false);
+  assert.equal("review_provider" in payload, false);
+  assert.equal("review_username" in payload, false);
+  assert.equal("review_url" in payload, false);
+});
