@@ -4,17 +4,42 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Star, Shield, Crown, TrendingUp } from "lucide-react";
+import { Search, MapPin, Star, Shield, Crown, ArrowRight, BadgeCheck, Gem, MessageCircleMore } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { searchProviders } from "@/api/providerSearch";
+
+const trustItems = [
+  { label: "Verified Profiles", icon: BadgeCheck },
+  { label: "Transparent Rates", icon: Gem },
+  { label: "Discreet Contact", icon: MessageCircleMore },
+  { label: "Trusted Reviews", icon: Star },
+];
+
+const whyItems = [
+  {
+    title: "Verified authenticity",
+    body: "Every featured profile is reviewed for authenticity, clarity, and presentation.",
+    icon: Shield,
+  },
+  {
+    title: "Curated premium experience",
+    body: "Discover listings designed to feel polished, transparent, and easy to explore.",
+    icon: Crown,
+  },
+  {
+    title: "Trust-led discovery",
+    body: "Clear information and trusted reviews help create a more confident browsing experience.",
+    icon: Star,
+  },
+];
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [locationQuery, setLocationQuery] = React.useState("");
 
   const { data: featuredProviders = [] } = useQuery({
-    queryKey: ['featured-providers'],
+    queryKey: ["featured-providers"],
     queryFn: async () => {
       const data = await searchProviders({
         premium: true,
@@ -30,216 +55,224 @@ export default function Home() {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (searchQuery) params.append('q', searchQuery);
-    if (locationQuery) params.append('location', locationQuery);
+    if (searchQuery) params.append("q", searchQuery);
+    if (locationQuery) params.append("location", locationQuery);
     window.location.href = createPageUrl(`Browse?${params.toString()}`);
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-rose-950/20 via-zinc-950 to-amber-950/20" />
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-amber-500 rounded-xl flex items-center justify-center shadow-2xl shadow-rose-500/25">
-                <Crown className="w-8 h-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-5xl sm:text-7xl font-bold mb-2">
-              <span className="bg-gradient-to-r from-rose-400 via-pink-400 to-amber-400 bg-clip-text text-transparent">
-                La Boutique Vip
-              </span>
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <section className="relative overflow-hidden border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
+        <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="text-sm font-medium tracking-[0.22em] text-stone-500 uppercase">
+              Curated listings · Verified profiles · Discreet enquiries
+            </p>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-stone-900 sm:text-6xl lg:text-7xl">
+              Discover verified profiles with discretion and clarity
             </h1>
-            <p className="text-2xl sm:text-3xl font-semibold text-zinc-500 mb-6">International</p>
-            <p className="text-xl sm:text-2xl text-zinc-400 mb-12 max-w-3xl mx-auto">
-              Discover polished, verified profiles with clear rates, direct contact options, and discreet enquiry tools.
+            <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-stone-600 sm:text-xl">
+              Browse polished listings, transparent rates, and direct enquiry options in a trusted premium environment.
             </p>
 
-            {/* Search Box */}
-            <div className="max-w-4xl mx-auto bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-2xl p-6 shadow-2xl">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-                    <Input
-                      placeholder="Search by name, services, or features..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                      className="pl-12 h-14 bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-rose-500 focus:ring-rose-500"
-                    />
-                  </div>
-                </div>
+            <div className="mx-auto mt-10 max-w-5xl rounded-[24px] border border-stone-200 bg-white/95 p-4 shadow-[0_24px_80px_-32px_rgba(28,25,23,0.28)] backdrop-blur">
+              <div className="grid gap-3 md:grid-cols-[1.35fr_1fr_auto]">
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
                   <Input
-                    placeholder="City or location..."
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                    className="pl-12 h-14 bg-zinc-800/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-rose-500 focus:ring-rose-500"
+                    placeholder="Search by name or service"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    className="h-14 rounded-2xl border-stone-200 bg-stone-50/80 pl-12 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:ring-stone-300"
                   />
                 </div>
+                <div className="relative">
+                  <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
+                  <Input
+                    placeholder="City or location"
+                    value={locationQuery}
+                    onChange={(e) => setLocationQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    className="h-14 rounded-2xl border-stone-200 bg-stone-50/80 pl-12 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:ring-stone-300"
+                  />
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  className="h-14 rounded-2xl bg-stone-900 px-8 text-base font-medium text-stone-50 shadow-sm transition hover:bg-stone-800"
+                >
+                  Search
+                </Button>
               </div>
-              <Button
-                onClick={handleSearch}
-                className="w-full mt-4 h-14 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-semibold text-lg shadow-lg hover:shadow-rose-500/25 transition-all"
-              >
-                Search Now
-              </Button>
             </div>
+
+            <p className="mt-5 text-sm text-stone-500">
+              Adults only · Trusted presentation · Clear profile information
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Features */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="mb-8 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 text-left">
-          <p className="text-sm font-medium text-amber-100 mb-2">Adults only · trust & transparency</p>
-          <p className="text-sm text-zinc-300 leading-6">
-            This platform is intended only for adults 18+. Verification and featured placement are subject to review. Any premium placement, verification status, or billing-related benefits should be treated as active only after platform confirmation.
-          </p>
+      <section className="border-b border-stone-200 bg-white">
+        <div className="mx-auto grid max-w-7xl gap-4 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+          {trustItems.map((item) => (
+            <div key={item.label} className="flex items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm font-medium text-stone-700">
+              <item.icon className="h-4 w-4 text-stone-500" />
+              <span>{item.label}</span>
+            </div>
+          ))}
         </div>
+      </section>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="text-center p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:border-rose-500/50 transition-all">
-            <div className="w-16 h-16 bg-gradient-to-br from-rose-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-500/20">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-zinc-100">Verified Profiles</h3>
-            <p className="text-zinc-400">All providers are verified for authenticity and safety</p>
-          </div>
-
-          <div className="text-center p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:border-amber-500/50 transition-all">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20">
-              <Crown className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-zinc-100">Premium Experience</h3>
-            <p className="text-zinc-400">Curated selection of elite companions</p>
-          </div>
-
-          <div className="text-center p-8 rounded-2xl bg-zinc-900/50 border border-zinc-800 backdrop-blur-sm hover:border-pink-500/50 transition-all">
-            <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-pink-500/20">
-              <Star className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-zinc-100">Trusted Reviews</h3>
-            <p className="text-zinc-400">Authentic reviews from verified clients</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Featured Providers */}
       {featuredProviders.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <div className="flex items-center justify-between mb-12">
+        <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-zinc-100 mb-2">Featured Companions</h2>
-              <p className="text-zinc-400">Premium verified profiles</p>
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Featured selection</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">Verified Profiles</h2>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600">
+                Explore curated listings presented with clarity, trust, and premium discretion.
+              </p>
             </div>
             <Link to={createPageUrl("Browse")}>
-              <Button variant="outline" className="border-zinc-700 text-zinc-300 hover:border-rose-500 hover:text-rose-400">
-                View All
-                <TrendingUp className="w-4 h-4 ml-2" />
+              <Button variant="outline" className="h-11 rounded-full border-stone-300 bg-white px-5 text-stone-700 hover:border-stone-400 hover:bg-stone-50">
+                Browse all
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProviders.map((provider) => (
-              <Link
-                key={provider.id}
-                to={createPageUrl(`ViewProfile?id=${provider.id}`)}
-                className="group"
-              >
-                <div className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-rose-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-rose-500/10">
-                  <div className="aspect-[3/4] overflow-hidden bg-zinc-800">
+              <Link key={provider.id} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
+                <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
+                  <div className="aspect-[4/5] overflow-hidden bg-stone-100">
                     {provider.photos?.[0] ? (
                       <img
                         src={provider.photos[0]}
                         alt={provider.display_name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Crown className="w-16 h-16 text-zinc-700" />
+                      <div className="flex h-full items-center justify-center bg-stone-100 text-stone-300">
+                        <Crown className="h-14 w-14" />
                       </div>
                     )}
                   </div>
 
                   <div className="p-6">
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-xl font-semibold text-zinc-100 group-hover:text-rose-400 transition-colors">
+                        <h3 className="text-xl font-semibold text-stone-900 transition group-hover:text-stone-700">
                           {provider.display_name}
                         </h3>
-                        <p className="text-sm text-zinc-400">
+                        <p className="mt-1 text-sm text-stone-500">
                           {provider.location_city}, {provider.location_state}
                         </p>
                       </div>
                       {provider.is_verified && (
-                        <div className="bg-rose-500/20 p-2 rounded-lg">
-                          <Shield className="w-4 h-4 text-rose-400" />
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-stone-900 px-3 py-1 text-xs font-medium text-stone-50">
+                          <Shield className="h-3.5 w-3.5" />
+                          Verified
+                        </span>
                       )}
                     </div>
 
                     {provider.tagline && (
-                      <p className="text-sm text-zinc-500 mb-4 line-clamp-2">
-                        {provider.tagline}
-                      </p>
+                      <p className="mt-4 line-clamp-2 text-sm leading-6 text-stone-600">{provider.tagline}</p>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                        <span className="text-sm font-medium text-zinc-300">
-                          {provider.rating_average?.toFixed(1) || '5.0'}
-                        </span>
-                        <span className="text-sm text-zinc-500">
-                          ({provider.reviews_count || 0})
-                        </span>
+                    <div className="mt-6 flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-stone-600">
+                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                        <span className="font-medium text-stone-700">{provider.rating_average?.toFixed(1) || "5.0"}</span>
+                        <span className="text-stone-400">({provider.reviews_count || 0})</span>
                       </div>
                       {provider.rate_hourly && (
-                        <span className="text-sm font-semibold text-rose-400">
-                          ${provider.rate_hourly}/hr
-                        </span>
+                        <span className="font-medium text-stone-900">${provider.rate_hourly}/hr</span>
                       )}
                     </div>
+
+                    <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-stone-900">
+                      View Profile
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
                   </div>
-                </div>
+                </article>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* CTA Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-950/50 to-amber-950/50 border border-zinc-800 p-12 sm:p-16 text-center">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519074069444-1ba4fff66d16?w=1200')] opacity-5 bg-cover bg-center" />
-          <div className="relative">
-            <h2 className="text-3xl sm:text-5xl font-bold mb-6 bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent">
-              Are You a Provider?
-            </h2>
-            <p className="text-xl text-zinc-300 mb-8 max-w-2xl mx-auto">
-              Join La Boutique Vip International and connect with discerning clients
+      <section className="border-t border-b border-stone-200 bg-stone-100/70">
+        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">Why La Boutique VIP</h2>
+            <p className="mt-4 text-base leading-7 text-stone-600 sm:text-lg">
+              A more refined way to discover trusted profiles with clarity, discretion, and premium presentation.
             </p>
-            <Button
-              onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderSignup"))}
-              className="h-14 px-8 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-semibold text-lg shadow-xl hover:shadow-rose-500/25 transition-all"
-            >
-              Get Started Today
-            </Button>
+          </div>
+
+          <div className="mt-14 grid gap-6 lg:grid-cols-3">
+            {whyItems.map((item) => (
+              <div key={item.title} className="rounded-[24px] border border-stone-200 bg-white p-8 shadow-[0_14px_35px_-28px_rgba(28,25,23,0.25)]">
+                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-900 text-stone-50">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-xl font-semibold text-stone-900">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-stone-600">{item.body}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="rounded-[32px] border border-stone-200 bg-stone-900 px-8 py-16 text-center shadow-[0_30px_80px_-38px_rgba(28,25,23,0.45)] sm:px-12">
+          <h2 className="text-3xl font-semibold tracking-tight text-stone-50 sm:text-5xl">Are you a provider?</h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-stone-300">
+            Join La Boutique VIP International and present your profile in a more polished, trusted, and premium environment.
+          </p>
+          <Button
+            onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderSignup"))}
+            className="mt-8 h-14 rounded-full bg-stone-50 px-8 text-base font-medium text-stone-900 transition hover:bg-white"
+          >
+            Get Started
+          </Button>
+        </div>
+      </section>
+
+      <footer className="border-t border-stone-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-8 border-b border-stone-200 pb-8 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-900 text-stone-50">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-stone-900">La Boutique VIP International</p>
+                  <p className="text-sm text-stone-500">Curated, discreet discovery</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-6 text-sm text-stone-600">
+              <Link to={createPageUrl("Home")} className="hover:text-stone-900">Home</Link>
+              <Link to={createPageUrl("Browse")} className="hover:text-stone-900">Browse</Link>
+              <button onClick={() => base44.auth.redirectToLogin()} className="hover:text-stone-900">Sign In</button>
+            </div>
+          </div>
+
+          <div className="pt-6 text-sm leading-7 text-stone-500">
+            <p>
+              This platform is intended only for adults 18+. Verification, featured placement, and profile visibility are subject to review and confirmation by the platform.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

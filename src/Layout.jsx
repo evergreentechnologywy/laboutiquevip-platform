@@ -92,22 +92,22 @@ export default function Layout({ children, currentPageName }) {
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
         {!isProviderPage && (
           <Dialog open={!ageGateAccepted}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 [&>button]:hidden">
+            <DialogContent className="border-stone-200 bg-white text-stone-900 [&>button]:hidden">
               <DialogHeader>
                 <DialogTitle>Adults only</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 text-sm text-zinc-300 leading-6">
+              <div className="space-y-4 text-sm leading-6 text-stone-600">
                 <p>
                   This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
                 </p>
-                <p className="text-zinc-400">
+                <p className="text-stone-500">
                   Verification, availability, and premium placement are subject to review and may change. Booking requests are enquiries until confirmed.
                 </p>
                 <div className="flex gap-3 pt-2">
-                  <Button onClick={acceptAgeGate} className="flex-1 bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-600 hover:to-amber-600">
+                  <Button onClick={acceptAgeGate} className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">
                     I am 18+ and continue
                   </Button>
-                  <Button variant="outline" className="flex-1 border-zinc-700 text-zinc-300" onClick={() => window.location.href = 'https://www.google.com'}>
+                  <Button variant="outline" className="flex-1 rounded-full border-stone-300 text-stone-700" onClick={() => window.location.href = 'https://www.google.com'}>
                     Leave site
                   </Button>
                 </div>
@@ -206,16 +206,16 @@ export default function Layout({ children, currentPageName }) {
 
         <main className="flex-1 flex flex-col">
           {!isProviderPage && (
-            <nav className="bg-zinc-950 border-b border-zinc-800">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                  <Link to={createPageUrl("Home")} className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-br from-rose-500 to-amber-500 rounded-lg flex items-center justify-center">
-                      <Crown className="w-5 h-5 text-white" />
+            <nav className="border-b border-stone-200 bg-white/95 backdrop-blur">
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="flex h-20 items-center justify-between">
+                  <Link to={createPageUrl("Home")} className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-900 text-stone-50">
+                      <Crown className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-lg font-bold bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent">La Boutique Vip</span>
-                      <span className="text-xs text-zinc-500">International</span>
+                      <span className="text-base font-semibold tracking-tight text-stone-900">La Boutique VIP International</span>
+                      <span className="text-xs text-stone-500">Curated, discreet discovery</span>
                     </div>
                   </Link>
 
@@ -224,7 +224,7 @@ export default function Layout({ children, currentPageName }) {
                       <Link
                         key={item.title}
                         to={item.url}
-                        className={`text-sm font-medium transition-colors ${location.pathname === item.url ? "text-rose-400" : "text-zinc-400 hover:text-zinc-200"}`}
+                        className={`text-sm font-medium transition-colors ${location.pathname === item.url ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}
                       >
                         {item.title}
                       </Link>
@@ -232,17 +232,17 @@ export default function Layout({ children, currentPageName }) {
 
                     {user ? (
                       <>
-                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors">
+                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-stone-900 transition-colors hover:text-stone-700">
                           Dashboard
                         </Link>
-                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors">
+                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-stone-500 transition-colors hover:text-stone-900">
                           Logout
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => base44.auth.redirectToLogin()}
-                        className="px-4 py-2 bg-gradient-to-r from-rose-500 to-amber-500 text-white rounded-lg text-sm font-medium hover:shadow-lg hover:shadow-rose-500/20 transition-all"
+                        className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50"
                       >
                         Sign In
                       </button>
