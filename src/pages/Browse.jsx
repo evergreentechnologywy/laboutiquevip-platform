@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Star, Shield, Crown, Filter, X, ArrowRight, Sparkles } from "lucide-react";
+import { Search, MapPin, Star, Shield, Crown, Filter, X, ArrowRight, Sparkles, CheckCircle2, LifeBuoy, Megaphone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
@@ -26,6 +26,30 @@ const trustNotes = [
   "Verification badges appear after external identity checks and internal approval.",
   "Reviews only appear after moderation and may be limited while rollout continues.",
   "Rates and contact methods are supplied by advertisers and can change after publication.",
+];
+
+const ctaCards = [
+  {
+    title: "How trust works",
+    description: "See what is verified, what is moderated, and where listings may still vary.",
+    icon: Shield,
+    href: createPageUrl("Trust"),
+    label: "Review trust standards",
+  },
+  {
+    title: "Need help choosing?",
+    description: "Use broader search terms, adjust your rate band, or check new cities as listings rotate in.",
+    icon: LifeBuoy,
+    href: createPageUrl("Trust"),
+    label: "Browse support guidance",
+  },
+  {
+    title: "Advertise with us",
+    description: "For providers ready to appear here, view placement options and premium visibility details.",
+    icon: Megaphone,
+    href: createPageUrl("Pricing"),
+    label: "View advertiser pricing",
+  },
 ];
 
 export default function Browse() {
@@ -62,6 +86,8 @@ export default function Browse() {
   const totalPages = data?.totalPages || 1;
   const isStateSearch = !!location && providers.some((provider) => provider.location_state?.toLowerCase() === location.toLowerCase()) && new Set(providers.map((provider) => provider.location_city)).size > 1;
   const groupedProviders = groupProvidersByCity(providers);
+  const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
+  const hasLowResults = !isLoading && providers.length > 0 && providers.length <= 3;
 
   const toggleFilter = (filter) => {
     setSelectedFilters((prev) => ({ ...prev, [filter]: !prev[filter] }));
@@ -80,12 +106,20 @@ export default function Browse() {
     <div className="min-h-screen bg-stone-50 text-stone-900">
       <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="max-w-3xl">
-            <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">Browse the directory</p>
-            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">Refined discovery with clearer trust signals</h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
-              Explore live listings, transparent rate ranges, and profile details presented with a more measured trust layer.
-            </p>
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] lg:items-end">
+            <div className="max-w-3xl">
+              <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">Browse the directory</p>
+              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">Refined discovery with stronger trust and clearer next steps</h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
+                Explore live listings with transparent rate ranges, moderated reviews, and a calmer path to finding the right match.
+              </p>
+            </div>
+
+            <div className="grid gap-3 rounded-[28px] border border-stone-200 bg-white/90 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.22)] backdrop-blur sm:grid-cols-3">
+              <StatCard label="Live listings" value={isLoading ? "—" : `${total}`} helper="Approved and currently searchable" />
+              <StatCard label="Trust layer" value="Checked" helper="Verification + moderation disclosures" />
+              <StatCard label="Best use" value="Browse wide" helper="Then narrow once you see supply" />
+            </div>
           </div>
 
           <div className="mt-10 rounded-[28px] border border-stone-200 bg-white/95 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)] backdrop-blur sm:p-6">
@@ -162,13 +196,18 @@ export default function Browse() {
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Results</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">Browse live advertiser profiles</h2>
             <p className="mt-3 text-sm leading-6 text-stone-500">
               {isLoading ? "Loading results..." : `${total} listing${total === 1 ? "" : "s"} found`}{isFetching && !isLoading ? " · refreshing" : ""}
             </p>
+            {hasActiveFilters && !isLoading && (
+              <p className="mt-2 text-sm leading-6 text-stone-500">
+                Showing filtered results. If inventory feels thin, widen location, remove premium-only, or expand your rate range.
+              </p>
+            )}
           </div>
 
           {isStateSearch && cityGroups.length > 0 && (
@@ -181,6 +220,35 @@ export default function Browse() {
             </div>
           )}
         </div>
+
+        {hasLowResults && (
+          <div className="mb-8 grid gap-4 rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)] lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-stone-600">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Limited but qualified results
+              </div>
+              <h3 className="mt-4 text-2xl font-semibold text-stone-900">A narrower result set can still be useful</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600">
+                You are seeing a smaller pool for this search. That usually means the active inventory is concentrated, not broken. Broaden city/state filters to compare more profiles, or review trust standards before deciding.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link to={createPageUrl("Trust")}>
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-stone-300 hover:bg-white">
+                  <p className="text-sm font-medium text-stone-900">Verification standards</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">Understand badges, moderation, and where claims may still vary.</p>
+                </div>
+              </Link>
+              <Link to={createPageUrl("Pricing")}>
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-stone-300 hover:bg-white">
+                  <p className="text-sm font-medium text-stone-900">Provider placement</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">Looking to appear here? Review advertising and premium visibility options.</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -242,6 +310,25 @@ export default function Browse() {
           </div>
         )}
 
+        <div className="mt-10 grid gap-4 lg:grid-cols-3">
+          {ctaCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Link key={card.title} to={card.href} className="group rounded-[24px] border border-stone-200 bg-white p-5 shadow-[0_18px_40px_-32px_rgba(28,25,23,0.18)] transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_24px_50px_-30px_rgba(28,25,23,0.24)]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-100 text-stone-700">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-stone-900">{card.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-stone-600">{card.description}</p>
+                <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-stone-900">
+                  {card.label}
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
         {totalPages > 1 && (
           <div className="mt-10 flex items-center justify-center gap-3">
             <Button variant="outline" className="rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
@@ -254,6 +341,16 @@ export default function Browse() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function StatCard({ label, value, helper }) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-stone-500">{helper}</p>
     </div>
   );
 }
