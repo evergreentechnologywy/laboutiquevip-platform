@@ -14,6 +14,12 @@ export const AuthProvider = ({ children }) => {
   const checkAppState = async () => {
     setIsLoadingAuth(true);
     setAuthError(null);
+    if (!base44.auth.hasToken()) {
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsLoadingAuth(false);
+      return;
+    }
     try {
       const currentUser = await base44.auth.me();
       setUser(currentUser);

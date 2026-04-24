@@ -331,10 +331,74 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact */}
+            {/* Contact Form */}
             <Card className="bg-zinc-900 border-zinc-800">
               <CardHeader>
-                <CardTitle className="text-zinc-100">Contact</CardTitle>
+                <CardTitle className="text-zinc-100">Send an enquiry</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sent ? (
+                  <div className="py-6 text-center text-green-400">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-3" />
+                    <p className="font-medium">Message sent successfully</p>
+                    <p className="text-xs text-zinc-500 mt-1">The provider has been notified.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleMessageSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-name" className="text-xs text-zinc-400">Your Name</Label>
+                      <Input 
+                        id="sender-name" 
+                        value={messageForm.name} 
+                        onChange={e => setMessageForm({...messageForm, name: e.target.value})}
+                        placeholder="Name" 
+                        required 
+                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-email" className="text-xs text-zinc-400">Email Address</Label>
+                      <Input 
+                        id="sender-email" 
+                        type="email" 
+                        value={messageForm.email} 
+                        onChange={e => setMessageForm({...messageForm, email: e.target.value})}
+                        placeholder="email@example.com" 
+                        required 
+                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-msg" className="text-xs text-zinc-400">Message</Label>
+                      <Textarea 
+                        id="sender-msg" 
+                        value={messageForm.message} 
+                        onChange={e => setMessageForm({...messageForm, message: e.target.value})}
+                        placeholder="Inquire about availability or services..." 
+                        required 
+                        rows={4}
+                        className="bg-zinc-800 border-zinc-700 text-sm" 
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      disabled={sending}
+                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-10 text-sm font-semibold rounded-xl"
+                    >
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-2" /> Send Message</>}
+                    </Button>
+                    <p className="text-[10px] text-zinc-500 text-center leading-4">
+                      Enquiries are stored securely and sent directly to the provider. 
+                    </p>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Contact Details */}
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Contact Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {provider.phone && (

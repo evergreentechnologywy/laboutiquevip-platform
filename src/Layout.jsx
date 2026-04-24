@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
 import { Footer } from "@/components/Footer";
 
@@ -96,7 +97,7 @@ export default function Layout({ children, currentPageName }) {
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
         {!isProviderPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
-            <DialogContent className="border-stone-200 bg-white text-stone-900 [&>button]:hidden">
+            <DialogContent className="border-stone-200 bg-white text-stone-900 [&>button]:hidden p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle>Adults only</DialogTitle>
               </DialogHeader>
@@ -115,7 +116,7 @@ export default function Layout({ children, currentPageName }) {
                     I agree to the <Link to={createPageUrl("Terms")} className="text-stone-900 underline underline-offset-4">Terms of Service</Link> and confirm I am 18+ years of age.
                   </Label>
                 </div>
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button 
                     onClick={acceptAgeGate} 
                     disabled={!agreementAccepted}
