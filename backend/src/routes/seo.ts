@@ -23,6 +23,8 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
       MAX(updated_at) AS last_updated_at
     FROM provider_profiles
     WHERE is_published = true
+      AND display_name !~* '(batch|user|simulation|test|approval|concurrency)'
+      AND (bio IS NULL OR bio !~* '(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)')
     GROUP BY city, city_slug
     ORDER BY city ASC
   `;
@@ -43,7 +45,25 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
 export async function seoProfilesHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
   const limit = Math.min(1000, Number(request.query.get("limit") ?? 500));
   const profiles = await context.prisma.providerProfile.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      NOT: {
+        OR: [
+          { displayName: { contains: "batch", mode: "insensitive" } },
+          { displayName: { contains: "user", mode: "insensitive" } },
+          { displayName: { contains: "simulation", mode: "insensitive" } },
+          { displayName: { contains: "test", mode: "insensitive" } },
+          { displayName: { contains: "approval", mode: "insensitive" } },
+          { displayName: { contains: "concurrency", mode: "insensitive" } },
+          { bio: { contains: "simulation", mode: "insensitive" } },
+          { bio: { contains: "test", mode: "insensitive" } },
+          { bio: { contains: "mixed live-site", mode: "insensitive" } },
+          { bio: { contains: "simultaneous approval", mode: "insensitive" } },
+          { bio: { contains: "concurrency", mode: "insensitive" } },
+          { bio: { contains: "created during", mode: "insensitive" } },
+        ],
+      },
+    },
     select: { slug: true, citySlug: true, updatedAt: true },
     orderBy: [{ updatedAt: "desc" }],
     take: Number.isFinite(limit) && limit > 0 ? limit : 500,

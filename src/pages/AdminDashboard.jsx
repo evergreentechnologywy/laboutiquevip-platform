@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Users, UserCheck, UserX, Clock, TrendingUp, Eye, Star, Shield, AlertCircle, CheckCircle, XCircle, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { SEO } from "@/components/SEO";
 
 export default function AdminDashboard() {
   const [user, setUser] = React.useState(null);
@@ -114,6 +115,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
+      <SEO title="Admin Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-zinc-100 mb-2">Admin Dashboard</h1>

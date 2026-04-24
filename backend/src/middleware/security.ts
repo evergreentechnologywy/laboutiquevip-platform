@@ -8,6 +8,7 @@ const DEFAULT_SECURITY_HEADERS: Record<string, string> = {
   "cross-origin-opener-policy": "same-origin",
   "cross-origin-resource-policy": "same-origin",
   "x-permitted-cross-domain-policies": "none",
+  "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
 };
 
 export function securityHeaders(): Record<string, string> {

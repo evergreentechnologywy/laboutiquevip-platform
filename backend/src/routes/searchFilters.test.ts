@@ -27,7 +27,10 @@ test("buildSearchModelFilters includes city/tag/availability filters", () => {
   assert.equal(filters.where.isVerified, false);
   assert.equal(filters.skip, 30);
   assert.equal(filters.take, 15);
-  assert.deepEqual(filters.where.AND, [
+  assert.ok(Array.isArray(filters.where.AND));
+  assert.equal(filters.where.AND.length, 4);
+  assert.equal(filters.where.AND[0].NOT.OR.length, 13);
+  assert.deepEqual(filters.where.AND.slice(1), [
     {
       tags: {
         some: {
@@ -63,14 +66,15 @@ test("buildSearchModelFilters applies availableTo-only overlap filter", () => {
     limit: 20,
   });
 
-  assert.deepEqual(filters.where.AND, [
-    {
-      availabilityBlocks: {
-        some: {
-          isAvailable: true,
-          startsAt: { lte: new Date("2026-10-05T00:00:00.000Z") },
-        },
+  assert.ok(Array.isArray(filters.where.AND));
+  assert.equal(filters.where.AND.length, 2);
+  assert.equal(filters.where.AND[0].NOT.OR.length, 13);
+  assert.deepEqual(filters.where.AND[1], {
+    availabilityBlocks: {
+      some: {
+        isAvailable: true,
+        startsAt: { lte: new Date("2026-10-05T00:00:00.000Z") },
       },
     },
-  ]);
+  });
 });

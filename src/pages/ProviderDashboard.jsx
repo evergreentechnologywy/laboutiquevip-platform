@@ -29,6 +29,7 @@ import {
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
 import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
+import { SEO } from "@/components/SEO";
 
 const emptyProfile = {
   display_name: "",
@@ -298,6 +299,7 @@ export default function ProviderDashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
+      <SEO title="Provider Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>

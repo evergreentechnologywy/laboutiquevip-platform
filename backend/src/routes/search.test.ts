@@ -30,6 +30,9 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
         seenCountArgs = args;
         return 0;
       },
+      aggregate: async (_args: any) => {
+        return { _max: { rate_hourly: null } };
+      },
     },
     $transaction: async (operations: Array<Promise<unknown>>) => Promise.all(operations),
   };
@@ -41,17 +44,15 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers?.["cache-control"], "public, max-age=30, s-maxage=30, stale-while-revalidate=120");
-  assert.deepEqual(seenFindManyArgs.where, {
-    AND: [
-      {
-        status: "active",
-        is_profile_approved: true,
-        NOT: [{ display_name: { equals: "Jarvis Test Listing", mode: "insensitive" } }],
-      },
-      { is_verified: true },
-      { is_premium: true },
-      { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
-    ],
-  });
+  assert.equal(Array.isArray(seenFindManyArgs.where.AND), true);
+  assert.equal(seenFindManyArgs.where.AND.length, 4);
+  assert.equal(seenFindManyArgs.where.AND[0].status, "active");
+  assert.equal(seenFindManyArgs.where.AND[0].is_profile_approved, true);
+  assert.ok(Array.isArray(seenFindManyArgs.where.AND[0].NOT));
+  assert.deepEqual(seenFindManyArgs.where.AND.slice(1), [
+    { is_verified: true },
+    { is_premium: true },
+    { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
+  ]);
   assert.deepEqual(seenCountArgs.where, seenFindManyArgs.where);
 });

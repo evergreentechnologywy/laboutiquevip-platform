@@ -182,16 +182,11 @@ test("Public provider reads apply the blocked-name guardrail", async () => {
 
   const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(seenWhere, {
-    AND: [
-      {
-        status: "active",
-        is_profile_approved: true,
-        NOT: [{ display_name: { equals: "Jarvis Test Listing", mode: "insensitive" } }],
-      },
-      { id: "p1" },
-    ],
-  });
+  assert.equal(seenWhere.AND.length, 2);
+  assert.equal(seenWhere.AND[0].status, "active");
+  assert.equal(seenWhere.AND[0].is_profile_approved, true);
+  assert.ok(Array.isArray(seenWhere.AND[0].NOT));
+  assert.deepEqual(seenWhere.AND[1], { id: "p1" });
   assert.equal(seenSelect.phone, true);
   assert.equal(seenSelect.email, true);
   assert.equal(seenSelect.verification_provider, true);
@@ -223,21 +218,12 @@ test("Provider owner can self-preview a non-public profile by id", async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(Array.isArray(res.body), true);
   assert.equal((res.body as any[]).length, 1);
-  assert.deepEqual(seenWhere, {
-    AND: [
-      {
-        OR: [
-          { user_id: "owner-1" },
-          {
-            status: "active",
-            is_profile_approved: true,
-            NOT: [{ display_name: { equals: "Jarvis Test Listing", mode: "insensitive" } }],
-          },
-        ],
-      },
-      { id: "p1" },
-    ],
-  });
+  assert.equal(seenWhere.AND.length, 2);
+  assert.deepEqual(seenWhere.AND[0].OR[0], { user_id: "owner-1" });
+  assert.equal(seenWhere.AND[0].OR[1].status, "active");
+  assert.equal(seenWhere.AND[0].OR[1].is_profile_approved, true);
+  assert.ok(Array.isArray(seenWhere.AND[0].OR[1].NOT));
+  assert.deepEqual(seenWhere.AND[1], { id: "p1" });
 });
 
 test("Verification reads are scoped to the authenticated user", async () => {

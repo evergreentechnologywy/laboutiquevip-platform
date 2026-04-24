@@ -226,15 +226,18 @@ export async function searchModelsHandler(request: ApiRequest, context: SearchRo
     const testFilter = {
       NOT: {
         OR: [
-          { display_name: { contains: "batch", mode: "insensitive" } },
-          { display_name: { contains: "user", mode: "insensitive" } },
-          { display_name: { contains: "simulation", mode: "insensitive" } },
-          { display_name: { contains: "test", mode: "insensitive" } },
-          { display_name: { contains: "approval", mode: "insensitive" } },
+          { displayName: { contains: "batch", mode: "insensitive" } },
+          { displayName: { contains: "user", mode: "insensitive" } },
+          { displayName: { contains: "simulation", mode: "insensitive" } },
+          { displayName: { contains: "test", mode: "insensitive" } },
+          { displayName: { contains: "approval", mode: "insensitive" } },
+          { displayName: { contains: "concurrency", mode: "insensitive" } },
           { bio: { contains: "simulation", mode: "insensitive" } },
           { bio: { contains: "test", mode: "insensitive" } },
           { bio: { contains: "mixed live-site", mode: "insensitive" } },
           { bio: { contains: "simultaneous approval", mode: "insensitive" } },
+          { bio: { contains: "concurrency", mode: "insensitive" } },
+          { bio: { contains: "created during", mode: "insensitive" } },
         ],
       },
     };
