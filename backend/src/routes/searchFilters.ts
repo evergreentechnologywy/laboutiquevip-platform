@@ -16,7 +16,27 @@ export function buildSearchModelFilters(query: SearchModelsQuery): SearchFilterR
     where.isVerified = query.verified;
   }
 
-  const andFilters: Record<string, unknown>[] = [];
+  const andFilters: Record<string, unknown>[] = [
+    {
+      NOT: {
+        OR: [
+          { displayName: { contains: "Batch", mode: "insensitive" } },
+          { displayName: { contains: "User", mode: "insensitive" } },
+          { displayName: { contains: "mixed", mode: "insensitive" } },
+          { displayName: { contains: "simulation", mode: "insensitive" } },
+          { displayName: { contains: "test", mode: "insensitive" } },
+          { displayName: { contains: "approval", mode: "insensitive" } },
+          { displayName: { contains: "concurrency", mode: "insensitive" } },
+          { bio: { contains: "simulation", mode: "insensitive" } },
+          { bio: { contains: "test", mode: "insensitive" } },
+          { bio: { contains: "mixed live-site", mode: "insensitive" } },
+          { bio: { contains: "simultaneous approval", mode: "insensitive" } },
+          { bio: { contains: "concurrency", mode: "insensitive" } },
+          { bio: { contains: "created during", mode: "insensitive" } },
+        ],
+      },
+    },
+  ];
 
   if (query.tag) {
     andFilters.push({

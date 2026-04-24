@@ -33,6 +33,12 @@ test("buildProviderSignupPayload strips frontend-only fields and normalizes valu
     age: 33,
     phone: "123",
     email: "provider@example.com",
+    verification_provider: null,
+    verification_username: null,
+    verification_url: null,
+    review_provider: null,
+    review_username: null,
+    review_url: null,
     ad_package: "premium",
     ad_package_expiry: payload.ad_package_expiry,
     verification_documents: ["doc-1"],
@@ -41,7 +47,7 @@ test("buildProviderSignupPayload strips frontend-only fields and normalizes valu
   assert.equal("verification_id" in payload, false);
 });
 
-test("buildProviderSignupPayload ignores external account fields that are not part of signup payload", () => {
+test("buildProviderSignupPayload includes external account fields in signup payload", () => {
   const payload = buildProviderSignupPayload({
     userId: "user-2",
     billingPeriod: "monthly",
@@ -59,10 +65,10 @@ test("buildProviderSignupPayload ignores external account fields that are not pa
     },
   });
 
-  assert.equal("verification_provider" in payload, false);
-  assert.equal("verification_username" in payload, false);
-  assert.equal("verification_url" in payload, false);
-  assert.equal("review_provider" in payload, false);
-  assert.equal("review_username" in payload, false);
-  assert.equal("review_url" in payload, false);
+  assert.equal(payload.verification_provider, "Preferred Verifier");
+  assert.equal(payload.verification_username, "provider-handle");
+  assert.equal(payload.verification_url, "https://verifier.example/provider-handle");
+  assert.equal(payload.review_provider, "Preferred Reviews");
+  assert.equal(payload.review_username, "provider-reviews");
+  assert.equal(payload.review_url, "https://reviews.example/provider-reviews");
 });

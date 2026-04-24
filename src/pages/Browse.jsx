@@ -12,6 +12,8 @@ import { Search, MapPin, Star, Shield, Crown, Filter, X, ArrowRight, Sparkles, C
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
+import { ProfileImage } from "@/components/ProfileImage";
+import { SEO } from "@/components/SEO";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -20,6 +22,15 @@ function groupProvidersByCity(items) {
     acc[key].push(provider);
     return acc;
   }, {});
+}
+
+function useDebounce(value, delay) {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+  React.useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
 }
 
 const trustNotes = [
@@ -55,7 +66,11 @@ const ctaCards = [
 export default function Browse() {
   const urlParams = new URLSearchParams(window.location.search);
   const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
-  const [location, setLocation] = React.useState(urlParams.get("location") || "");
+  const [location, setLocation] = React.useState(urlParams.get("location") || urlParams.get("loc") || "");
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const debouncedLocation = useDebounce(location, 300);
+
   const [priceRange, setPriceRange] = React.useState([0, 2000]);
   const [sortBy, setSortBy] = React.useState("newest");
   const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
@@ -66,10 +81,10 @@ export default function Browse() {
   }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["provider-search", searchQuery, location, sortBy, selectedFilters, priceRange, page],
+    queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, priceRange, page],
     queryFn: () => searchProviders({
-      q: searchQuery,
-      location,
+      q: debouncedSearchQuery,
+      location: debouncedLocation,
       verified: selectedFilters.verified,
       premium: selectedFilters.premium,
       minPrice: priceRange[0],
@@ -84,6 +99,7 @@ export default function Browse() {
   const cityGroups = data?.cityGroups || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
+  const maxAllowedPrice = data?.maxRate || 2000;
   const isStateSearch = !!location && providers.some((provider) => provider.location_state?.toLowerCase() === location.toLowerCase()) && new Set(providers.map((provider) => provider.location_city)).size > 1;
   const groupedProviders = groupProvidersByCity(providers);
   const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
@@ -104,6 +120,12 @@ export default function Browse() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
+      <SEO
+        title="Browse Verified Profiles & Listings | La Boutique VIP International"
+        description="Explore verified profiles and listings with transparent rates, moderated reviews, and discreet discovery. Filter by verification status and premium features."
+        ogTitle="Browse Verified Profiles | La Boutique VIP"
+        ogDescription="Discreet directory of verified listings and premium profiles."
+      />
       <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] lg:items-end">
@@ -125,18 +147,20 @@ export default function Browse() {
           <div className="mt-10 rounded-[28px] border border-stone-200 bg-white/95 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)] backdrop-blur sm:p-6">
             <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                 <Input
                   placeholder="Search by name or service"
+                  aria-label="Search by name or service"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
                 />
               </div>
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                 <Input
                   placeholder="City or state"
+                  aria-label="City or state"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
@@ -161,12 +185,24 @@ export default function Browse() {
                   <Filter className="h-4 w-4" />
                   <span>Filters</span>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => toggleFilter("verified")} className={selectedFilters.verified ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}>
-                  <Shield className="mr-1 h-3.5 w-3.5" />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => toggleFilter("verified")} 
+                  aria-pressed={selectedFilters.verified}
+                  className={selectedFilters.verified ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}
+                >
+                  <Shield className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   Verified only
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => toggleFilter("premium")} className={selectedFilters.premium ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}>
-                  <Crown className="mr-1 h-3.5 w-3.5" />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => toggleFilter("premium")} 
+                  aria-pressed={selectedFilters.premium}
+                  className={selectedFilters.premium ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}
+                >
+                  <Crown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   Premium only
                 </Button>
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900">
@@ -180,7 +216,7 @@ export default function Browse() {
                   <span>Hourly rate</span>
                   <span className="font-medium text-stone-700">${priceRange[0]} - ${priceRange[1]}</span>
                 </div>
-                <Slider value={priceRange} onValueChange={setPriceRange} max={2000} step={50} className="[&_[role=slider]]:border-stone-700 [&_[role=slider]]:bg-stone-900" />
+                <Slider value={priceRange} onValueChange={setPriceRange} max={maxAllowedPrice} step={50} className="[&_[role=slider]]:border-stone-700 [&_[role=slider]]:bg-stone-900" />
               </div>
             </div>
           </div>
@@ -205,7 +241,7 @@ export default function Browse() {
             </p>
             {hasActiveFilters && !isLoading && (
               <p className="mt-2 text-sm leading-6 text-stone-500">
-                Showing filtered results. If inventory feels thin, widen location, remove premium-only, or expand your rate range.
+                Showing {total} results. Try widening your search for more.
               </p>
             )}
           </div>
@@ -362,18 +398,18 @@ function ProviderCard({ provider }) {
     <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
       <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
         <div className="relative aspect-[4/5] overflow-hidden bg-stone-100">
-          {provider.photos?.[0] ? (
-            <img
-              src={provider.photos[0]}
-              alt={provider.display_name}
-              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-stone-300">
-              <Crown className="h-14 w-14" />
-            </div>
-          )}
+          <ProfileImage
+            src={provider.photos?.[0]}
+            alt={provider.display_name}
+            className="h-full w-full transition duration-500 group-hover:scale-105"
+          />
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+            {/* Logic for "Just joined" - assuming is_new or based on created_date */}
+            {(provider.is_new || (new Date() - new Date(provider.created_date) < 7 * 24 * 60 * 60 * 1000)) && (
+              <Badge className="rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-none border border-blue-100">
+                Just joined
+              </Badge>
+            )}
             {provider.is_verified && (
               <Badge className="rounded-full bg-stone-900 px-3 py-1 text-stone-50 shadow-none">
                 <Shield className="mr-1 h-3 w-3" />

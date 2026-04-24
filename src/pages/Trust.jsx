@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React from "react";
+import { SEO } from "@/components/SEO";
 
 const sections = [
   {
@@ -19,6 +20,12 @@ const sections = [
 export default function Trust() {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
+      <SEO
+        title="Trust, Verification & Safety Standards | La Boutique VIP International"
+        description="Learn how we handle trust signals, provider verification, and moderated reviews to maintain a transparent and discreet premium environment."
+        ogTitle="Trust & Verification Standards | La Boutique VIP"
+        ogDescription="How trust signals, verification, and reviews are handled on our platform."
+      />
       <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="mx-auto max-w-5xl px-4 py-20 text-center sm:px-6 lg:px-8">
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">Trust standards</p>

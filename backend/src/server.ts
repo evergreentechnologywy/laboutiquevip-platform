@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { authFromHeaders } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
 import { getLocalUploadPathFromRequestPath, shouldServeLocalUploads } from "./storage/uploads.js";
+import path from "node:path";
 import { validateStartupOrThrow } from "./config/startup.js";
 import {
   captureBackendException,
@@ -44,7 +45,7 @@ import {
   putCalendarHandler,
   registerModelHandler,
 } from "./routes/models.js";
-import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler } from "./routes/seo.js";
+import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
 import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
@@ -56,6 +57,19 @@ import type { ApiRequest, ApiResponse } from "./types.js";
 import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 
 const PORT = Number(process.env.API_PORT ?? 8787);
+
+const MIME_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+};
+
+function getContentType(filePath: string): string {
+  return MIME_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
+}
 
 initBackendObservability();
 
@@ -307,6 +321,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return sitemapHandler(request, context);
   }
 
+  if (request.pathname === "/robots.txt" && request.method === "GET") {
+    return robotsHandler();
+  }
+
   return {
     statusCode: 404,
     body: { error: "not_found" },
@@ -330,7 +348,7 @@ const server = http.createServer(async (req, res) => {
     if (fullPath) {
       try {
         const data = await fs.readFile(fullPath);
-        res.writeHead(200, { "content-type": "application/octet-stream" });
+        res.writeHead(200, { "content-type": getContentType(fullPath) });
         res.end(data);
       } catch {
         res.writeHead(404, { "content-type": "application/json" });

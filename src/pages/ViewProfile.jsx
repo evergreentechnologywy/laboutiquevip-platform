@@ -9,6 +9,8 @@ import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twit
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
+import { ProfileImage } from "@/components/ProfileImage";
+import { SEO } from "@/components/SEO";
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -73,23 +75,28 @@ export default function ViewProfile() {
     );
   }
 
+  const maskedPhone = provider.phone ? provider.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2") : "";
+  const maskedEmail = provider.email ? provider.email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
+
   return (
     <div className="min-h-screen bg-zinc-950">
+      <SEO
+        title={`${provider.display_name} | ${provider.location_city} | La Boutique VIP`}
+        description={provider.tagline || `View profile of ${provider.display_name} in ${provider.location_city}`}
+        ogTitle={`${provider.display_name} | La Boutique VIP`}
+        ogDescription={provider.tagline}
+        ogImage={provider.photos?.[0]}
+        noindex={true}
+      />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Photo Gallery */}
         <div className="mb-8">
           <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-900 mb-4">
-            {provider.photos && provider.photos.length > 0 ? (
-              <img
-                src={provider.photos[selectedPhoto]}
-                alt={provider.display_name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Crown className="w-24 h-24 text-zinc-700" />
-              </div>
-            )}
+            <ProfileImage
+              src={provider.photos?.[selectedPhoto]}
+              alt={provider.display_name}
+              className="w-full h-full"
+            />
           </div>
           
           {provider.photos && provider.photos.length > 1 && (
@@ -102,7 +109,7 @@ export default function ViewProfile() {
                     selectedPhoto === index ? 'border-rose-500' : 'border-zinc-800 hover:border-zinc-600'
                   }`}
                 >
-                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                  <ProfileImage src={photo} alt="" className="w-full h-full" />
                 </button>
               ))}
             </div>
@@ -151,9 +158,9 @@ export default function ViewProfile() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-100 mb-1">Advertising and verification notice</p>
+                    <p className="font-medium text-amber-100 mb-1">Verified Profile</p>
                     <p className="leading-6">
-                      Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval, and linked third-party accounts remain subject to those providers&apos; own policies and availability.
+                      Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval.
                     </p>
                   </div>
                 </div>
@@ -232,8 +239,7 @@ export default function ViewProfile() {
                 <CardContent>
                   {reviews.length === 0 ? (
                   <div className="py-8 text-center text-zinc-500">
-                    <p>No approved reviews are live yet.</p>
-                    <p className="mt-2 text-sm text-zinc-600">Reviews appear after moderation and may remain limited while rollout continues.</p>
+                    <p>Be the first to leave a review. Reviews appear after moderation.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -308,13 +314,13 @@ export default function ViewProfile() {
                 {provider.phone && (
                   <div className="flex items-center gap-2 text-zinc-400">
                     <Phone className="w-4 h-4" />
-                    <span className="text-sm">{provider.phone}</span>
+                    <span className="text-sm">{maskedPhone} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.email && (
                   <div className="flex items-center gap-2 text-zinc-400">
                     <Mail className="w-4 h-4" />
-                    <span className="text-sm">{provider.email}</span>
+                    <span className="text-sm">{maskedEmail} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.website && (
@@ -397,16 +403,6 @@ export default function ViewProfile() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Stats */}
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-zinc-100 mb-1">{provider.views_count || 0}</div>
-                  <div className="text-sm text-zinc-500">Profile Views</div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
+import { ProfileImage } from "@/components/ProfileImage";
+import { SEO } from "@/components/SEO";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
@@ -36,18 +38,20 @@ const whyItems = [
 ];
 
 export default function Home() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [locationQuery, setLocationQuery] = React.useState("");
 
-  const { data: featuredProviders = [] } = useQuery({
+  const { data: featuredProviders = [], isLoading: isLoadingFeatured } = useQuery({
     queryKey: ["featured-providers"],
     queryFn: async () => {
       const data = await searchProviders({
         premium: true,
         verified: true,
-        limit: 6,
+        limit: 12,
       });
-      return data.items || [];
+      // Filter out those without photos as per requirement "real photos"
+      return (data.items || []).filter(p => p.photos && p.photos.length > 0);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
@@ -63,6 +67,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
+      <SEO
+        title="La Boutique VIP International | Curated, Discreet Directory of Verified Profiles"
+        description="Discover verified profiles with discretion and clarity. Browse polished listings, transparent rates, and direct enquiry options in a trusted premium environment."
+        ogTitle="La Boutique VIP International"
+        ogDescription="Curated, Discreet Directory of Verified Profiles"
+        ogUrl="https://www.laboutiquevip.net"
+      />
       <section className="relative overflow-hidden border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
@@ -70,7 +81,7 @@ export default function Home() {
             <p className="text-sm font-medium tracking-[0.22em] text-stone-500 uppercase">
               Curated listings · Verified profiles · Discreet enquiries
             </p>
-            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-stone-900 sm:text-6xl lg:text-7xl">
+            <h1 className="mt-6 text-3xl font-semibold tracking-tight text-stone-900 sm:text-6xl lg:text-7xl">
               Discover verified profiles with discretion and clarity
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-stone-600 sm:text-xl">
@@ -80,9 +91,10 @@ export default function Home() {
             <div className="mx-auto mt-10 max-w-5xl rounded-[24px] border border-stone-200 bg-white/95 p-4 shadow-[0_24px_80px_-32px_rgba(28,25,23,0.28)] backdrop-blur">
               <div className="grid gap-3 md:grid-cols-[1.35fr_1fr_auto]">
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                   <Input
                     placeholder="Search by name or service"
+                    aria-label="Search by name or service"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -90,9 +102,10 @@ export default function Home() {
                   />
                 </div>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" />
+                  <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                   <Input
                     placeholder="City or location"
+                    aria-label="City or location"
                     value={locationQuery}
                     onChange={(e) => setLocationQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
@@ -126,7 +139,7 @@ export default function Home() {
         </div>
       </section>
 
-      {featuredProviders.length > 0 && (
+      {featuredProviders.length >= 3 ? (
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -145,21 +158,15 @@ export default function Home() {
           </div>
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredProviders.map((provider) => (
+            {featuredProviders.slice(0, 6).map((provider) => (
               <Link key={provider.id} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
                 <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
                   <div className="aspect-[4/5] overflow-hidden bg-stone-100">
-                    {provider.photos?.[0] ? (
-                      <img
-                        src={provider.photos[0]}
-                        alt={provider.display_name}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center bg-stone-100 text-stone-300">
-                        <Crown className="h-14 w-14" />
-                      </div>
-                    )}
+                    <ProfileImage
+                      src={provider.photos?.[0]}
+                      alt={provider.display_name}
+                      className="h-full w-full transition duration-500 group-hover:scale-105"
+                    />
                   </div>
 
                   <div className="p-6">
@@ -212,6 +219,22 @@ export default function Home() {
             ))}
           </div>
         </section>
+      ) : !isLoadingFeatured && (
+        <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 text-center">
+          <div className="mx-auto max-w-2xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-stone-900">Curating exceptional profiles</h2>
+            <p className="mt-4 text-lg leading-8 text-stone-600">
+              Check back soon for new featured listings. 
+            </p>
+            <div className="mt-8 flex justify-center gap-4">
+              <Link to={createPageUrl("Browse")}>
+                <Button className="rounded-full bg-stone-900 px-8 h-12 text-stone-50">
+                  Browse all profiles
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       )}
 
       <section className="border-t border-b border-stone-200 bg-stone-100/70">
@@ -244,7 +267,7 @@ export default function Home() {
             Join La Boutique VIP International and present your profile in a more polished, trusted, and premium environment.
           </p>
           <Button
-            onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderSignup"))}
+            onClick={() => navigate(createPageUrl("ProviderSignup"))}
             className="mt-8 h-14 rounded-full bg-stone-50 px-8 text-base font-medium text-stone-900 transition hover:bg-white"
           >
             Get Started

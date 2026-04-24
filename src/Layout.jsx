@@ -20,6 +20,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
+import { Footer } from "@/components/Footer";
 
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home"), icon: Home },
@@ -43,7 +44,7 @@ const adminNavigation = [
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
-  const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => localStorage.getItem("lbv_age_gate_accepted") === "yes");
+  const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => sessionStorage.getItem("lbv_age_gate_accepted") === "yes");
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -66,7 +67,7 @@ export default function Layout({ children, currentPageName }) {
   const fullPath = `${location.pathname}${location.search}`;
 
   const acceptAgeGate = () => {
-    localStorage.setItem("lbv_age_gate_accepted", "yes");
+    sessionStorage.setItem("lbv_age_gate_accepted", "yes");
     setAgeGateAccepted(true);
   };
 
@@ -93,7 +94,7 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
         {!isProviderPage && (
-          <Dialog open={!ageGateAccepted}>
+          <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
             <DialogContent className="border-stone-200 bg-white text-stone-900 [&>button]:hidden">
               <DialogHeader>
                 <DialogTitle>Adults only</DialogTitle>
@@ -103,7 +104,7 @@ export default function Layout({ children, currentPageName }) {
                   This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
                 </p>
                 <p className="text-stone-500">
-                  Verification and reviews depend on external providers plus internal moderation. Availability and placement may change after publication.
+                  By entering, you agree to our <Link to={createPageUrl("Terms")} className="text-stone-900 underline underline-offset-4">Terms of Service</Link>. Verification and reviews depend on external providers plus internal moderation.
                 </p>
                 <div className="flex gap-3 pt-2">
                   <Button onClick={acceptAgeGate} className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">
@@ -216,17 +217,19 @@ export default function Layout({ children, currentPageName }) {
                       <Crown className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-base font-semibold tracking-tight text-stone-900">La Boutique VIP International</span>
-                      <span className="text-xs text-stone-500">Curated, discreet discovery</span>
+                      <span className="text-sm sm:text-base font-semibold tracking-tight text-stone-900">
+                        La Boutique VIP<span className="hidden sm:inline"> International</span>
+                      </span>
+                      <span className="hidden sm:block text-xs text-stone-500">Curated, discreet discovery</span>
                     </div>
                   </Link>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3 sm:gap-6">
                     {publicNavigation.map((item) => (
                       <Link
                         key={item.title}
                         to={item.url}
-                        className={`text-sm font-medium transition-colors ${location.pathname === item.url ? "text-stone-900" : "text-stone-500 hover:text-stone-900"}`}
+                        className={`text-xs sm:text-sm font-medium transition-colors ${location.pathname === item.url ? "text-stone-900" : "text-stone-500 hover:text-stone-900"} ${item.title === "Home" || item.title === "Trust" ? "hidden sm:block" : ""}`}
                       >
                         {item.title}
                       </Link>
@@ -267,7 +270,10 @@ export default function Layout({ children, currentPageName }) {
             </header>
           )}
 
-          <div className="flex-1 overflow-auto">{children}</div>
+          <div className="flex-1 overflow-auto">
+            {children}
+            {!isProviderPage && <Footer />}
+          </div>
         </main>
       </div>
     </SidebarProvider>

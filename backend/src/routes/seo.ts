@@ -67,3 +67,21 @@ export async function sitemapHandler(request: ApiRequest, context: SeoContext): 
     rawBody: xml,
   };
 }
+
+export async function robotsHandler(): Promise<ApiResponse> {
+  const robots = [
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /api/",
+    "Disallow: /admin/",
+    "Disallow: /viewprofile*",
+    "",
+    "Sitemap: https://www.laboutiquevip.net/sitemap.xml",
+  ].join("\n");
+
+  return {
+    statusCode: 200,
+    headers: { "content-type": "text/plain; charset=utf-8" },
+    rawBody: robots,
+  };
+}

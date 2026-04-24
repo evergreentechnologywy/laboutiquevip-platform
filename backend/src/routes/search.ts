@@ -102,6 +102,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           { display_name: { contains: query.q, mode: "insensitive" } },
           { bio: { contains: query.q, mode: "insensitive" } },
           { tagline: { contains: query.q, mode: "insensitive" } },
+          { location_city: { contains: query.q, mode: "insensitive" } },
         ],
       });
     }
@@ -109,10 +110,9 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     if (query.location) {
       andFilters.push({
         OR: [
-          { location_city: { equals: query.location, mode: "insensitive" } },
-          { location_city: { startsWith: query.location, mode: "insensitive" } },
-          { location_state: { equals: query.location, mode: "insensitive" } },
-          { location_state: { startsWith: query.location, mode: "insensitive" } },
+          { location_city: { contains: query.location, mode: "insensitive" } },
+          { location_state: { contains: query.location, mode: "insensitive" } },
+          { location_country: { contains: query.location, mode: "insensitive" } },
         ],
       });
     }
@@ -130,7 +130,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const skip = (query.page - 1) * query.limit;
 
-    const [providers, total] = await context.prisma.$transaction([
+    const [providers, total, aggregate] = await context.prisma.$transaction([
       context.prisma.provider.findMany({
         where,
         orderBy,
@@ -163,7 +163,13 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
         },
       }),
       context.prisma.provider.count({ where }),
+      context.prisma.provider.aggregate({
+        _max: { rate_hourly: true },
+        where: { NOT: { rate_hourly: null } },
+      }),
     ]);
+
+    const maxRate = aggregate._max.rate_hourly || 2000;
 
     const cityGroups = (Array.from(
       providers.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
@@ -187,6 +193,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       limit: query.limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / query.limit)),
+      maxRate,
       cityGroups,
       items: providers,
       },
@@ -216,10 +223,26 @@ export async function searchModelsHandler(request: ApiRequest, context: SearchRo
     });
 
     const filters = buildSearchModelFilters(query);
+    const testFilter = {
+      NOT: {
+        OR: [
+          { display_name: { contains: "batch", mode: "insensitive" } },
+          { display_name: { contains: "user", mode: "insensitive" } },
+          { display_name: { contains: "simulation", mode: "insensitive" } },
+          { display_name: { contains: "test", mode: "insensitive" } },
+          { display_name: { contains: "approval", mode: "insensitive" } },
+          { bio: { contains: "simulation", mode: "insensitive" } },
+          { bio: { contains: "test", mode: "insensitive" } },
+          { bio: { contains: "mixed live-site", mode: "insensitive" } },
+          { bio: { contains: "simultaneous approval", mode: "insensitive" } },
+        ],
+      },
+    };
+    const where = { AND: [filters.where, testFilter] };
 
     const [profiles, total] = await context.prisma.$transaction([
       context.prisma.providerProfile.findMany({
-        where: filters.where,
+        where,
         include: {
           tags: {
             include: { tag: true },
@@ -237,7 +260,7 @@ export async function searchModelsHandler(request: ApiRequest, context: SearchRo
         take: filters.take,
         orderBy: [{ isVerified: "desc" }, { updatedAt: "desc" }],
       }),
-      context.prisma.providerProfile.count({ where: filters.where }),
+      context.prisma.providerProfile.count({ where }),
     ]);
 
     return json(200, {

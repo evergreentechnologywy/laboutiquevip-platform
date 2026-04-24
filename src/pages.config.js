@@ -7,11 +7,16 @@ export const PAGES = {
     "ProviderDashboard": React.lazy(() => import('./pages/ProviderDashboard')),
     "ViewProfile": React.lazy(() => import('./pages/ViewProfile')),
     "ProviderSignup": React.lazy(() => import('./pages/ProviderSignup')),
+    "provider-onboarding": React.lazy(() => import('./pages/ProviderSignup')),
     "Pricing": React.lazy(() => import('./pages/Pricing')),
     "Trust": React.lazy(() => import('./pages/Trust')),
     "AdminDashboard": React.lazy(() => import('./pages/AdminDashboard')),
     "Login": React.lazy(() => import('./pages/Login')),
     "Register": React.lazy(() => import('./pages/Register')),
+    "Terms": React.lazy(() => import('./pages/Terms')),
+    "Privacy": React.lazy(() => import('./pages/Privacy')),
+    "Contact": React.lazy(() => import('./pages/Contact')),
+    "FAQ": React.lazy(() => import('./pages/FAQ')),
 };
 
 export const pagesConfig = {

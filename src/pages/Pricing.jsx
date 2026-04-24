@@ -5,10 +5,17 @@ import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { adPackages, formatPackagePrice } from "@/lib/adPackages";
 import { Check, Crown } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 export default function Pricing() {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
+      <SEO
+        title="Listing Packages & Provider Pricing | La Boutique VIP International"
+        description="Choose the visibility package that fits your goals. Transparent listing plans for verified providers with premium placement options."
+        ogTitle="Provider Pricing Plans | La Boutique VIP"
+        ogDescription="Straightforward listing packages and premium placement options for verified providers."
+      />
       <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
