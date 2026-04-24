@@ -45,6 +45,7 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
   const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => sessionStorage.getItem("lbv_age_gate_accepted") === "yes");
+  const [agreementAccepted, setAgreementAccepted] = React.useState(false);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -103,12 +104,24 @@ export default function Layout({ children, currentPageName }) {
                 <p>
                   This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
                 </p>
-                <p className="text-stone-500">
-                  By entering, you agree to our <Link to={createPageUrl("Terms")} className="text-stone-900 underline underline-offset-4">Terms of Service</Link>. Verification and reviews depend on external providers plus internal moderation.
-                </p>
-                <div className="flex gap-3 pt-2">
-                  <Button onClick={acceptAgeGate} className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">
-                    I am 18+ and continue
+                <div className="flex items-start space-x-3 pt-2">
+                  <input
+                    type="checkbox"
+                    id="age-agree"
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                    onChange={(e) => setAgreementAccepted(e.target.checked)}
+                  />
+                  <Label htmlFor="age-agree" className="text-xs leading-5 text-stone-500 cursor-pointer">
+                    I agree to the <Link to={createPageUrl("Terms")} className="text-stone-900 underline underline-offset-4">Terms of Service</Link> and confirm I am 18+ years of age.
+                  </Label>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <Button 
+                    onClick={acceptAgeGate} 
+                    disabled={!agreementAccepted}
+                    className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 disabled:opacity-50"
+                  >
+                    Enter site
                   </Button>
                   <Button variant="outline" className="flex-1 rounded-full border-stone-300 text-stone-700" onClick={() => window.location.href = 'https://www.google.com'}>
                     Leave site

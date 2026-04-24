@@ -5,7 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle } from "lucide-react";
+import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
@@ -16,6 +20,9 @@ export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const providerId = urlParams.get('id');
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
+  const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
+  const [sending, setSending] = React.useState(false);
+  const [sent, setSent] = React.useState(false);
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
@@ -46,6 +53,25 @@ export default function ViewProfile() {
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
+
+  const handleMessageSubmit = async (e) => {
+    e.preventDefault();
+    setSending(true);
+    try {
+      await base44.entities.Message.create({
+        provider_id: providerId,
+        sender_name: messageForm.name,
+        sender_email: messageForm.email,
+        message: messageForm.message,
+        subject: `Enquiry for ${provider?.display_name || "Provider"}`,
+      });
+      setSent(true);
+    } catch (err) {
+      console.error("Failed to send message", err);
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (isLoading) {
     return (

@@ -1,21 +1,21 @@
-// @ts-nocheck
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Crown, Sparkles, Star, Check, Upload, Loader2 } from "lucide-react";
+import { Crown, Sparkles, Star, Check, Upload, Loader2, User, MapPin, Image as ImageIcon, CreditCard, ShieldCheck, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
 import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
 import DiditVerification from "@/components/DiditVerification";
 import { buildProviderSignupPayload } from "@/lib/providerPayload";
+import { SEO } from "@/components/SEO";
 
 const initialFormData = {
   display_name: "",
@@ -27,10 +27,21 @@ const initialFormData = {
   age: "",
   phone: "",
   email: "",
+  rate_hourly: "",
+  photos: [],
   ad_package: "none",
   verification_documents: [],
   verification_id: null,
 };
+
+const steps = [
+  { id: 1, name: "Account", icon: User },
+  { id: 2, name: "Profile", icon: MapPin },
+  { id: 3, name: "Photos", icon: ImageIcon },
+  { id: 4, name: "Rates", icon: Star },
+  { id: 5, name: "Package", icon: CreditCard },
+  { id: 6, name: "Verification", icon: ShieldCheck },
+];
 
 export default function ProviderSignup() {
   const navigate = useNavigate();
@@ -41,6 +52,7 @@ export default function ProviderSignup() {
   const [submitError, setSubmitError] = React.useState("");
   const [cityChoice, setCityChoice] = React.useState(OTHER_CITY_OPTION);
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
+  const [finished, setFinished] = React.useState(false);
 
   const availableCities = React.useMemo(() => cityOptionsForState(formData.location_state), [formData.location_state]);
 
@@ -58,7 +70,6 @@ export default function ProviderSignup() {
   }, []);
 
   const createProviderMutation = useMutation({
-    /** @param {typeof initialFormData} data */
     mutationFn: async (data) => {
       const payload = buildProviderSignupPayload({
         formData: data,
@@ -68,18 +79,16 @@ export default function ProviderSignup() {
       return await base44.entities.Provider.create(payload);
     },
     onSuccess: () => {
-      setSubmitError("");
-      navigate(createPageUrl("ProviderDashboard"), { replace: true });
+      setFinished(true);
     },
-    onError: (/** @type {Error & { data?: { message?: string, error?: string } }} */ error) => {
+    onError: (error) => {
       setSubmitError(error?.data?.message || error?.data?.error || error?.message || "Could not create your profile.");
     },
   });
 
-  const handleFileUpload = async (e) => {
+  const handleFileUpload = async (e, field = 'verification_documents') => {
     const files = Array.from(e.target.files);
     setUploading(true);
-    
     try {
       const uploadedUrls = [];
       for (const file of files) {
@@ -88,437 +97,334 @@ export default function ProviderSignup() {
       }
       setFormData(prev => ({
         ...prev,
-        verification_documents: [...prev.verification_documents, ...uploadedUrls]
+        [field]: [...prev[field], ...uploadedUrls]
       }));
-      setSubmitError("");
     } catch (error) {
-      setSubmitError(error?.data?.message || error?.message || "Error uploading files. Please try again.");
+      setSubmitError("Error uploading. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSubmit = () => {
-    if (!formData.display_name.trim() || !formData.location_city.trim() || !formData.location_state.trim()) {
-      setSubmitError("Please fill in your display name, country, and city.");
-      return;
-    }
+  const nextStep = () => setStep(s => Math.min(6, s + 1));
+  const prevStep = () => setStep(s => Math.max(1, s - 1));
 
-    setSubmitError("");
+  const handleSubmit = () => {
     createProviderMutation.mutate(formData);
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-rose-400 animate-spin" />
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (finished) {
+    return (
+      <div className="min-h-screen bg-stone-50 py-20 px-4">
+        <div className="max-w-md mx-auto bg-white rounded-[32px] border border-stone-200 p-10 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-stone-900 text-stone-50 mb-6">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-semibold text-stone-900 mb-4">Under review</h1>
+          <p className="text-stone-600 leading-7 mb-8">
+            Your profile has been submitted successfully. Our team will review your details and verification documents. We&apos;ll notify you via email once your listing is live.
+          </p>
+          <Button onClick={() => navigate(createPageUrl("ProviderDashboard"))} className="w-full h-12 rounded-xl bg-stone-900 text-stone-50">
+            Go to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 py-12 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-stone-50 py-12 px-4">
+      <SEO title="Provider Onboarding | La Boutique VIP" />
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-rose-400 to-amber-400 bg-clip-text text-transparent">
-            Join La Boutique Vip
-          </h1>
-          <p className="text-xl font-semibold text-zinc-600 mb-4">International</p>
-          <p className="text-zinc-400 text-lg">Create your profile and choose your advertising package</p>
+          <h1 className="text-3xl font-semibold text-stone-900">Provider Onboarding</h1>
+          <p className="mt-2 text-stone-500">Complete your profile to join the directory</p>
         </div>
 
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-12">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 ${step >= 1 ? 'text-rose-400' : 'text-zinc-600'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-rose-500' : 'bg-zinc-800'}`}>
-                1
-              </div>
-              <span className="font-medium">Profile Info</span>
-            </div>
-            <div className="w-16 h-0.5 bg-zinc-800" />
-            <div className={`flex items-center gap-2 ${step >= 2 ? 'text-rose-400' : 'text-zinc-600'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-rose-500' : 'bg-zinc-800'}`}>
-                2
-              </div>
-              <span className="font-medium">Choose Package</span>
-            </div>
-            <div className="w-16 h-0.5 bg-zinc-800" />
-            <div className={`flex items-center gap-2 ${step >= 3 ? 'text-rose-400' : 'text-zinc-600'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step >= 3 ? 'bg-rose-500' : 'bg-zinc-800'}`}>
-                3
-              </div>
-              <span className="font-medium">Verification</span>
-            </div>
+        {/* Progress Bar */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center relative">
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-stone-200 -z-0" />
+            <div 
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-stone-900 transition-all duration-500 -z-0" 
+              style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
+            />
+            {steps.map((s) => {
+              const Icon = s.icon;
+              const active = step >= s.id;
+              return (
+                <div key={s.id} className="relative z-10 flex flex-col items-center">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors border-2 ${active ? 'bg-stone-900 border-stone-900 text-stone-50' : 'bg-white border-stone-200 text-stone-400'}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className={`absolute -bottom-7 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${active ? 'text-stone-900' : 'text-stone-400'}`}>
+                    {s.name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Step 1: Profile Information */}
-        {step === 1 && (
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader>
-              <CardTitle className="text-zinc-100">Profile Information</CardTitle>
-              <CardDescription className="text-zinc-400">Tell us about yourself</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-zinc-300">Display Name *</Label>
-                  <Input
-                    value={formData.display_name}
-                    onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                    placeholder="Your professional name"
+        <div className="mt-16">
+          {/* Step 1: Account */}
+          {step === 1 && (
+            <Card className="rounded-[28px] border-stone-200 shadow-sm overflow-hidden">
+              <CardHeader className="bg-stone-50/50 border-b border-stone-100">
+                <CardTitle>Account Details</CardTitle>
+                <CardDescription>Confirm your basic contact information</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="space-y-2">
+                  <Label>Email Address</Label>
+                  <Input value={formData.email} disabled className="h-12 rounded-xl bg-stone-50 border-stone-200" />
+                  <p className="text-[10px] text-stone-400 italic">Email is managed via your main account</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number (Optional)</Label>
+                  <Input 
+                    value={formData.phone} 
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                    placeholder="+1 (555) 000-0000"
+                    className="h-12 rounded-xl border-stone-200" 
                   />
                 </div>
-                <div>
-                  <Label className="text-zinc-300">Age</Label>
-                  <Input
-                    type="number"
-                    value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-zinc-300">Tagline</Label>
-                <Input
-                  value={formData.tagline}
-                  onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  placeholder="A catchy headline"
-                />
-              </div>
-
-              <div>
-                <Label className="text-zinc-300">Bio</Label>
-                <Textarea
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  rows={5}
-                  placeholder="Tell clients about yourself..."
-                />
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <div>
-                  <Label className="text-zinc-300">Country *</Label>
-                  <Select
-                    value={formData.location_state || undefined}
-                    onValueChange={(value) => {
-                      setFormData({ ...formData, location_state: value, location_city: "" });
-                      setCityChoice(OTHER_CITY_OPTION);
-                    }}
-                  >
-                    <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2">
-                      <SelectValue placeholder="Select a country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stateOptions.map((state) => (
-                        <SelectItem key={state} value={state}>{state}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-zinc-300">City *</Label>
-                  {availableCities.length > 0 ? (
-                    <>
-                      <Select
-                        value={availableCities.includes(formData.location_city) ? formData.location_city : cityChoice}
-                        onValueChange={(value) => {
-                          setCityChoice(value);
-                          setFormData({ ...formData, location_city: value === OTHER_CITY_OPTION ? "" : value });
-                        }}
-                      >
-                        <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2">
-                          <SelectValue placeholder="Select a city" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableCities.map((city) => (
-                            <SelectItem key={city} value={city}>{city}</SelectItem>
-                          ))}
-                          <SelectItem value={OTHER_CITY_OPTION}>{OTHER_CITY_OPTION}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {cityChoice === OTHER_CITY_OPTION && (
-                        <Input
-                          value={formData.location_city}
-                          onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
-                          className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-3"
-                          placeholder="Enter another city"
-                        />
-                      )}
-                    </>
-                  ) : (
-                    <Input
-                      value={formData.location_city}
-                      onChange={(e) => setFormData({ ...formData, location_city: e.target.value })}
-                      className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                      placeholder="Enter city"
-                    />
-                  )}
-                </div>
-                <div>
-                  <Label className="text-zinc-300">Region / state</Label>
-                  <Input
-                    value={formData.location_country}
-                    onChange={(e) => setFormData({ ...formData, location_country: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                    placeholder="Optional region or state"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-zinc-300">Phone</Label>
-                  <Input
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  />
-                </div>
-                <div>
-                  <Label className="text-zinc-300">Email</Label>
-                  <Input
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-zinc-100 mt-2"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setStep(2)}
-                  className="bg-gradient-to-r from-rose-500 to-amber-500"
-                >
-                  Continue
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 2: Choose Package */}
-        {step === 2 && (
-          <div>
-            <h2 className="text-2xl font-bold text-zinc-100 mb-4 text-center">Choose Your Advertising Package</h2>
-            <p className="text-center text-zinc-400 mb-6">Free listings can submit immediately. Paid tiers are selected here and payment activation is handled after approval.</p>
-
-            <div className="flex justify-center mb-6">
-              <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-900 p-1">
-                <button
-                  type="button"
-                  onClick={() => setBillingPeriod("weekly")}
-                  className={`px-4 py-2 rounded-lg text-sm ${billingPeriod === "weekly" ? "bg-rose-500 text-white" : "text-zinc-400"}`}
-                >
-                  Weekly
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingPeriod("monthly")}
-                  className={`px-4 py-2 rounded-lg text-sm ${billingPeriod === "monthly" ? "bg-rose-500 text-white" : "text-zinc-400"}`}
-                >
-                  Monthly
-                </button>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-              {adPackages.map((pkg) => {
-                const selected = formData.ad_package === pkg.id;
-                const colorClass = pkg.color === "blue"
-                  ? "from-blue-500 to-blue-600"
-                  : pkg.color === "rose"
-                    ? "from-rose-500 to-rose-600"
-                    : pkg.color === "amber"
-                      ? "from-amber-500 to-amber-600"
-                      : "from-zinc-600 to-zinc-700";
-
-                return (
-                  <Card
-                    key={pkg.id}
-                    className={`relative cursor-pointer transition-all ${selected ? 'border-rose-500 shadow-xl shadow-rose-500/20' : 'border-zinc-800 hover:border-zinc-700'} bg-zinc-900`}
-                    onClick={() => setFormData({ ...formData, ad_package: pkg.id })}
-                  >
-                    {pkg.recommended && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <Badge className="bg-gradient-to-r from-rose-500 to-amber-500 border-0">
-                          <Star className="w-3 h-3 mr-1" />
-                          Most Popular
-                        </Badge>
-                      </div>
-                    )}
-                    <CardHeader>
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center mb-4`}>
-                        {pkg.id === "none" && <Sparkles className="w-6 h-6 text-white" />}
-                        {pkg.id === "basic" && <Check className="w-6 h-6 text-white" />}
-                        {pkg.id === "featured" && <Star className="w-6 h-6 text-white" />}
-                        {pkg.id === "premium" && <Crown className="w-6 h-6 text-white" />}
-                      </div>
-                      <CardTitle className="text-zinc-100">{pkg.name}</CardTitle>
-                      <div className="mt-4">
-                        <span className="text-3xl font-bold text-zinc-100">{formatPackagePrice(pkg, billingPeriod).replace(/\/(week|month)$/, '')}</span>
-                        <span className="text-zinc-500 ml-1">{pkg.id === "none" ? "/forever" : billingPeriod === "monthly" ? "/month" : "/week"}</span>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-3">
-                        {pkg.features.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-zinc-400">
-                            <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-
-            <Card className="bg-zinc-900 border-zinc-800 mb-8">
-              <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-zinc-400">Selected package</p>
-                    <h3 className="text-xl font-semibold text-zinc-100">{getAdPackageById(formData.ad_package).name}</h3>
-                    <p className="text-sm text-zinc-400 mt-1">
-                      {formData.ad_package === "none"
-                        ? "Start with a free listing and complete verification now."
-                        : `${formatPackagePrice(getAdPackageById(formData.ad_package), billingPeriod)} after approval.`}
-                    </p>
-                  </div>
-                  {formData.ad_package !== "none" ? (
-                    <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Paid activation required after approval</Badge>
-                  ) : (
-                    <Badge className="bg-zinc-800 text-zinc-200 border-zinc-700">No payment required</Badge>
-                  )}
+                <div className="flex justify-end">
+                  <Button onClick={nextStep} className="rounded-full bg-stone-900 px-8 h-12">
+                    Continue <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep(1)} className="border-zinc-700 text-zinc-300">
-                Back
-              </Button>
-              <Button onClick={() => setStep(3)} className="bg-gradient-to-r from-rose-500 to-amber-500">
-                Continue
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Verification */}
-        {step === 3 && (
-          <div className="space-y-6">
-            {/* Didit Identity Verification */}
-            <DiditVerification 
-              onVerificationComplete={(verification) => {
-                setFormData({ ...formData, verification_id: verification.id });
-              }}
-              onVerificationStatusChange={(status) => {
-                if (status === "approved") {
-                  setSubmitError("");
-                }
-              }}
-            />
-
-            {/* Optional Document Upload */}
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-zinc-100">Additional Documents (Optional)</CardTitle>
-                <CardDescription className="text-zinc-400">
-                  Upload any additional verification documents or certifications
-                </CardDescription>
+          {/* Step 2: Profile */}
+          {step === 2 && (
+            <Card className="rounded-[28px] border-stone-200 shadow-sm overflow-hidden">
+              <CardHeader className="bg-stone-50/50 border-b border-stone-100">
+                <CardTitle>Profile Details</CardTitle>
+                <CardDescription>How you will appear in the directory</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center">
-                  <Upload className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                  <p className="text-zinc-400 mb-4">Upload additional documents (optional)</p>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="doc-upload"
-                    disabled={uploading}
-                  />
-                  <label htmlFor="doc-upload">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-zinc-700 text-zinc-300"
-                      disabled={uploading}
-                      onClick={() => document.getElementById('doc-upload').click()}
-                  >
-                    {uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                    {uploading ? 'Uploading...' : 'Choose Files'}
-                  </Button>
-                </label>
-              </div>
-
-              {formData.verification_documents.length > 0 && (
-                <div>
-                  <p className="text-sm text-zinc-400 mb-2">Uploaded documents:</p>
-                  <ul className="space-y-2">
-                    {formData.verification_documents.map((url, index) => (
-                      <li key={index} className="text-sm text-green-400 flex items-center gap-2">
-                        <Check className="w-4 h-4" />
-                        Document {index + 1}
-                      </li>
-                    ))}
-                  </ul>
+              <CardContent className="p-8 space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Display Name *</Label>
+                    <Input 
+                      value={formData.display_name} 
+                      onChange={e => setFormData({...formData, display_name: e.target.value})}
+                      placeholder="e.g. Elena"
+                      className="h-12 rounded-xl border-stone-200" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Age *</Label>
+                    <Input 
+                      type="number"
+                      value={formData.age} 
+                      onChange={e => setFormData({...formData, age: e.target.value})}
+                      placeholder="21"
+                      className="h-12 rounded-xl border-stone-200" 
+                    />
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label>Tagline</Label>
+                  <Input 
+                    value={formData.tagline} 
+                    onChange={e => setFormData({...formData, tagline: e.target.value})}
+                    placeholder="A brief, catchy headline"
+                    className="h-12 rounded-xl border-stone-200" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bio</Label>
+                  <Textarea 
+                    value={formData.bio} 
+                    onChange={e => setFormData({...formData, bio: e.target.value})}
+                    placeholder="Tell your clients about yourself..."
+                    className="rounded-xl border-stone-200" 
+                    rows={4}
+                  />
+                </div>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Country *</Label>
+                    <Select value={formData.location_state} onValueChange={val => setFormData({...formData, location_state: val})}>
+                      <SelectTrigger className="h-12 rounded-xl border-stone-200 bg-white">
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {stateOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>City *</Label>
+                    <Input 
+                      value={formData.location_city} 
+                      onChange={e => setFormData({...formData, location_city: e.target.value})}
+                      placeholder="Enter city"
+                      className="h-12 rounded-xl border-stone-200" 
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between pt-4">
+                  <Button variant="ghost" onClick={prevStep} className="text-stone-500">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
+                  <Button onClick={nextStep} disabled={!formData.display_name || !formData.location_city || !formData.location_state} className="rounded-full bg-stone-900 px-8 h-12">
+                    Continue <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
-            <p className="text-sm text-blue-400">
-              ℹ️ Once ID verification succeeds, your profile is approved automatically and your dashboard will show the listing as live.
-            </p>
-            <p className="text-sm text-blue-300/90">
-              Photo uploads are still reviewed manually, and ad text is filtered automatically to block explicit language.
-            </p>
-          </div>
+          {/* Step 3: Photos */}
+          {step === 3 && (
+            <Card className="rounded-[28px] border-stone-200 shadow-sm overflow-hidden">
+              <CardHeader className="bg-stone-50/50 border-b border-stone-100">
+                <CardTitle>Profile Photos</CardTitle>
+                <CardDescription>Upload at least one high-quality photo</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {formData.photos.map((url, i) => (
+                    <div key={i} className="aspect-[3/4] rounded-2xl overflow-hidden border border-stone-100 relative group">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                      <button 
+                        onClick={() => setFormData(prev => ({...prev, photos: prev.photos.filter((_, idx) => idx !== i)}))}
+                        className="absolute top-2 right-2 h-7 w-7 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <ArrowLeft className="w-4 h-4" /> {/* Should be X, using available icons */}
+                      </button>
+                    </div>
+                  ))}
+                  <label className="aspect-[3/4] rounded-2xl border-2 border-dashed border-stone-200 flex flex-col items-center justify-center cursor-pointer hover:bg-stone-50 transition-colors">
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'photos')} disabled={uploading} />
+                    {uploading ? <Loader2 className="w-6 h-6 animate-spin text-stone-400" /> : <Upload className="w-6 h-6 text-stone-300" />}
+                    <span className="mt-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wider">Add Photo</span>
+                  </label>
+                </div>
+                <div className="flex justify-between pt-4">
+                  <Button variant="ghost" onClick={prevStep} className="text-stone-500">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
+                  <Button onClick={nextStep} className="rounded-full bg-stone-900 px-8 h-12">
+                    {formData.photos.length === 0 ? "Skip for now" : "Continue"} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          {submitError ? (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-              <p className="text-sm text-red-300">{submitError}</p>
+          {/* Step 4: Rates */}
+          {step === 4 && (
+            <Card className="rounded-[28px] border-stone-200 shadow-sm overflow-hidden">
+              <CardHeader className="bg-stone-50/50 border-b border-stone-100">
+                <CardTitle>Rates</CardTitle>
+                <CardDescription>Set your standard hourly rate</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 space-y-6">
+                <div className="max-w-sm space-y-2">
+                  <Label>Hourly Rate (USD)</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-semibold">$</span>
+                    <Input 
+                      type="number"
+                      value={formData.rate_hourly} 
+                      onChange={e => setFormData({...formData, rate_hourly: e.target.value})}
+                      placeholder="200"
+                      className="h-12 rounded-xl border-stone-200 pl-8" 
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm">/ hr</span>
+                  </div>
+                </div>
+                <div className="flex justify-between pt-4">
+                  <Button variant="ghost" onClick={prevStep} className="text-stone-500">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
+                  <Button onClick={nextStep} className="rounded-full bg-stone-900 px-8 h-12">
+                    {!formData.rate_hourly ? "Skip for now" : "Continue"} <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5: Package */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {adPackages.map(pkg => {
+                  const selected = formData.ad_package === pkg.id;
+                  return (
+                    <article 
+                      key={pkg.id} 
+                      onClick={() => setFormData({...formData, ad_package: pkg.id})}
+                      className={`cursor-pointer rounded-2xl border p-6 transition-all ${selected ? 'border-stone-900 bg-stone-900 text-stone-50 ring-4 ring-stone-900/5' : 'border-stone-200 bg-white text-stone-900 hover:border-stone-300'}`}
+                    >
+                      <h3 className="font-semibold">{pkg.name}</h3>
+                      <p className={`mt-2 text-xs ${selected ? 'text-stone-400' : 'text-stone-500'}`}>{formatPackagePrice(pkg, billingPeriod)}</p>
+                      <div className="mt-4">
+                        {selected && <CheckCircle2 className="h-5 w-5 text-white" />}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between pt-4">
+                <Button variant="ghost" onClick={prevStep} className="text-stone-500">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+                <Button onClick={nextStep} className="rounded-full bg-stone-900 px-8 h-12">
+                  Continue <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          ) : null}
+          )}
 
-          <div className="flex justify-between">
-            <Button variant="outline" onClick={() => setStep(2)} className="border-zinc-700 text-zinc-300">
-              Back
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createProviderMutation.isPending}
-              className="bg-gradient-to-r from-rose-500 to-amber-500"
-            >
-              {createProviderMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Profile...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  Submit for Review
-                </>
-              )}
-            </Button>
-          </div>
+          {/* Step 6: Verification */}
+          {step === 6 && (
+            <div className="space-y-6">
+              <DiditVerification 
+                onVerificationComplete={v => setFormData({...formData, verification_id: v.id})}
+              />
+              
+              <div className="bg-white rounded-[28px] border border-stone-200 p-8 shadow-sm">
+                <h3 className="font-semibold text-stone-900">Final Step</h3>
+                <p className="mt-2 text-sm text-stone-600 leading-7">
+                  Submit your profile for review. You can still edit your profile and upload documents later from your dashboard.
+                </p>
+                {submitError && (
+                  <div className="mt-4 rounded-lg bg-red-50 p-3">
+                    <p className="text-xs text-red-600 font-medium">{submitError}</p>
+                  </div>
+                )}
+                <div className="flex justify-between mt-8">
+                  <Button variant="ghost" onClick={prevStep} className="text-stone-500">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                  </Button>
+                  <Button 
+                    onClick={handleSubmit} 
+                    disabled={createProviderMutation.isPending}
+                    className="rounded-full bg-stone-900 px-10 h-12"
+                  >
+                    {createProviderMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Finish & Submit"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-        )}
       </div>
     </div>
   );
