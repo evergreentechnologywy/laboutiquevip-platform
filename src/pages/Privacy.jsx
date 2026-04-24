@@ -1,8 +1,14 @@
 import React from "react";
+import { SEO } from "@/components/SEO";
 
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-stone-50 py-20 px-4 sm:px-6 lg:px-8">
+      <SEO
+        title="Privacy Policy | La Boutique VIP International"
+        description="Learn how La Boutique VIP collects, uses, and protects your personal information."
+        noindex
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-8">Privacy Policy</h1>
         <div className="prose prose-stone max-w-none text-stone-600 space-y-6">

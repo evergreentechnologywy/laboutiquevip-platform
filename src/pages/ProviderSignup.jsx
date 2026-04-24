@@ -53,17 +53,25 @@ export default function ProviderSignup() {
   const [cityChoice, setCityChoice] = React.useState(OTHER_CITY_OPTION);
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
   const [finished, setFinished] = React.useState(false);
+  const [isLoadingUser, setIsLoadingUser] = React.useState(true);
 
   const availableCities = React.useMemo(() => cityOptionsForState(formData.location_state), [formData.location_state]);
 
   React.useEffect(() => {
     const loadUser = async () => {
+      if (!base44.auth.hasToken()) {
+        setUser(null);
+        setIsLoadingUser(false);
+        return;
+      }
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
         setFormData(prev => ({ ...prev, email: currentUser.email }));
-      } catch (error) {
-        base44.auth.redirectToLogin(createPageUrl("ProviderSignup"));
+      } catch {
+        setUser(null);
+      } finally {
+        setIsLoadingUser(false);
       }
     };
     loadUser();
@@ -113,10 +121,74 @@ export default function ProviderSignup() {
     createProviderMutation.mutate(formData);
   };
 
-  if (!user) {
+  if (isLoadingUser) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-stone-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-stone-50 py-20 px-4">
+        <SEO
+          title="Provider Signup | La Boutique VIP International"
+          description="Join La Boutique VIP as a verified provider. Create your profile, choose your package, and start reaching clients."
+          noindex
+        />
+        <div className="max-w-xl mx-auto">
+          <div className="text-center mb-10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-900 text-stone-50 mb-4">
+              <Crown className="h-6 w-6" />
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight text-stone-900">Become a provider</h1>
+            <p className="mt-4 text-stone-600 leading-7">
+              Join La Boutique VIP International to present your profile in a polished, trusted, and premium environment.
+            </p>
+          </div>
+
+          <div className="rounded-[28px] border border-stone-200 bg-white p-8 shadow-sm space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-700 text-sm font-semibold">1</div>
+                <div>
+                  <p className="font-medium text-stone-900">Create an account or sign in</p>
+                  <p className="text-sm text-stone-500">Secure login with email verification.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-700 text-sm font-semibold">2</div>
+                <div>
+                  <p className="font-medium text-stone-900">Build your profile and choose a package</p>
+                  <p className="text-sm text-stone-500">Add photos, rates, and select the visibility tier that fits your goals.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-700 text-sm font-semibold">3</div>
+                <div>
+                  <p className="font-medium text-stone-900">Verify and go live</p>
+                  <p className="text-sm text-stone-500">Complete identity verification. Once approved, your listing becomes searchable.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 space-y-3">
+              <Button onClick={() => base44.auth.redirectToRegister(createPageUrl("ProviderSignup"))} className="w-full h-12 rounded-xl bg-stone-900 text-stone-50 hover:bg-stone-800 font-semibold">
+                Create account
+              </Button>
+              <Button onClick={() => base44.auth.redirectToLogin(createPageUrl("ProviderSignup"))} variant="outline" className="w-full h-12 rounded-xl border-stone-300 text-stone-700 hover:bg-stone-50 font-semibold">
+                Already have an account? Sign in
+              </Button>
+            </div>
+
+            <p className="text-xs text-stone-500 text-center leading-5">
+              By signing up, you agree to our{" "}
+              <Link to={createPageUrl("Terms")} className="underline underline-offset-4 text-stone-900">Terms of Service</Link>{" "}
+              and confirm you are 18+ years of age.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

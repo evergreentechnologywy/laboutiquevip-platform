@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, MessageSquare } from "lucide-react";
+import { SEO } from "@/components/SEO";
 
 export default function Contact() {
   const [submitted, setSubmitted] = React.useState(false);
@@ -16,6 +17,10 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen bg-stone-50 py-20 px-4 sm:px-6 lg:px-8">
+      <SEO
+        title="Contact Support | La Boutique VIP International"
+        description="Get in touch with La Boutique VIP support for questions about listings, verification, or account issues."
+      />
       <div className="max-w-xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-semibold tracking-tight text-stone-900">Contact Support</h1>

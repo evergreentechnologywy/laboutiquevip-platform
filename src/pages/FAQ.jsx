@@ -1,5 +1,6 @@
 import React from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { SEO } from "@/components/SEO";
 
 const faqs = [
   {
@@ -23,6 +24,10 @@ const faqs = [
 export default function FAQ() {
   return (
     <div className="min-h-screen bg-stone-50 py-20 px-4 sm:px-6 lg:px-8">
+      <SEO
+        title="Frequently Asked Questions | La Boutique VIP International"
+        description="Find answers about verification, listings, reviews, privacy, and how La Boutique VIP works."
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-12 text-center">Frequently Asked Questions</h1>
         

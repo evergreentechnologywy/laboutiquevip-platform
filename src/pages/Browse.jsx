@@ -138,7 +138,7 @@ export default function Browse() {
             </div>
 
             <div className="grid gap-3 rounded-[28px] border border-stone-200 bg-white/90 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.22)] backdrop-blur sm:grid-cols-3">
-              <StatCard label="Live listings" value={isLoading ? "—" : `${total}`} helper="Approved and currently searchable" />
+              <StatCard label="Live listings" value={isLoading ? <span aria-hidden="true">...</span> : `${total}`} helper="Approved and currently searchable" />
               <StatCard label="Trust layer" value="Checked" helper="Verification + moderation disclosures" />
               <StatCard label="Best use" value="Browse wide" helper="Then narrow once you see supply" />
             </div>
@@ -167,7 +167,7 @@ export default function Browse() {
                 />
               </div>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-12 rounded-2xl border-stone-200 bg-stone-50 text-stone-900">
+                <SelectTrigger className="h-12 rounded-2xl border-stone-200 bg-stone-50 text-stone-900" aria-label="Sort results by">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>

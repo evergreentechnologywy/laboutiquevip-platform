@@ -1,8 +1,14 @@
 import React from "react";
+import { SEO } from "@/components/SEO";
 
 export default function Terms() {
   return (
     <div className="min-h-screen bg-stone-50 py-20 px-4 sm:px-6 lg:px-8">
+      <SEO
+        title="Terms of Service | La Boutique VIP International"
+        description="Read the Terms of Service for using La Boutique VIP International."
+        noindex
+      />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-8">Terms of Service</h1>
         <div className="prose prose-stone max-w-none text-stone-600 space-y-6">
