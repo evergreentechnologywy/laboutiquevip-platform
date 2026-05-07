@@ -31,6 +31,8 @@ const providerEditableFields = {
   rate_hourly: z.number().int().min(0).max(1000000).optional().nullable(),
   ad_package: z.enum(["none", "basic", "featured", "premium", "elite"]).optional().nullable(),
   ad_package_expiry: z.string().max(50).optional().nullable(),
+  ad_package_started_at: z.string().max(80).optional().nullable(),
+  ad_package_expiration_reminder_sent_at: z.string().max(80).optional().nullable(),
   verification_documents: z.array(z.string().max(2000)).max(25).optional(),
   photos: z.array(z.string().max(2000)).max(50).optional(),
   pending_photos: z.array(z.string().max(2000)).max(50).optional(),

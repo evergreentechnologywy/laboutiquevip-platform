@@ -2,7 +2,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Search, LayoutDashboard, MessageSquare, Calendar, Megaphone, Crown, Shield, User } from "lucide-react";
+import { Home, Search, LayoutDashboard, MessageSquare, Calendar, Megaphone, Crown, Shield, User, Sparkles } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,11 +17,12 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
 import { Footer } from "@/components/Footer";
+import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home"), icon: Home },
@@ -47,6 +48,7 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = React.useState(null);
   const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => sessionStorage.getItem("lbv_age_gate_accepted") === "yes");
   const [agreementAccepted, setAgreementAccepted] = React.useState(false);
+  const [copilotOpen, setCopilotOpen] = React.useState(false);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -288,6 +290,28 @@ export default function Layout({ children, currentPageName }) {
             {children}
             {!isProviderPage && <Footer />}
           </div>
+
+          {!isProviderPage && ageGateAccepted && (
+            <>
+              <Button
+                type="button"
+                onClick={() => setCopilotOpen(true)}
+                className="fixed bottom-5 right-5 z-40 rounded-full bg-stone-900 px-5 text-stone-50 shadow-lg hover:bg-stone-800"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI ad copilot
+              </Button>
+              <Dialog open={copilotOpen} onOpenChange={setCopilotOpen}>
+                <DialogContent className="max-w-2xl border-stone-200 bg-stone-50 p-0 text-stone-900">
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>AI advertising copilot</DialogTitle>
+                    <DialogDescription>Ask for help with registration, packages, tours, city competition, and advertising strategy.</DialogDescription>
+                  </DialogHeader>
+                  <AdvertisingCopilot surface={user ? "signup" : "guest"} compact />
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </main>
       </div>
     </SidebarProvider>

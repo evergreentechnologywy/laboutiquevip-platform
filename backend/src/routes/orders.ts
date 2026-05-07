@@ -8,8 +8,138 @@ interface OrdersContext {
   auditLogger: AuditLogger;
 }
 
+const PROVIDER_PACKAGE_PRODUCTS: Record<string, { name: string; description: string; amountCents: number; currency: string }> = {
+  "lbv-provider-basic-weekly": {
+    name: "Provider Basic Weekly",
+    description: "La Boutique VIP weekly Basic provider visibility package",
+    amountCents: 1900,
+    currency: "USD",
+  },
+  "lbv-provider-basic-monthly": {
+    name: "Provider Basic Monthly",
+    description: "La Boutique VIP monthly Basic provider visibility package",
+    amountCents: 5900,
+    currency: "USD",
+  },
+  "lbv-provider-featured-weekly": {
+    name: "Provider Featured Weekly",
+    description: "La Boutique VIP weekly Featured provider visibility package",
+    amountCents: 3900,
+    currency: "USD",
+  },
+  "lbv-provider-featured-monthly": {
+    name: "Provider Featured Monthly",
+    description: "La Boutique VIP monthly Featured provider visibility package",
+    amountCents: 11900,
+    currency: "USD",
+  },
+  "lbv-provider-premium-weekly": {
+    name: "Provider Premium Weekly",
+    description: "La Boutique VIP weekly Premium provider visibility package",
+    amountCents: 6900,
+    currency: "USD",
+  },
+  "lbv-provider-premium-monthly": {
+    name: "Provider Premium Monthly",
+    description: "La Boutique VIP monthly Premium provider visibility package",
+    amountCents: 19900,
+    currency: "USD",
+  },
+};
+
+const BLOCKED_PROVIDER_BILLING_STATUSES = new Set(["rejected", "suspended"]);
+
 function json(statusCode: number, body: unknown): ApiResponse {
   return { statusCode, body };
+}
+
+function isProviderPackageSku(sku?: string): boolean {
+  return typeof sku === "string" && sku.startsWith("lbv-provider-");
+}
+
+async function ensureProviderCanStartPackageCheckout(prisma: any, userId: string, productSku?: string): Promise<ApiResponse | null> {
+  if (!isProviderPackageSku(productSku)) {
+    return null;
+  }
+
+  const provider = await prisma.provider.findFirst({
+    where: { user_id: userId },
+    select: { id: true, status: true },
+  });
+
+  if (!provider) {
+    return json(409, {
+      error: "provider_profile_required",
+      message: "Create your provider profile before starting package checkout.",
+    });
+  }
+
+  if (BLOCKED_PROVIDER_BILLING_STATUSES.has(provider.status)) {
+    return json(403, {
+      error: "provider_not_billable",
+      message: "This provider profile cannot start paid package checkout while it is rejected or suspended.",
+    });
+  }
+
+  return null;
+}
+
+async function ensureProviderPackageProduct(prisma: any, sku: string): Promise<any | null> {
+  const packageProduct = PROVIDER_PACKAGE_PRODUCTS[sku];
+  if (!packageProduct) {
+    return null;
+  }
+
+  const billingUser = await prisma.user.upsert({
+    where: { email: "billing@laboutiquevip.net" },
+    update: {},
+    create: {
+      email: "billing@laboutiquevip.net",
+      role: "system",
+      status: "active",
+      full_name: "La Boutique VIP Billing",
+    },
+  });
+
+  let billingProfile = await prisma.profile.findFirst({
+    where: {
+      userId: billingUser.id,
+      displayName: "La Boutique VIP Billing",
+    },
+  });
+
+  if (!billingProfile) {
+    billingProfile = await prisma.profile.create({
+      data: {
+        userId: billingUser.id,
+        displayName: "La Boutique VIP Billing",
+        bio: "System profile for provider package billing products.",
+        city: "Online",
+        country: "US",
+        status: "active",
+      },
+    });
+  }
+
+  return prisma.product.upsert({
+    where: { sku },
+    update: {
+      name: packageProduct.name,
+      description: packageProduct.description,
+      amountCents: packageProduct.amountCents,
+      currency: packageProduct.currency,
+      isActive: true,
+    },
+    create: {
+      profileId: billingProfile.id,
+      sku,
+      name: packageProduct.name,
+      description: packageProduct.description,
+      amountCents: packageProduct.amountCents,
+      currency: packageProduct.currency,
+      isActive: true,
+    },
+  });
 }
 
 export async function createOrderHandler(
@@ -22,29 +152,45 @@ export async function createOrderHandler(
 
   const payload = request.body as {
     productId?: string;
+    productSku?: string;
     amountCents?: number;
     currency?: string;
     metadata?: Record<string, unknown>;
   };
 
-  if (!payload.productId || typeof payload.amountCents !== "number") {
-    return json(400, { error: "validation_error", message: "productId and amountCents are required" });
+  if (!payload.productId && !payload.productSku) {
+    return json(400, { error: "validation_error", message: "productId or productSku is required" });
   }
 
-  const product = await context.prisma.product.findUnique({
-    where: { id: payload.productId },
-  });
+  const billingGuard = await ensureProviderCanStartPackageCheckout(context.prisma, request.auth.userId, payload.productSku);
+  if (billingGuard) {
+    return billingGuard;
+  }
 
-  if (!product) {
+  let product = payload.productId
+    ? await context.prisma.product.findUnique({ where: { id: payload.productId } })
+    : await context.prisma.product.findUnique({ where: { sku: payload.productSku } });
+
+  if (!product && payload.productSku) {
+    product = await ensureProviderPackageProduct(context.prisma, payload.productSku);
+  }
+
+  if (!product || product.isActive === false) {
     return json(404, { error: "not_found", message: "Product not found" });
+  }
+
+  const amountCents = product.amountCents ?? payload.amountCents;
+  const currency = product.currency ?? payload.currency ?? "USD";
+  if (typeof amountCents !== "number") {
+    return json(400, { error: "validation_error", message: "Product amount is required" });
   }
 
   const order = await context.prisma.order.create({
     data: {
       userId: request.auth.userId,
-      productId: payload.productId,
-      amountCents: payload.amountCents,
-      currency: payload.currency || "USD",
+      productId: product.id,
+      amountCents,
+      currency,
       status: "pending",
     },
     include: {
@@ -62,8 +208,8 @@ export async function createOrderHandler(
     data: {
       orderId: order.id,
       status: "draft",
-      amountCents: payload.amountCents,
-      currency: payload.currency || "USD",
+      amountCents,
+      currency,
       externalRef: `lbv-${order.id}`,
     },
   });
@@ -82,18 +228,13 @@ export async function createOrderHandler(
           "x-api-key": String(process.env.NOWPAYMENTS_API_KEY),
         },
         body: JSON.stringify({
-          amount: (payload.amountCents / 100).toFixed(2),
-          currency: payload.currency || "USD",
-          external_ref: invoice.externalRef,
-          callback_url: `${process.env.API_BASE_URL || "https://www.laboutiquevip.net"}/api/v1/webhooks/nowpayments`,
-          success_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/dashboard?payment=success`,
-          cancel_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/dashboard?payment=cancelled`,
-          metadata: {
-            orderId: order.id,
-            invoiceId: invoice.id,
-            userId: request.auth.userId,
-            ...payload.metadata,
-          },
+          price_amount: (amountCents / 100).toFixed(2),
+          price_currency: currency.toLowerCase(),
+          ipn_callback_url: `${process.env.API_BASE_URL || "https://www.laboutiquevip.net"}/api/v1/webhooks/nowpayments`,
+          order_id: invoice.externalRef,
+          order_description: `La Boutique VIP purchase for ${order.product?.profile?.displayName ?? "membership"}`,
+          success_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/providerdashboard?payment=success`,
+          cancel_url: `${process.env.FRONTEND_URL || "https://www.laboutiquevip.net"}/providerdashboard?payment=cancelled`,
         }),
       });
 
@@ -105,7 +246,6 @@ export async function createOrderHandler(
           where: { id: invoice.id },
           data: {
             status: "issued",
-            externalRef: nowpaymentsData.id || nowpaymentsData.invoice_id || invoice.externalRef,
           },
         });
       }
@@ -143,8 +283,9 @@ export async function createOrderHandler(
     resourceType: "order",
     resourceId: order.id,
     metadata: { 
-      productId: payload.productId, 
-      amountCents: payload.amountCents,
+      productId: product.id,
+      productSku: product.sku ?? payload.productSku,
+      amountCents,
       hasNowpayments,
       paymentUrl: paymentUrl ? "created" : "failed",
     },

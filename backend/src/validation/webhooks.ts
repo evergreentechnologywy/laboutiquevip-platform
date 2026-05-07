@@ -1,6 +1,14 @@
 import { z } from "zod";
 
-export const nowpaymentsWebhookSchema = z.object({
+function optionalStringFromUnknown(value: unknown): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  const text = String(value).trim();
+  return text ? text : undefined;
+}
+
+const normalizedNowpaymentsWebhookSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),
   data: z.object({
@@ -21,6 +29,35 @@ export const nowpaymentsWebhookSchema = z.object({
     });
   }
 });
+
+export const nowpaymentsWebhookSchema = z.preprocess((input) => {
+  if (!input || typeof input !== "object") {
+    return input;
+  }
+
+  const payload = input as Record<string, unknown>;
+  if (payload.data && typeof payload.data === "object") {
+    return payload;
+  }
+
+  const paymentId = optionalStringFromUnknown(payload.payment_id);
+  const invoiceId = optionalStringFromUnknown(payload.invoice_id);
+  const purchaseId = optionalStringFromUnknown(payload.purchase_id);
+  const status = optionalStringFromUnknown(payload.payment_status);
+  const orderId = optionalStringFromUnknown(payload.order_id);
+
+  return {
+    id: paymentId ?? invoiceId ?? purchaseId ?? orderId,
+    type: status ? `payment.${status}` : "payment.updated",
+    data: {
+      invoice_id: invoiceId,
+      external_ref: orderId,
+      order_id: orderId,
+      status,
+      currency: optionalStringFromUnknown(payload.price_currency),
+    },
+  };
+}, normalizedNowpaymentsWebhookSchema);
 
 export const diditWebhookSchema = z.object({
   id: z.string().min(1),

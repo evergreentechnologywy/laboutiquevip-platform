@@ -19,8 +19,8 @@ Migration reference: `docs/hetzner-cloudflare-migration-2026-03-20.md`
 - `CORS_ALLOWLIST` (explicit list, include canonical domain)
 - `NOWPAYMENTS_API_KEY`
 - `NOWPAYMENTS_API_BASE_URL` (optional override, defaults to `https://api.nowpayments.io/v1`)
-- `NOWPAYMENTS_WEBHOOK_SECRET`
-- `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` (optional override)
+- `NOWPAYMENTS_IPN_SECRET` (preferred; `NOWPAYMENTS_WEBHOOK_SECRET` remains a compatibility fallback)
+- `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` (optional override, defaults to `x-nowpayments-sig`)
 - `DIDIT_API_KEY`
 - `DIDIT_WORKFLOW_ID`
 - `DIDIT_WEBHOOK_SECRET`
@@ -64,8 +64,9 @@ Migration reference: `docs/hetzner-cloudflare-migration-2026-03-20.md`
 
 ## NOWPayments live-contract assumptions
 - Order creation posts to `${NOWPAYMENTS_API_BASE_URL}/invoice` with `x-api-key: ${NOWPAYMENTS_API_KEY}`.
+- Invoice requests send `price_amount`, `price_currency`, `ipn_callback_url`, `order_id`, `order_description`, `success_url`, and `cancel_url`.
 - Hosted payment URLs are resolved from `invoice_url`, then `payment_url`, then `url`.
-- Webhook verification expects a hex HMAC-SHA256 of the raw request body in `x-nowpayments-signature` unless `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` overrides it.
+- Webhook verification expects `x-nowpayments-sig` containing HMAC-SHA512 over the alphabetically sorted JSON body, signed with `NOWPAYMENTS_IPN_SECRET`.
 - If the live NOWPayments contract differs, update both `backend/src/routes/orders.ts` and `backend/src/routes/webhookNowpayments.ts` together before production cutover.
 
 ## Rollback

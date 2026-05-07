@@ -39,12 +39,13 @@ test("buildProviderSignupPayload strips frontend-only fields and normalizes valu
     review_provider: null,
     review_username: null,
     review_url: null,
-    ad_package: "premium",
-    ad_package_expiry: payload.ad_package_expiry,
     verification_documents: ["doc-1"],
     pending_photos: [],
   });
   assert.equal("verification_id" in payload, false);
+  assert.equal("ad_package" in payload, false);
+  assert.equal("ad_package_expiry" in payload, false);
+  assert.equal("ad_package_started_at" in payload, false);
 });
 
 test("buildProviderSignupPayload includes external account fields in signup payload", () => {

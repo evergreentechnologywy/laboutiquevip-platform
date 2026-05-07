@@ -28,6 +28,12 @@ const LIMIT_RULES: LimitRule[] = [
     maxRequests: 20,
   },
   {
+    name: "ai",
+    matcher: (request) => request.pathname.startsWith("/api/v1/ai"),
+    windowMs: 60_000,
+    maxRequests: 20,
+  },
+  {
     name: "webhooks",
     matcher: (request) => request.pathname.startsWith("/api/v1/webhooks"),
     windowMs: 60_000,
@@ -95,4 +101,3 @@ export function applyRateLimit(request: ApiRequest): ApiResponse | null {
     },
   };
 }
-

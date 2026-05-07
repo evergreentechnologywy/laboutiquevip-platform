@@ -19,6 +19,7 @@ import {
   adminReportsQueueHandler,
   adminReviewVerificationHandler,
 } from "./routes/admin.js";
+import { aiAssistantHandler, applyAiTourDraftHandler } from "./routes/aiAssistant.js";
 import {
   createDiditSessionHandler,
   diditWebhookHandler,
@@ -177,6 +178,8 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
   if (request.pathname === "/api/auth/login" && request.method === "POST") return loginHandler(request, context);
   if (request.pathname === "/api/auth/me" && request.method === "GET") return meHandler(request, context);
   if (request.pathname === "/api/auth/logout" && request.method === "POST") return logoutHandler();
+  if (request.pathname === "/api/v1/ai/assistant" && request.method === "POST") return aiAssistantHandler(request, context);
+  if (request.pathname === "/api/v1/ai/actions/tour-draft" && request.method === "POST") return applyAiTourDraftHandler(request, context);
 
   const entity = matchEntityPath(request.pathname);
   if (entity && request.method === "GET") return listOrFilterEntityHandler(request, entity, context);

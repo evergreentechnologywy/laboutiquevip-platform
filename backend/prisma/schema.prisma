@@ -352,6 +352,8 @@ model Provider {
   review_url             String?
   ad_package             String?  @default("none")
   ad_package_expiry      String?
+  ad_package_started_at  String?
+  ad_package_expiration_reminder_sent_at String?
   verification_documents Json?
   photos                 Json?
   pending_photos         Json?

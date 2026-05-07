@@ -4,7 +4,7 @@ import { captureBackendException } from "../observability.js";
 import {
   appendInvoiceEventImmutable,
   claimWebhookReceipt,
-  verifyHmacSha256Signature,
+  verifyNowpaymentsIpnSignature,
 } from "../services/webhooks.js";
 import {
   sendPaymentConfirmedEmail,
@@ -30,10 +30,11 @@ function getHeader(headers: ApiRequest["headers"], name: string): string | null 
 }
 
 function resolveEventKey(payload: NowpaymentsWebhookPayload): string {
+  const status = normalizePaymentStatus(payload);
   if (payload.id) {
-    return `nowpayments:${payload.id}`;
+    return `nowpayments:${payload.id}:${status}`;
   }
-  return `nowpayments:invoice:${payload.data.invoice_id ?? payload.data.external_ref ?? payload.data.order_id}:${payload.type ?? "unknown"}`;
+  return `nowpayments:invoice:${payload.data.invoice_id ?? payload.data.external_ref ?? payload.data.order_id}:${status}`;
 }
 
 function normalizePaymentStatus(payload: NowpaymentsWebhookPayload): string {
@@ -46,6 +47,84 @@ function shouldGrantEntitlement(status: string): boolean {
 
 function isPartialPayment(status: string): boolean {
   return status === "partially_paid";
+}
+
+function terminalUnsuccessfulInvoiceStatus(status: string): string | null {
+  if (["failed", "expired", "refunded"].includes(status)) {
+    return status;
+  }
+  return null;
+}
+
+function isUuid(value: string | undefined): value is string {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+}
+
+function parseProviderPackageSku(sku: string | null | undefined): { packageName: string; durationDays: number } | null {
+  const match = /^lbv-provider-(basic|featured|premium)-(weekly|monthly)$/.exec(String(sku ?? ""));
+  if (!match) {
+    return null;
+  }
+
+  return {
+    packageName: match[1],
+    durationDays: match[2] === "monthly" ? 30 : 7,
+  };
+}
+
+function dateOnly(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function resolvePackageExpiry(existingExpiry: string | null | undefined, durationDays: number, now: Date): string {
+  const existing = existingExpiry ? new Date(`${existingExpiry}T00:00:00Z`) : null;
+  const base = existing && Number.isFinite(existing.getTime()) && existing > now ? existing : now;
+  return dateOnly(addDays(base, durationDays));
+}
+
+async function applyProviderPackageUpgrade(prisma: any, invoice: any, now: Date): Promise<boolean> {
+  const packageConfig = parseProviderPackageSku(invoice.order?.product?.sku);
+  const userId = invoice.order?.userId;
+  if (!packageConfig || !userId) {
+    return false;
+  }
+
+  const provider = await prisma.provider.findFirst({
+    where: { user_id: userId },
+    orderBy: { created_date: "desc" },
+  });
+  if (!provider) {
+    return false;
+  }
+
+  await prisma.$executeRaw`
+    UPDATE "Provider"
+    SET
+      ad_package = ${packageConfig.packageName},
+      ad_package_started_at = ${now.toISOString()},
+      ad_package_expiry = to_char(
+        (
+          GREATEST(
+            COALESCE(
+              NULLIF(ad_package_expiry, '')::date,
+              (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')::date
+            ),
+            (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')::date
+          ) + ${packageConfig.durationDays}::integer
+        ),
+        'YYYY-MM-DD'
+      ),
+      ad_package_expiration_reminder_sent_at = NULL,
+      is_premium = ${["featured", "premium"].includes(packageConfig.packageName)}
+    WHERE id = ${provider.id}::uuid
+  `;
+  return true;
 }
 
 async function grantEntitlementIfMissing(
@@ -78,13 +157,13 @@ export async function nowpaymentsWebhookHandler(
     return json(400, { error: "invalid_webhook", message: "Raw payload required" });
   }
 
-  const signatureHeader = process.env.NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER ?? "x-nowpayments-signature";
+  const signatureHeader = process.env.NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER ?? "x-nowpayments-sig";
   const signature = getHeader(request.headers, signatureHeader);
-  const verified = verifyHmacSha256Signature({
+  const verified = verifyNowpaymentsIpnSignature({
     rawBody: request.rawBody,
     signature,
     timestamp: null,
-    secret: process.env.NOWPAYMENTS_WEBHOOK_SECRET,
+    secret: process.env.NOWPAYMENTS_IPN_SECRET ?? process.env.NOWPAYMENTS_WEBHOOK_SECRET,
   });
 
   if (!verified.ok) {
@@ -123,9 +202,13 @@ export async function nowpaymentsWebhookHandler(
 
   const invoiceRef = payload.data.external_ref ?? payload.data.invoice_id ?? payload.data.order_id;
 
+  const invoiceLookup = invoiceRef
+    ? [{ externalRef: invoiceRef }, ...(isUuid(invoiceRef) ? [{ id: invoiceRef }] : [])]
+    : [];
+
   const invoice = await context.prisma.invoice.findFirst({
     where: {
-      OR: [{ externalRef: invoiceRef }, { id: invoiceRef }],
+      OR: invoiceLookup,
     },
     include: {
       order: {
@@ -160,30 +243,56 @@ export async function nowpaymentsWebhookHandler(
   });
 
   let entitlementGranted = false;
+  let providerPackageUpgraded = false;
   let invoiceStatus = invoice.status;
 
   if (shouldGrantEntitlement(paymentStatus)) {
+    const paidAt = new Date();
     invoiceStatus = "paid";
-    await context.prisma.invoice.update({
-      where: { id: invoice.id },
-      data: { status: invoiceStatus, paidAt: new Date() },
+    const paidUpdate = await context.prisma.invoice.updateMany({
+      where: { id: invoice.id, status: { not: "paid" } },
+      data: { status: invoiceStatus, paidAt },
+    });
+    await context.prisma.order.update({
+      where: { id: invoice.orderId },
+      data: { status: "paid" },
     });
 
-    const entitlement = payload.data.entitlement ?? "purchase_access";
-    await grantEntitlementIfMissing(context.prisma, invoice.orderId, entitlement, {
-      provider: "nowpayments",
-      eventKey,
-      invoiceId: invoice.id,
-      paymentStatus,
-      grantedAfterExpiry: paymentStatus === "paid" && invoice.status === "expired",
-    });
-    entitlementGranted = true;
+    if (paidUpdate.count > 0) {
+      const entitlement = payload.data.entitlement ?? "purchase_access";
+      await grantEntitlementIfMissing(context.prisma, invoice.orderId, entitlement, {
+        provider: "nowpayments",
+        eventKey,
+        invoiceId: invoice.id,
+        paymentStatus,
+        grantedAfterExpiry: paymentStatus === "paid" && invoice.status === "expired",
+      });
+      entitlementGranted = true;
+      providerPackageUpgraded = await applyProviderPackageUpgrade(context.prisma, invoice, paidAt);
+    }
   } else if (isPartialPayment(paymentStatus)) {
     invoiceStatus = "pending_manual";
     await context.prisma.invoice.update({
       where: { id: invoice.id },
       data: { status: invoiceStatus },
     });
+    await context.prisma.order.update({
+      where: { id: invoice.orderId },
+      data: { status: invoiceStatus },
+    });
+  } else {
+    const terminalStatus = terminalUnsuccessfulInvoiceStatus(paymentStatus);
+    if (terminalStatus) {
+      invoiceStatus = terminalStatus;
+      await context.prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: invoiceStatus },
+      });
+      await context.prisma.order.update({
+        where: { id: invoice.orderId },
+        data: { status: invoiceStatus },
+      });
+    }
   }
 
   await context.auditLogger.append({
@@ -196,6 +305,7 @@ export async function nowpaymentsWebhookHandler(
       status: paymentStatus,
       invoiceStatus,
       entitlementGranted,
+      providerPackageUpgraded,
       requestId: request.requestId,
     },
   });

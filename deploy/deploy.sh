@@ -12,7 +12,6 @@ required_env=(
   PUBLIC_BASE_URL
   CORS_ALLOWLIST
   NOWPAYMENTS_API_KEY
-  NOWPAYMENTS_WEBHOOK_SECRET
   DIDIT_API_KEY
   DIDIT_WORKFLOW_ID
   DIDIT_WEBHOOK_SECRET
@@ -24,6 +23,11 @@ for env_name in "${required_env[@]}"; do
     exit 1
   fi
 done
+
+if [[ -z "${NOWPAYMENTS_IPN_SECRET:-}" && -z "${NOWPAYMENTS_WEBHOOK_SECRET:-}" ]]; then
+  echo "[deploy] missing required env: NOWPAYMENTS_IPN_SECRET"
+  exit 1
+fi
 
 if [[ "${NODE_ENV}" != "production" ]]; then
   echo "[deploy] NODE_ENV must be production for deploy"

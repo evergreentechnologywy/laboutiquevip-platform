@@ -111,10 +111,163 @@ test("createOrderHandler uses NOWPayments-only env and webhook route", async () 
   assert.equal((response.body as any).mode, "live");
 
   const requestBody = JSON.parse(String(fetchInit?.body));
-  assert.equal(requestBody.callback_url, "https://api.laboutiquevip.test/api/v1/webhooks/nowpayments");
-  assert.equal(requestBody.success_url, "https://app.laboutiquevip.test/dashboard?payment=success");
-  assert.equal(requestBody.cancel_url, "https://app.laboutiquevip.test/dashboard?payment=cancelled");
+  assert.equal(requestBody.price_amount, "125.00");
+  assert.equal(requestBody.price_currency, "usd");
+  assert.equal(requestBody.ipn_callback_url, "https://api.laboutiquevip.test/api/v1/webhooks/nowpayments");
+  assert.equal(requestBody.order_id, "lbv-order-1");
+  assert.equal(requestBody.order_description, "La Boutique VIP purchase for Ava");
+  assert.equal(requestBody.success_url, "https://app.laboutiquevip.test/providerdashboard?payment=success");
+  assert.equal(requestBody.cancel_url, "https://app.laboutiquevip.test/providerdashboard?payment=cancelled");
+  assert.equal("metadata" in requestBody, false);
   assert.equal(createCalls.length, 1);
   assert.equal(updateCalls.length, 1);
   assert.equal((auditEvents[0]?.metadata as any)?.hasNowpayments, true);
+});
+
+test("createOrderHandler resolves provider package products by sku", async () => {
+  const previousApiKey = process.env.NOWPAYMENTS_API_KEY;
+  delete process.env.NOWPAYMENTS_API_KEY;
+
+  const prisma = {
+    provider: {
+      findFirst: async ({ where }: any) => {
+        assert.equal(where.user_id, "user-1");
+        return { id: "provider-active", status: "active" };
+      },
+    },
+    product: {
+      findUnique: async ({ where }: any) => {
+        assert.equal(where.sku, "lbv-provider-basic-weekly");
+        return {
+          id: "product-basic-weekly",
+          sku: "lbv-provider-basic-weekly",
+          amountCents: 1900,
+          currency: "USD",
+          isActive: true,
+        };
+      },
+    },
+    order: {
+      create: async ({ data }: any) => ({
+        id: "order-basic-weekly",
+        ...data,
+        user: { email: null },
+        product: { profile: { displayName: "La Boutique VIP Provider Basic Weekly" } },
+      }),
+    },
+    invoice: {
+      create: async ({ data }: any) => ({ id: "invoice-basic-weekly", ...data }),
+    },
+  };
+
+  const response = await createOrderHandler(makeRequest({
+    body: {
+      productSku: "lbv-provider-basic-weekly",
+      currency: "USD",
+    },
+  }), {
+    prisma,
+    auditLogger: { append: async () => undefined },
+  } as any);
+
+  if (previousApiKey === undefined) delete process.env.NOWPAYMENTS_API_KEY;
+  else process.env.NOWPAYMENTS_API_KEY = previousApiKey;
+
+  assert.equal(response.statusCode, 201);
+  assert.equal((response.body as any).amount.cents, 1900);
+  assert.equal((response.body as any).mode, "test_mode");
+});
+
+test("createOrderHandler blocks provider package checkout for rejected or suspended providers", async () => {
+  const blockedStatuses = ["rejected", "suspended"];
+
+  for (const status of blockedStatuses) {
+    const prisma = {
+      provider: {
+        findFirst: async ({ where }: any) => {
+          assert.equal(where.user_id, "user-1");
+          return {
+            id: `provider-${status}`,
+            user_id: "user-1",
+            status,
+            is_profile_approved: false,
+          };
+        },
+      },
+      product: {
+        findUnique: async () => {
+          throw new Error("product lookup should not run for blocked providers");
+        },
+      },
+    };
+
+    const response = await createOrderHandler(makeRequest({
+      body: {
+        productSku: "lbv-provider-premium-weekly",
+        currency: "USD",
+      },
+    }), {
+      prisma,
+      auditLogger: { append: async () => undefined },
+    } as any);
+
+    assert.equal(response.statusCode, 403);
+    assert.equal((response.body as any).error, "provider_not_billable");
+  }
+});
+
+test("createOrderHandler maps all provider package skus to expected amounts", async () => {
+  const previousApiKey = process.env.NOWPAYMENTS_API_KEY;
+  delete process.env.NOWPAYMENTS_API_KEY;
+
+  const expectedAmounts: Record<string, number> = {
+    "lbv-provider-basic-weekly": 1900,
+    "lbv-provider-basic-monthly": 5900,
+    "lbv-provider-featured-weekly": 3900,
+    "lbv-provider-featured-monthly": 11900,
+    "lbv-provider-premium-weekly": 6900,
+    "lbv-provider-premium-monthly": 19900,
+  };
+
+  for (const [productSku, amountCents] of Object.entries(expectedAmounts)) {
+    const prisma = {
+      provider: {
+        findFirst: async () => ({ id: "provider-active", status: "active" }),
+      },
+      product: {
+        findUnique: async () => null,
+        upsert: async ({ create }: any) => ({ id: `product-${productSku}`, ...create }),
+      },
+      user: {
+        upsert: async () => ({ id: "billing-user-1" }),
+      },
+      profile: {
+        findFirst: async () => ({ id: "billing-profile-1" }),
+      },
+      order: {
+        create: async ({ data }: any) => ({
+          id: `order-${productSku}`,
+          ...data,
+          user: { email: null },
+          product: { sku: productSku, profile: { displayName: productSku } },
+        }),
+      },
+      invoice: {
+        create: async ({ data }: any) => ({ id: `invoice-${productSku}`, ...data }),
+      },
+    };
+
+    const response = await createOrderHandler(makeRequest({
+      body: { productSku, currency: "USD" },
+    }), {
+      prisma,
+      auditLogger: { append: async () => undefined },
+    } as any);
+
+    assert.equal(response.statusCode, 201);
+    assert.equal((response.body as any).amount.cents, amountCents);
+  }
+
+  if (previousApiKey === undefined) delete process.env.NOWPAYMENTS_API_KEY;
+  else process.env.NOWPAYMENTS_API_KEY = previousApiKey;
 });

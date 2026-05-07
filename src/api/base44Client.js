@@ -94,6 +94,14 @@ export const base44 = {
     Verification: createEntityClient('Verification'),
     Query: {},
   },
+  orders: {
+    create: (data) => api('/api/v1/orders', { method: 'POST', body: data, auth: true }),
+    list: () => api('/api/v1/orders', { auth: true }),
+  },
+  ai: {
+    assistant: (data) => api('/api/v1/ai/assistant', { method: 'POST', body: data, auth: true }),
+    applyTourDraft: (data) => api('/api/v1/ai/actions/tour-draft', { method: 'POST', body: data, auth: true }),
+  },
   integrations: {
     Core: {
       UploadFile: async ({ file }) => {

@@ -11,7 +11,7 @@ Date (UTC): 2026-03-04
 - Created/updated production env file at `/srv/apps/trystlike/repo/.env` with required keys:
   - `NODE_ENV`, `DATABASE_URL`, `PUBLIC_BASE_URL`, `CORS_ALLOWLIST`
   - `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_API_BASE_URL`
-  - `NOWPAYMENTS_WEBHOOK_SECRET`, `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER`
+  - `NOWPAYMENTS_IPN_SECRET`, `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER`
   - `DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET`, `DIDIT_WORKFLOW_ID`
 - Updated deploy script to:
   - install dev deps reliably in production deploy
@@ -19,7 +19,8 @@ Date (UTC): 2026-03-04
   - run `prisma generate` before smoke check
 - NOWPayments hard-cut assumption used in repo:
   - order creation posts to `POST ${NOWPAYMENTS_API_BASE_URL}/invoice` with `x-api-key`
-  - webhook validation expects raw-body HMAC-SHA256 in `x-nowpayments-signature`
+  - invoice payload uses `price_amount`, `price_currency`, and `ipn_callback_url`
+  - webhook validation expects sorted-body HMAC-SHA512 in `x-nowpayments-sig`
 - Fixed backend Prisma runtime import path for compiled output (`backend/src/db/prisma.ts`).
 - Successfully ran deploy script:
   - `source /srv/apps/trystlike/repo/.env && bash /srv/apps/trystlike/deploy/deploy.sh`

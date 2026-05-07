@@ -44,6 +44,44 @@ export function verifyHmacSha256Signature(input: SignatureVerificationInput): Si
   return { ok: true };
 }
 
+function sortObject(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortObject);
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce((result: Record<string, unknown>, key) => {
+        result[key] = sortObject((value as Record<string, unknown>)[key]);
+        return result;
+      }, {});
+  }
+  return value;
+}
+
+export function verifyNowpaymentsIpnSignature(input: SignatureVerificationInput): SignatureVerificationResult {
+  if (!input.secret) {
+    return { ok: false, reason: "missing_secret" };
+  }
+  if (!input.signature) {
+    return { ok: false, reason: "missing_signature" };
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = JSON.parse(input.rawBody);
+  } catch {
+    return { ok: false, reason: "invalid_json" };
+  }
+
+  const signedBody = JSON.stringify(sortObject(parsedBody));
+  const expected = crypto.createHmac("sha512", input.secret).update(signedBody).digest("hex");
+  if (!safeCompare(expected, input.signature)) {
+    return { ok: false, reason: "signature_mismatch" };
+  }
+  return { ok: true };
+}
+
 export function verifyTimestampedHmacSha256Signature(input: SignatureVerificationInput): SignatureVerificationResult {
   if (!input.secret) {
     return { ok: false, reason: "missing_secret" };

@@ -14,7 +14,7 @@ This document prepares the repo for moving production from the current Hostinger
 - Frontend is built with Vite and served as static files from `dist/`.
 - Nginx serves the frontend and proxies `/api/` to the backend on `127.0.0.1:8787` (`deploy/nginx.conf`).
 - The backend is a Node service started by systemd (`deploy/laboutiquevip-backend.service`).
-- Production startup requires `DATABASE_URL`, `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_WEBHOOK_SECRET`, `DIDIT_*`, `CORS_ALLOWLIST`, and `PUBLIC_BASE_URL` (`backend/src/config/startup.ts`).
+- Production startup requires `DATABASE_URL`, `NOWPAYMENTS_API_KEY`, `NOWPAYMENTS_IPN_SECRET`, `DIDIT_*`, `CORS_ALLOWLIST`, and `PUBLIC_BASE_URL` (`backend/src/config/startup.ts`).
 - The deploy script builds the frontend/backend, runs backend tests, applies Prisma migrations, and performs a local `/api/health` smoke check (`deploy/deploy.sh`).
 - Admin IP allowlisting and app rate limiting depend on the resolved client IP (`backend/src/server.ts`, `backend/src/config/security.ts`, `backend/src/middleware/rateLimit.ts`).
 

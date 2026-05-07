@@ -58,7 +58,7 @@ Because of those limits, no claim is made here that full browser flows or live D
 
 - Hosted invoice creation is assumed to be `POST ${NOWPAYMENTS_API_BASE_URL}/invoice` using `x-api-key: ${NOWPAYMENTS_API_KEY}`.
 - Hosted payment URLs are assumed to be returned in `invoice_url`, `payment_url`, or `url`.
-- Webhook verification is assumed to be raw-body HMAC-SHA256 hex in `x-nowpayments-signature` unless `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` overrides it.
+- Webhook verification is assumed to be sorted-body HMAC-SHA512 hex in `x-nowpayments-sig` unless `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` overrides it.
 
 ## Concurrency / live-connection characterization
 

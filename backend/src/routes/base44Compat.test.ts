@@ -81,6 +81,53 @@ test("Provider update denied for non-owner non-admin", async () => {
   assert.equal(res.statusCode, 403);
 });
 
+test("Provider owner cannot self-assign paid package fields", async () => {
+  let seenData: any = null;
+  const prisma = {
+    provider: {
+      findUnique: async () => ({
+        id: "p1",
+        user_id: "owner-1",
+        is_profile_approved: true,
+        status: "active",
+        ad_package: "none",
+        ad_package_expiry: null,
+        ad_package_started_at: null,
+        ad_package_expiration_reminder_sent_at: null,
+        is_premium: false,
+      }),
+      update: async ({ data }: any) => {
+        seenData = data;
+        return { id: "p1", ...data };
+      },
+    },
+  };
+
+  const res = await updateProviderHandler(
+    makeReq({
+      auth: { userId: "owner-1", roles: ["member"] },
+      body: {
+        display_name: "Owner Listing",
+        ad_package: "premium",
+        ad_package_expiry: "2099-01-01",
+        ad_package_started_at: "2098-01-01T00:00:00.000Z",
+        ad_package_expiration_reminder_sent_at: "2098-12-30T00:00:00.000Z",
+        is_premium: true,
+      },
+    }),
+    "p1",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(seenData.display_name, "Owner Listing");
+  assert.equal(seenData.ad_package, "none");
+  assert.equal(seenData.ad_package_expiry, null);
+  assert.equal(seenData.ad_package_started_at, null);
+  assert.equal(seenData.ad_package_expiration_reminder_sent_at, null);
+  assert.equal(seenData.is_premium, false);
+});
+
 test("Provider owner can pause an approved listing", async () => {
   const prisma = {
     provider: {

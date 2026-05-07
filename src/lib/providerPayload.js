@@ -11,13 +11,6 @@ function normalizeOptionalNumber(value) {
 }
 
 export function buildProviderSignupPayload({ formData, userId, billingPeriod }) {
-  const durationDays = formData.ad_package !== "none"
-    ? (billingPeriod === "monthly" ? 30 : 7)
-    : 0;
-  const adPackageExpiry = durationDays > 0
-    ? new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
-    : null;
-
   return {
     user_id: userId,
     display_name: formData.display_name.trim(),
@@ -35,8 +28,6 @@ export function buildProviderSignupPayload({ formData, userId, billingPeriod }) 
     review_provider: normalizeOptionalString(formData.review_provider),
     review_username: normalizeOptionalString(formData.review_username),
     review_url: normalizeOptionalString(formData.review_url),
-    ad_package: formData.ad_package,
-    ad_package_expiry: adPackageExpiry,
     verification_documents: Array.isArray(formData.verification_documents) ? formData.verification_documents : [],
     pending_photos: [],
   };

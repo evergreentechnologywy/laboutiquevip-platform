@@ -579,8 +579,8 @@ export namespace Prisma {
   export import Exact = $Public.Exact
 
   /**
-   * Prisma Client JS version: 6.16.0
-   * Query Engine version: 1c57fdcd7e44b29b9313256c76699e91c3ac3c43
+   * Prisma Client JS version: 6.19.3
+   * Query Engine version: c2990dca591cba766e3b7ef5d9e8a84796e47ab7
    */
   export type PrismaVersion = {
     client: string
@@ -593,6 +593,7 @@ export namespace Prisma {
    */
 
 
+  export import Bytes = runtime.Bytes
   export import JsonObject = runtime.JsonObject
   export import JsonArray = runtime.JsonArray
   export import JsonValue = runtime.JsonValue
@@ -28157,8 +28158,16 @@ export namespace Prisma {
     age: number | null
     phone: string | null
     email: string | null
+    verification_provider: string | null
+    verification_username: string | null
+    verification_url: string | null
+    review_provider: string | null
+    review_username: string | null
+    review_url: string | null
     ad_package: string | null
     ad_package_expiry: string | null
+    ad_package_started_at: string | null
+    ad_package_expiration_reminder_sent_at: string | null
     status: string | null
     is_premium: boolean | null
     is_verified: boolean | null
@@ -28185,8 +28194,16 @@ export namespace Prisma {
     age: number | null
     phone: string | null
     email: string | null
+    verification_provider: string | null
+    verification_username: string | null
+    verification_url: string | null
+    review_provider: string | null
+    review_username: string | null
+    review_url: string | null
     ad_package: string | null
     ad_package_expiry: string | null
+    ad_package_started_at: string | null
+    ad_package_expiration_reminder_sent_at: string | null
     status: string | null
     is_premium: boolean | null
     is_verified: boolean | null
@@ -28213,8 +28230,16 @@ export namespace Prisma {
     age: number
     phone: number
     email: number
+    verification_provider: number
+    verification_username: number
+    verification_url: number
+    review_provider: number
+    review_username: number
+    review_url: number
     ad_package: number
     ad_package_expiry: number
+    ad_package_started_at: number
+    ad_package_expiration_reminder_sent_at: number
     verification_documents: number
     photos: number
     pending_photos: number
@@ -28262,8 +28287,16 @@ export namespace Prisma {
     age?: true
     phone?: true
     email?: true
+    verification_provider?: true
+    verification_username?: true
+    verification_url?: true
+    review_provider?: true
+    review_username?: true
+    review_url?: true
     ad_package?: true
     ad_package_expiry?: true
+    ad_package_started_at?: true
+    ad_package_expiration_reminder_sent_at?: true
     status?: true
     is_premium?: true
     is_verified?: true
@@ -28290,8 +28323,16 @@ export namespace Prisma {
     age?: true
     phone?: true
     email?: true
+    verification_provider?: true
+    verification_username?: true
+    verification_url?: true
+    review_provider?: true
+    review_username?: true
+    review_url?: true
     ad_package?: true
     ad_package_expiry?: true
+    ad_package_started_at?: true
+    ad_package_expiration_reminder_sent_at?: true
     status?: true
     is_premium?: true
     is_verified?: true
@@ -28318,8 +28359,16 @@ export namespace Prisma {
     age?: true
     phone?: true
     email?: true
+    verification_provider?: true
+    verification_username?: true
+    verification_url?: true
+    review_provider?: true
+    review_username?: true
+    review_url?: true
     ad_package?: true
     ad_package_expiry?: true
+    ad_package_started_at?: true
+    ad_package_expiration_reminder_sent_at?: true
     verification_documents?: true
     photos?: true
     pending_photos?: true
@@ -28436,8 +28485,16 @@ export namespace Prisma {
     age: number | null
     phone: string | null
     email: string | null
+    verification_provider: string | null
+    verification_username: string | null
+    verification_url: string | null
+    review_provider: string | null
+    review_username: string | null
+    review_url: string | null
     ad_package: string | null
     ad_package_expiry: string | null
+    ad_package_started_at: string | null
+    ad_package_expiration_reminder_sent_at: string | null
     verification_documents: JsonValue | null
     photos: JsonValue | null
     pending_photos: JsonValue | null
@@ -28486,8 +28543,16 @@ export namespace Prisma {
     age?: boolean
     phone?: boolean
     email?: boolean
+    verification_provider?: boolean
+    verification_username?: boolean
+    verification_url?: boolean
+    review_provider?: boolean
+    review_username?: boolean
+    review_url?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
+    ad_package_started_at?: boolean
+    ad_package_expiration_reminder_sent_at?: boolean
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
@@ -28517,8 +28582,16 @@ export namespace Prisma {
     age?: boolean
     phone?: boolean
     email?: boolean
+    verification_provider?: boolean
+    verification_username?: boolean
+    verification_url?: boolean
+    review_provider?: boolean
+    review_username?: boolean
+    review_url?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
+    ad_package_started_at?: boolean
+    ad_package_expiration_reminder_sent_at?: boolean
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
@@ -28548,8 +28621,16 @@ export namespace Prisma {
     age?: boolean
     phone?: boolean
     email?: boolean
+    verification_provider?: boolean
+    verification_username?: boolean
+    verification_url?: boolean
+    review_provider?: boolean
+    review_username?: boolean
+    review_url?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
+    ad_package_started_at?: boolean
+    ad_package_expiration_reminder_sent_at?: boolean
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
@@ -28579,8 +28660,16 @@ export namespace Prisma {
     age?: boolean
     phone?: boolean
     email?: boolean
+    verification_provider?: boolean
+    verification_username?: boolean
+    verification_url?: boolean
+    review_provider?: boolean
+    review_username?: boolean
+    review_url?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
+    ad_package_started_at?: boolean
+    ad_package_expiration_reminder_sent_at?: boolean
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
@@ -28598,7 +28687,7 @@ export namespace Prisma {
     updated_date?: boolean
   }
 
-  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "phone" | "email" | "ad_package" | "ad_package_expiry" | "verification_documents" | "photos" | "pending_photos" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date", ExtArgs["result"]["provider"]>
+  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "phone" | "email" | "verification_provider" | "verification_username" | "verification_url" | "review_provider" | "review_username" | "review_url" | "ad_package" | "ad_package_expiry" | "ad_package_started_at" | "ad_package_expiration_reminder_sent_at" | "verification_documents" | "photos" | "pending_photos" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date", ExtArgs["result"]["provider"]>
 
   export type $ProviderPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Provider"
@@ -28615,8 +28704,16 @@ export namespace Prisma {
       age: number | null
       phone: string | null
       email: string | null
+      verification_provider: string | null
+      verification_username: string | null
+      verification_url: string | null
+      review_provider: string | null
+      review_username: string | null
+      review_url: string | null
       ad_package: string | null
       ad_package_expiry: string | null
+      ad_package_started_at: string | null
+      ad_package_expiration_reminder_sent_at: string | null
       verification_documents: Prisma.JsonValue | null
       photos: Prisma.JsonValue | null
       pending_photos: Prisma.JsonValue | null
@@ -29066,8 +29163,16 @@ export namespace Prisma {
     readonly age: FieldRef<"Provider", 'Int'>
     readonly phone: FieldRef<"Provider", 'String'>
     readonly email: FieldRef<"Provider", 'String'>
+    readonly verification_provider: FieldRef<"Provider", 'String'>
+    readonly verification_username: FieldRef<"Provider", 'String'>
+    readonly verification_url: FieldRef<"Provider", 'String'>
+    readonly review_provider: FieldRef<"Provider", 'String'>
+    readonly review_username: FieldRef<"Provider", 'String'>
+    readonly review_url: FieldRef<"Provider", 'String'>
     readonly ad_package: FieldRef<"Provider", 'String'>
     readonly ad_package_expiry: FieldRef<"Provider", 'String'>
+    readonly ad_package_started_at: FieldRef<"Provider", 'String'>
+    readonly ad_package_expiration_reminder_sent_at: FieldRef<"Provider", 'String'>
     readonly verification_documents: FieldRef<"Provider", 'Json'>
     readonly photos: FieldRef<"Provider", 'Json'>
     readonly pending_photos: FieldRef<"Provider", 'Json'>
@@ -33010,8 +33115,16 @@ export namespace Prisma {
     age: 'age',
     phone: 'phone',
     email: 'email',
+    verification_provider: 'verification_provider',
+    verification_username: 'verification_username',
+    verification_url: 'verification_url',
+    review_provider: 'review_provider',
+    review_username: 'review_username',
+    review_url: 'review_url',
     ad_package: 'ad_package',
     ad_package_expiry: 'ad_package_expiry',
+    ad_package_started_at: 'ad_package_started_at',
+    ad_package_expiration_reminder_sent_at: 'ad_package_expiration_reminder_sent_at',
     verification_documents: 'verification_documents',
     photos: 'photos',
     pending_photos: 'pending_photos',
@@ -34746,8 +34859,16 @@ export namespace Prisma {
     age?: IntNullableFilter<"Provider"> | number | null
     phone?: StringNullableFilter<"Provider"> | string | null
     email?: StringNullableFilter<"Provider"> | string | null
+    verification_provider?: StringNullableFilter<"Provider"> | string | null
+    verification_username?: StringNullableFilter<"Provider"> | string | null
+    verification_url?: StringNullableFilter<"Provider"> | string | null
+    review_provider?: StringNullableFilter<"Provider"> | string | null
+    review_username?: StringNullableFilter<"Provider"> | string | null
+    review_url?: StringNullableFilter<"Provider"> | string | null
     ad_package?: StringNullableFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableFilter<"Provider"> | string | null
+    ad_package_started_at?: StringNullableFilter<"Provider"> | string | null
+    ad_package_expiration_reminder_sent_at?: StringNullableFilter<"Provider"> | string | null
     verification_documents?: JsonNullableFilter<"Provider">
     photos?: JsonNullableFilter<"Provider">
     pending_photos?: JsonNullableFilter<"Provider">
@@ -34777,8 +34898,16 @@ export namespace Prisma {
     age?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
+    verification_provider?: SortOrderInput | SortOrder
+    verification_username?: SortOrderInput | SortOrder
+    verification_url?: SortOrderInput | SortOrder
+    review_provider?: SortOrderInput | SortOrder
+    review_username?: SortOrderInput | SortOrder
+    review_url?: SortOrderInput | SortOrder
     ad_package?: SortOrderInput | SortOrder
     ad_package_expiry?: SortOrderInput | SortOrder
+    ad_package_started_at?: SortOrderInput | SortOrder
+    ad_package_expiration_reminder_sent_at?: SortOrderInput | SortOrder
     verification_documents?: SortOrderInput | SortOrder
     photos?: SortOrderInput | SortOrder
     pending_photos?: SortOrderInput | SortOrder
@@ -34811,8 +34940,16 @@ export namespace Prisma {
     age?: IntNullableFilter<"Provider"> | number | null
     phone?: StringNullableFilter<"Provider"> | string | null
     email?: StringNullableFilter<"Provider"> | string | null
+    verification_provider?: StringNullableFilter<"Provider"> | string | null
+    verification_username?: StringNullableFilter<"Provider"> | string | null
+    verification_url?: StringNullableFilter<"Provider"> | string | null
+    review_provider?: StringNullableFilter<"Provider"> | string | null
+    review_username?: StringNullableFilter<"Provider"> | string | null
+    review_url?: StringNullableFilter<"Provider"> | string | null
     ad_package?: StringNullableFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableFilter<"Provider"> | string | null
+    ad_package_started_at?: StringNullableFilter<"Provider"> | string | null
+    ad_package_expiration_reminder_sent_at?: StringNullableFilter<"Provider"> | string | null
     verification_documents?: JsonNullableFilter<"Provider">
     photos?: JsonNullableFilter<"Provider">
     pending_photos?: JsonNullableFilter<"Provider">
@@ -34842,8 +34979,16 @@ export namespace Prisma {
     age?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
+    verification_provider?: SortOrderInput | SortOrder
+    verification_username?: SortOrderInput | SortOrder
+    verification_url?: SortOrderInput | SortOrder
+    review_provider?: SortOrderInput | SortOrder
+    review_username?: SortOrderInput | SortOrder
+    review_url?: SortOrderInput | SortOrder
     ad_package?: SortOrderInput | SortOrder
     ad_package_expiry?: SortOrderInput | SortOrder
+    ad_package_started_at?: SortOrderInput | SortOrder
+    ad_package_expiration_reminder_sent_at?: SortOrderInput | SortOrder
     verification_documents?: SortOrderInput | SortOrder
     photos?: SortOrderInput | SortOrder
     pending_photos?: SortOrderInput | SortOrder
@@ -34881,8 +35026,16 @@ export namespace Prisma {
     age?: IntNullableWithAggregatesFilter<"Provider"> | number | null
     phone?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     email?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    verification_provider?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    verification_username?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    verification_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    review_provider?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    review_username?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    review_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     ad_package?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ad_package_started_at?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ad_package_expiration_reminder_sent_at?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     verification_documents?: JsonNullableWithAggregatesFilter<"Provider">
     photos?: JsonNullableWithAggregatesFilter<"Provider">
     pending_photos?: JsonNullableWithAggregatesFilter<"Provider">
@@ -36763,8 +36916,16 @@ export namespace Prisma {
     age?: number | null
     phone?: string | null
     email?: string | null
+    verification_provider?: string | null
+    verification_username?: string | null
+    verification_url?: string | null
+    review_provider?: string | null
+    review_username?: string | null
+    review_url?: string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
+    ad_package_started_at?: string | null
+    ad_package_expiration_reminder_sent_at?: string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36794,8 +36955,16 @@ export namespace Prisma {
     age?: number | null
     phone?: string | null
     email?: string | null
+    verification_provider?: string | null
+    verification_username?: string | null
+    verification_url?: string | null
+    review_provider?: string | null
+    review_username?: string | null
+    review_url?: string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
+    ad_package_started_at?: string | null
+    ad_package_expiration_reminder_sent_at?: string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36825,8 +36994,16 @@ export namespace Prisma {
     age?: NullableIntFieldUpdateOperationsInput | number | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_username?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    review_username?: NullableStringFieldUpdateOperationsInput | string | null
+    review_url?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_expiration_reminder_sent_at?: NullableStringFieldUpdateOperationsInput | string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36856,8 +37033,16 @@ export namespace Prisma {
     age?: NullableIntFieldUpdateOperationsInput | number | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_username?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    review_username?: NullableStringFieldUpdateOperationsInput | string | null
+    review_url?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_expiration_reminder_sent_at?: NullableStringFieldUpdateOperationsInput | string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36887,8 +37072,16 @@ export namespace Prisma {
     age?: number | null
     phone?: string | null
     email?: string | null
+    verification_provider?: string | null
+    verification_username?: string | null
+    verification_url?: string | null
+    review_provider?: string | null
+    review_username?: string | null
+    review_url?: string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
+    ad_package_started_at?: string | null
+    ad_package_expiration_reminder_sent_at?: string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36918,8 +37111,16 @@ export namespace Prisma {
     age?: NullableIntFieldUpdateOperationsInput | number | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_username?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    review_username?: NullableStringFieldUpdateOperationsInput | string | null
+    review_url?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_expiration_reminder_sent_at?: NullableStringFieldUpdateOperationsInput | string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -36949,8 +37150,16 @@ export namespace Prisma {
     age?: NullableIntFieldUpdateOperationsInput | number | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_username?: NullableStringFieldUpdateOperationsInput | string | null
+    verification_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_provider?: NullableStringFieldUpdateOperationsInput | string | null
+    review_username?: NullableStringFieldUpdateOperationsInput | string | null
+    review_url?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_package_expiration_reminder_sent_at?: NullableStringFieldUpdateOperationsInput | string | null
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
@@ -38509,8 +38718,16 @@ export namespace Prisma {
     age?: SortOrder
     phone?: SortOrder
     email?: SortOrder
+    verification_provider?: SortOrder
+    verification_username?: SortOrder
+    verification_url?: SortOrder
+    review_provider?: SortOrder
+    review_username?: SortOrder
+    review_url?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
+    ad_package_started_at?: SortOrder
+    ad_package_expiration_reminder_sent_at?: SortOrder
     verification_documents?: SortOrder
     photos?: SortOrder
     pending_photos?: SortOrder
@@ -38548,8 +38765,16 @@ export namespace Prisma {
     age?: SortOrder
     phone?: SortOrder
     email?: SortOrder
+    verification_provider?: SortOrder
+    verification_username?: SortOrder
+    verification_url?: SortOrder
+    review_provider?: SortOrder
+    review_username?: SortOrder
+    review_url?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
+    ad_package_started_at?: SortOrder
+    ad_package_expiration_reminder_sent_at?: SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -38576,8 +38801,16 @@ export namespace Prisma {
     age?: SortOrder
     phone?: SortOrder
     email?: SortOrder
+    verification_provider?: SortOrder
+    verification_username?: SortOrder
+    verification_url?: SortOrder
+    review_provider?: SortOrder
+    review_username?: SortOrder
+    review_url?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
+    ad_package_started_at?: SortOrder
+    ad_package_expiration_reminder_sent_at?: SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder

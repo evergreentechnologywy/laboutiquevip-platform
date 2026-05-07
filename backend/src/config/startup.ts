@@ -11,6 +11,14 @@ function requiredInProduction(name: string, opts?: { allowEmpty?: boolean }): st
   return null;
 }
 
+function requiredOneInProduction(names: string[]): string | null {
+  const hasValue = names.some((name) => {
+    const value = process.env[name];
+    return value != null && value.trim() !== "";
+  });
+  return hasValue ? null : names[0] ?? null;
+}
+
 export function validateStartupOrThrow(): void {
   if (!isProduction()) {
     return;
@@ -19,7 +27,7 @@ export function validateStartupOrThrow(): void {
   const missing = [
     requiredInProduction("DATABASE_URL"),
     requiredInProduction("NOWPAYMENTS_API_KEY"),
-    requiredInProduction("NOWPAYMENTS_WEBHOOK_SECRET"),
+    requiredOneInProduction(["NOWPAYMENTS_IPN_SECRET", "NOWPAYMENTS_WEBHOOK_SECRET"]),
     requiredInProduction("DIDIT_API_KEY"),
     requiredInProduction("DIDIT_WORKFLOW_ID"),
     requiredInProduction("DIDIT_WEBHOOK_SECRET"),

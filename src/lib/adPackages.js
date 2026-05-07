@@ -82,3 +82,20 @@ export function formatPackagePrice(pkg, billingPeriod = "weekly") {
     ? `$${pkg.priceMonthly}/month`
     : `$${pkg.priceWeekly}/week`;
 }
+
+export function getPackageAmountCents(pkg, billingPeriod = "weekly") {
+  if (!pkg || pkg.id === "none") {
+    return 0;
+  }
+
+  const amount = billingPeriod === "monthly" ? pkg.priceMonthly : pkg.priceWeekly;
+  return Math.round(amount * 100);
+}
+
+export function getPackageProductSku(pkg, billingPeriod = "weekly") {
+  if (!pkg || pkg.id === "none") {
+    return null;
+  }
+
+  return `lbv-provider-${pkg.id}-${billingPeriod}`;
+}

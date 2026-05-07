@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Crown,
+  CreditCard,
   ExternalLink,
   Eye,
   EyeOff,
@@ -27,9 +28,11 @@ import {
   User,
 } from "lucide-react";
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
-import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
+import { adPackages, getAdPackageById, formatPackagePrice, getPackageProductSku } from "@/lib/adPackages";
+import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 import { SEO } from "@/components/SEO";
+import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 
 const emptyProfile = {
   display_name: "",
@@ -74,6 +77,26 @@ function setTabInUrl(tab) {
   window.history.replaceState({}, "", url.toString());
 }
 
+function formatMoney(amountCents, currency = "USD") {
+  const amount = typeof amountCents === "number" ? amountCents / 100 : 0;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount);
+}
+
+function formatOrderDate(value) {
+  if (!value) return "Unknown date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown date";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export default function ProviderDashboard() {
   const queryClient = useQueryClient();
   const [tab, setTab] = React.useState(getInitialTab);
@@ -85,6 +108,7 @@ export default function ProviderDashboard() {
   const [error, setError] = React.useState("");
   const [saveStatus, setSaveStatus] = React.useState({ type: "", message: "" });
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
+  const [checkoutStatus, setCheckoutStatus] = React.useState({ type: "", message: "" });
 
   React.useEffect(() => {
     setTabInUrl(tab);
@@ -120,6 +144,12 @@ export default function ProviderDashboard() {
     queryKey: ["reviews", provider?.id],
     queryFn: () => base44.entities.Review.filter({ provider_id: provider.id }, "-created_date", 20),
     enabled: !!provider,
+  });
+
+  const { data: orders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ["orders", user?.id],
+    queryFn: () => base44.orders.list(),
+    enabled: !!user,
   });
 
   const syncProviderState = React.useCallback((savedProvider) => {
@@ -185,6 +215,33 @@ export default function ProviderDashboard() {
     },
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: async ({ productSku }) => base44.orders.create({
+      productSku,
+      currency: "USD",
+      metadata: {
+        source: "provider_dashboard",
+        billingPeriod,
+      },
+    }),
+    onSuccess: async (order) => {
+      await refetchOrders();
+      if (order.paymentUrl) {
+        setCheckoutStatus({ type: "success", message: "Payment link created. Redirecting to NOWPayments." });
+        window.location.href = order.paymentUrl;
+        return;
+      }
+      setCheckoutStatus({
+        type: "error",
+        message: "Payment link could not be generated. Please try again or contact support.",
+      });
+    },
+    onError: (err) => {
+      const message = err?.data?.message || err?.data?.error || err?.message || "Could not start package checkout.";
+      setCheckoutStatus({ type: "error", message });
+    },
+  });
+
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -222,6 +279,18 @@ export default function ProviderDashboard() {
     setError("");
     setSaveStatus({ type: "", message: "" });
     saveMutation.mutate(payload);
+  };
+
+  const handleStartCheckout = () => {
+    const selectedPackage = getAdPackageById(formData.ad_package);
+    const productSku = getPackageProductSku(selectedPackage, billingPeriod);
+    if (!productSku) {
+      setCheckoutStatus({ type: "error", message: "Select a paid package before continuing to payment." });
+      return;
+    }
+
+    setCheckoutStatus({ type: "", message: "" });
+    checkoutMutation.mutate({ productSku });
   };
 
   const handlePhotoUpload = async (event) => {
@@ -268,6 +337,11 @@ export default function ProviderDashboard() {
       setCityChoice(OTHER_CITY_OPTION);
     }
   }, [availableCities, formData.location_city]);
+
+  const packageLifecycle = getPackageLifecycleDisplay(provider);
+  const selectedPackage = getAdPackageById(formData.ad_package);
+  const selectedProductSku = getPackageProductSku(selectedPackage, billingPeriod);
+  const providerBillingBlocked = provider?.status === "rejected" || provider?.status === "suspended";
 
   if (!user && !error) {
     return (
@@ -364,6 +438,8 @@ export default function ProviderDashboard() {
           <StatCard icon={Star} label="Reviews" value={reviews.length} hint="Published feedback count" />
         </div>
 
+        <PackageLifecycleBanner display={packageLifecycle} />
+
         <Card className="bg-blue-950/20 border-blue-500/20">
           <CardContent className="pt-6 text-sm text-blue-100 space-y-2">
             <div className="flex items-start gap-3">
@@ -384,6 +460,7 @@ export default function ProviderDashboard() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="ads">Advertisement</TabsTrigger>
+            <TabsTrigger value="copilot">AI Copilot</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -396,7 +473,9 @@ export default function ProviderDashboard() {
                   <StatusRow label="Listing status" value={provider?.status === "active" ? "Live" : provider?.status === "paused" ? "Hidden temporarily" : provider?.status || "draft"} tone={provider?.status === "active" ? "success" : provider?.status === "rejected" ? "danger" : provider?.status === "paused" ? "default" : "warning"} />
                   <StatusRow label="ID verification" value={provider?.is_verified ? "Approved" : "Approval pending"} tone={provider?.is_verified ? "success" : "warning"} />
                   <StatusRow label="Photo review" value={(provider?.pending_photos?.length || 0) > 0 ? `${provider?.pending_photos?.length} pending` : (provider?.photos?.length || 0) > 0 ? "Approved" : "No photos uploaded"} tone={(provider?.pending_photos?.length || 0) > 0 ? "warning" : (provider?.photos?.length || 0) > 0 ? "success" : "default"} />
-                  <StatusRow label="Ad package" value={provider?.ad_package || "none"} tone={provider?.is_premium ? "premium" : "default"} />
+                  <StatusRow label="Ad package" value={packageLifecycle.packageName} tone={provider?.is_premium ? "premium" : "default"} />
+                  <StatusRow label="Package started" value={packageLifecycle.startedLabel} tone="default" />
+                  <StatusRow label="Package expires" value={packageLifecycle.expiresLabel} tone={packageLifecycle.tone} />
                   <StatusRow label="Average rating" value={provider?.rating_average?.toFixed(1) || "0.0"} tone="default" />
                   {provider?.rejection_reason ? (
                     <div className="rounded-lg bg-red-950/30 border border-red-500/20 p-4">
@@ -624,12 +703,61 @@ export default function ProviderDashboard() {
                 </div>
 
                 <div className="rounded-lg bg-zinc-800 border border-zinc-700 p-4 text-sm text-zinc-300 space-y-2">
-                  <p><span className="font-medium text-zinc-100">Selected:</span> {getAdPackageById(formData.ad_package).name}</p>
-                  <p>Paid packages are selected here and must be activated after approval through the crypto payment flow. Free listings can stay on the platform without payment.</p>
-                  <p className="text-zinc-500">Billing/renewal automation is still being finalized, so treat package changes as part of the current payment rollout.</p>
+                  <p><span className="font-medium text-zinc-100">Selected:</span> {selectedPackage.name}</p>
+                  <p>Paid packages activate after NOWPayments confirms the crypto payment. The active package, upgrade time, and expiration date stay visible in your dashboard.</p>
+                  <p className="text-zinc-500">Expiration reminders are sent before paid visibility ends when email delivery is configured.</p>
+                  {providerBillingBlocked && (
+                    <p className="text-red-300">Payment is disabled while this listing is {provider.status}. Contact support or wait for admin review before buying paid visibility.</p>
+                  )}
+                  {checkoutStatus.message && (
+                    <p className={checkoutStatus.type === "success" ? "text-emerald-300" : "text-red-300"}>{checkoutStatus.message}</p>
+                  )}
+                  <Button
+                    type="button"
+                    className="bg-rose-500 hover:bg-rose-600 text-white"
+                    disabled={!selectedProductSku || checkoutMutation.isPending || providerBillingBlocked}
+                    onClick={handleStartCheckout}
+                  >
+                    {checkoutMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                    {selectedProductSku ? "Continue to payment" : "Free listing selected"}
+                  </Button>
+                </div>
+
+                <div className="rounded-lg bg-zinc-950/60 border border-zinc-800 p-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <h3 className="font-medium text-zinc-100">Recent payment activity</h3>
+                    <Button type="button" variant="outline" className="border-zinc-700 text-zinc-300" onClick={() => refetchOrders()}>
+                      Refresh
+                    </Button>
+                  </div>
+                  {orders.length === 0 ? (
+                    <p className="text-sm text-zinc-500">No package payments yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {orders.slice(0, 5).map((order) => {
+                        const latestInvoice = order.invoices?.[0];
+                        const status = latestInvoice?.status || order.status;
+                        return (
+                          <div key={order.id} className="flex flex-col gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-zinc-100">{formatMoney(order.amountCents, order.currency)}</p>
+                              <p className="text-xs text-zinc-500">{formatOrderDate(order.createdAt)}</p>
+                            </div>
+                            <Badge className={`${status === "paid" ? "bg-emerald-500/20 text-emerald-300" : status === "failed" || status === "expired" || status === "refunded" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"} border-0`}>
+                              {status}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="copilot">
+            <AdvertisingCopilot surface="dashboard" defaultPrompt="Review my current ad and suggest the next best advertising move." />
           </TabsContent>
 
         </Tabs>
@@ -670,6 +798,39 @@ function StatusRow({ label, value, tone }) {
       <span className="text-zinc-400">{label}</span>
       <Badge className={`${className} border-0 capitalize`}>{value}</Badge>
     </div>
+  );
+}
+
+function PackageLifecycleBanner({ display }) {
+  const badgeClassName =
+    display.tone === "premium"
+      ? "bg-amber-500/20 text-amber-200"
+      : display.tone === "warning"
+        ? "bg-yellow-500/20 text-yellow-200"
+        : "bg-zinc-800 text-zinc-200";
+
+  return (
+    <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm text-zinc-400">Current advertising package</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h2 className="text-xl font-semibold text-zinc-100">{display.packageName}</h2>
+            <Badge className={`${badgeClassName} border-0`}>{display.expiresLabel}</Badge>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm md:min-w-80">
+          <div>
+            <p className="text-zinc-500">Started</p>
+            <p className="mt-1 font-medium text-zinc-200">{display.startedLabel}</p>
+          </div>
+          <div>
+            <p className="text-zinc-500">Expiration</p>
+            <p className="mt-1 font-medium text-zinc-200">{display.expiresLabel}</p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

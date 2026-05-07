@@ -12,8 +12,9 @@ import { Crown, Sparkles, Star, Check, Upload, Loader2, User, MapPin, Image as I
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
-import { adPackages, getAdPackageById, formatPackagePrice } from "@/lib/adPackages";
+import { adPackages, getAdPackageById, formatPackagePrice, getPackageAmountCents, getPackageProductSku } from "@/lib/adPackages";
 import DiditVerification from "@/components/DiditVerification";
+import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 import { buildProviderSignupPayload } from "@/lib/providerPayload";
 import { SEO } from "@/components/SEO";
 
@@ -53,6 +54,7 @@ export default function ProviderSignup() {
   const [cityChoice, setCityChoice] = React.useState(OTHER_CITY_OPTION);
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
   const [finished, setFinished] = React.useState(false);
+  const [paymentUrl, setPaymentUrl] = React.useState("");
   const [isLoadingUser, setIsLoadingUser] = React.useState(true);
 
   const availableCities = React.useMemo(() => cityOptionsForState(formData.location_state), [formData.location_state]);
@@ -86,7 +88,28 @@ export default function ProviderSignup() {
       });
       return await base44.entities.Provider.create(payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      const selectedPackage = getAdPackageById(formData.ad_package);
+      const productSku = getPackageProductSku(selectedPackage, billingPeriod);
+      if (productSku) {
+        try {
+          const order = await base44.orders.create({
+            productSku,
+            currency: "USD",
+            metadata: {
+              adPackage: selectedPackage.id,
+              billingPeriod,
+            },
+          });
+          if (order.paymentUrl) {
+            setPaymentUrl(order.paymentUrl);
+          } else {
+            setSubmitError("Profile created, but payment link could not be generated.");
+          }
+        } catch (error) {
+          setSubmitError(error?.data?.message || error?.data?.error || error?.message || "Profile created, but payment link could not be generated.");
+        }
+      }
       setFinished(true);
     },
     onError: (error) => {
@@ -137,7 +160,7 @@ export default function ProviderSignup() {
           description="Join La Boutique VIP as a verified provider. Create your profile, choose your package, and start reaching clients."
           noindex
         />
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-900 text-stone-50 mb-4">
               <Crown className="h-6 w-6" />
@@ -148,6 +171,7 @@ export default function ProviderSignup() {
             </p>
           </div>
 
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="rounded-[28px] border border-stone-200 bg-white p-8 shadow-sm space-y-6">
             <div className="space-y-4">
               <div className="flex items-start gap-4">
@@ -188,6 +212,8 @@ export default function ProviderSignup() {
               and confirm you are 18+ years of age.
             </p>
           </div>
+          <AdvertisingCopilot surface="signup" compact defaultPrompt="Help me prepare to register as an advertiser." />
+          </div>
         </div>
       </div>
     );
@@ -204,7 +230,17 @@ export default function ProviderSignup() {
           <p className="text-stone-600 leading-7 mb-8">
             Your profile has been submitted successfully. Our team will review your details and verification documents. We&apos;ll notify you via email once your listing is live.
           </p>
-          <Button onClick={() => navigate(createPageUrl("ProviderDashboard"))} className="w-full h-12 rounded-xl bg-stone-900 text-stone-50">
+          {paymentUrl && (
+            <Button onClick={() => window.location.href = paymentUrl} className="w-full h-12 rounded-xl bg-stone-900 text-stone-50">
+              Open crypto payment
+            </Button>
+          )}
+          {submitError && (
+            <div className="mt-4 rounded-lg bg-red-50 p-3">
+              <p className="text-xs text-red-600 font-medium">{submitError}</p>
+            </div>
+          )}
+          <Button onClick={() => navigate(createPageUrl("ProviderDashboard"))} variant={paymentUrl ? "outline" : "default"} className={`w-full h-12 rounded-xl ${paymentUrl ? "mt-3 border-stone-300" : "bg-stone-900 text-stone-50"}`}>
             Go to Dashboard
           </Button>
         </div>
@@ -219,6 +255,10 @@ export default function ProviderSignup() {
         <div className="text-center mb-12">
           <h1 className="text-3xl font-semibold text-stone-900">Provider Onboarding</h1>
           <p className="mt-2 text-stone-500">Complete your profile to join the directory</p>
+        </div>
+
+        <div className="mb-8">
+          <AdvertisingCopilot surface="signup" compact defaultPrompt="Help me improve this advertiser profile before review." />
         </div>
 
         {/* Progress Bar */}
@@ -453,6 +493,11 @@ export default function ProviderSignup() {
                   );
                 })}
               </div>
+              {formData.ad_package !== "none" && (
+                <p className="text-sm text-stone-500">
+                  Payment due after submission: ${(getPackageAmountCents(getAdPackageById(formData.ad_package), billingPeriod) / 100).toFixed(2)} USD.
+                </p>
+              )}
               <div className="flex justify-between pt-4">
                 <Button variant="ghost" onClick={prevStep} className="text-stone-500">
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back

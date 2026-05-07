@@ -44,8 +44,8 @@
 ### Existing crypto/webhook variables still required
 - `NOWPAYMENTS_API_KEY`
 - `NOWPAYMENTS_API_BASE_URL` (optional override)
-- `NOWPAYMENTS_WEBHOOK_SECRET`
-- `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER`
+- `NOWPAYMENTS_IPN_SECRET` (preferred; `NOWPAYMENTS_WEBHOOK_SECRET` remains a compatibility fallback)
+- `NOWPAYMENTS_WEBHOOK_SIGNATURE_HEADER` (optional override, defaults to `x-nowpayments-sig`)
 
 ## Post-deploy verification checklist
 
@@ -69,7 +69,8 @@
 ### NOWPayments contract assumptions
 - [ ] Confirm the live API still accepts `POST /invoice` with `x-api-key`
 - [ ] Confirm hosted invoice URLs still arrive as `invoice_url`, `payment_url`, or `url`
-- [ ] Confirm webhook signatures are raw-body HMAC-SHA256 hex in `x-nowpayments-signature`
+- [ ] Confirm invoice requests use `price_amount`, `price_currency`, and `ipn_callback_url`
+- [ ] Confirm webhook signatures are sorted-body HMAC-SHA512 hex in `x-nowpayments-sig`
 
 ## Current coverage
 

@@ -332,34 +332,42 @@ model WebhookEventReceipt {
 }
 
 model Provider {
-  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                String   @db.Uuid
-  display_name           String
-  tagline                String?
-  bio                    String?
-  location_city          String?
-  location_state         String?
-  location_country       String?
-  age                    Int?
-  phone                  String?
-  email                  String?
-  ad_package             String?  @default("none")
-  ad_package_expiry      String?
-  verification_documents Json?
-  photos                 Json?
-  pending_photos         Json?
-  status                 String   @default("pending_verification")
-  is_premium             Boolean  @default(false)
-  is_verified            Boolean  @default(false)
-  is_profile_approved    Boolean  @default(false)
-  admin_notes            String?
-  rejection_reason       String?
-  views_count            Int      @default(0)
-  rating_average         Float?   @default(0)
-  reviews_count          Int      @default(0)
-  rate_hourly            Int?
-  created_date           DateTime @default(now())
-  updated_date           DateTime @updatedAt
+  id                                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                                String   @db.Uuid
+  display_name                           String
+  tagline                                String?
+  bio                                    String?
+  location_city                          String?
+  location_state                         String?
+  location_country                       String?
+  age                                    Int?
+  phone                                  String?
+  email                                  String?
+  verification_provider                  String?
+  verification_username                  String?
+  verification_url                       String?
+  review_provider                        String?
+  review_username                        String?
+  review_url                             String?
+  ad_package                             String?  @default("none")
+  ad_package_expiry                      String?
+  ad_package_started_at                  String?
+  ad_package_expiration_reminder_sent_at String?
+  verification_documents                 Json?
+  photos                                 Json?
+  pending_photos                         Json?
+  status                                 String   @default("pending_verification")
+  is_premium                             Boolean  @default(false)
+  is_verified                            Boolean  @default(false)
+  is_profile_approved                    Boolean  @default(false)
+  admin_notes                            String?
+  rejection_reason                       String?
+  views_count                            Int      @default(0)
+  rating_average                         Float?   @default(0)
+  reviews_count                          Int      @default(0)
+  rate_hourly                            Int?
+  created_date                           DateTime @default(now())
+  updated_date                           DateTime @updatedAt
 
   @@index([user_id])
   @@index([status])

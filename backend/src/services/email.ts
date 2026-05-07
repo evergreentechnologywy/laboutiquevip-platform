@@ -13,6 +13,13 @@ interface PaymentEmailInput {
   paymentUrl?: string | null;
 }
 
+interface PackageExpirationReminderInput {
+  to: string;
+  displayName?: string | null;
+  packageName: string;
+  expiresOn: string;
+}
+
 function resolveFromEmail(): string | null {
   const value = process.env.RESEND_FROM_EMAIL?.trim();
   return value && value.length > 0 ? value : null;
@@ -109,5 +116,16 @@ export async function sendPaymentNeedsReviewEmail(input: PaymentEmailInput): Pro
     to: input.to,
     subject: "Payment received and pending review",
     text: `${greeting}\n\nWe received a payment related to your ${amount} order, but it still needs manual review before entitlement is updated.\n\nWe will follow up if any action is required. Dashboard: ${dashboardUrl}`,
+  });
+}
+
+export async function sendPackageExpirationReminderEmail(input: PackageExpirationReminderInput): Promise<{ sent: boolean; skipped?: string }> {
+  const greeting = input.displayName ? `Hi ${input.displayName},` : "Hi,";
+  const dashboardUrl = `${resolveBaseUrl()}/ProviderDashboard?tab=ads`;
+
+  return sendTransactionalEmail({
+    to: input.to,
+    subject: "Your La Boutique VIP package is expiring soon",
+    text: `${greeting}\n\nYour ${input.packageName} listing package expires on ${input.expiresOn}.\n\nRenew or change your package here: ${dashboardUrl}`,
   });
 }
