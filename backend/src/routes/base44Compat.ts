@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { verifyToken } from "@clerk/backend";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
 import type { ApiRequest, ApiResponse, Role } from "../types.js";
 import {
@@ -18,6 +19,8 @@ import { storeVideo, isAllowedVideoType, MAX_VIDEO_BYTES } from "../storage/vide
 import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
+const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
+const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
 const ALLOWED_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ANTI_SPAM_WINDOW_MS = 15 * 60 * 1000;
@@ -33,6 +36,13 @@ type JwtClaims = {
   exp: number;
   iat: number;
 };
+
+function signJwt(claims: { sub: string; role: Role }): string {
+  return jwt.sign({ sub: claims.sub, role: claims.role }, JWT_SECRET, {
+    algorithm: "HS256",
+    expiresIn: JWT_TTL_SECONDS,
+  });
+}
 
 function getBearerToken(req: ApiRequest): string | null {
   const auth = req.headers.authorization;
@@ -64,12 +74,12 @@ async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
   try {
     const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
     // Try to extract role from publicMetadata, defaulting to member
-    const role = (verified.publicMetadata?.role as Role) || "member";
+    const role = ((verified as any).publicMetadata?.role as Role) || "member";
     return {
-      sub: verified.sub,
+      sub: (verified as any).sub,
       role: role,
-      exp: verified.exp,
-      iat: verified.iat ?? 0,
+      exp: (verified as any).exp,
+      iat: (verified as any).iat ?? 0,
     };
   } catch (err) {
     return null;
