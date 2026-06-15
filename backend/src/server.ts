@@ -450,6 +450,13 @@ const server = http.createServer(async (req, res) => {
     if (!request.auth?.userId) {
       const clerkAuth = await authFromClerkJwt(request.headers);
       if (clerkAuth) {
+        // Resolve role from DB if user exists
+        try {
+          const dbUser = await prisma.user.findFirst({ where: { clerk_id: clerkAuth.userId } });
+          if (dbUser?.role) {
+            clerkAuth.roles = [dbUser.role];
+          }
+        } catch (_) {}
         request.auth = clerkAuth;
       }
     }

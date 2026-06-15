@@ -41,8 +41,7 @@ export async function authFromClerkJwt(headers: ApiRequest["headers"]): Promise<
     const verified = await clerkVerifyToken(token, { secretKey: CLERK_SECRET_KEY });
     const sub = (verified as any).sub;
     if (typeof sub !== "string") return null;
-    const role = ((verified as any).publicMetadata?.role as Role) || "member";
-    return { userId: sub, roles: [role] };
+    return { userId: sub, roles: ["member"] };
   } catch {
     return null;
   }

@@ -73,11 +73,9 @@ async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
   if (!CLERK_SECRET_KEY) return null;
   try {
     const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
-    // Try to extract role from publicMetadata, defaulting to member
-    const role = ((verified as any).publicMetadata?.role as Role) || "member";
     return {
       sub: (verified as any).sub,
-      role: role,
+      role: "member", // role is resolved from Clerk API, not JWT claims
       exp: (verified as any).exp,
       iat: (verified as any).iat ?? 0,
     };
@@ -365,26 +363,37 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
 
   let user = await prisma.user.findFirst({ where: { clerk_id: payload.sub } });
 
-  if (!user) {
-    // Sync from Clerk
+  if (user) {
+    // Sync role from Clerk on each call (picks up elevation changes)
+    try {
+      const clerkUser = await clerkClient.users.getUser(payload.sub);
+      const clerkRole = (clerkUser.publicMetadata as any)?.role;
+      if (clerkRole && clerkRole !== user.role) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { role: clerkRole }
+        });
+      }
+    } catch (_) {}
+  } else {
+    // Sync new user from Clerk
     try {
       const clerkUser = await clerkClient.users.getUser(payload.sub);
       const email = clerkUser.emailAddresses[0]?.emailAddress;
+      const clerkRole = (clerkUser.publicMetadata as any)?.role || "member";
       if (email) {
         user = await prisma.user.findUnique({ where: { email } });
         if (user) {
-          // Link existing user
           user = await prisma.user.update({
             where: { id: user.id },
             data: { clerk_id: payload.sub }
           });
         } else {
-          // Create new user
           user = await prisma.user.create({
             data: {
               clerk_id: payload.sub,
               email: email,
-              role: payload.role || "member",
+              role: clerkRole,
               full_name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null
             }
           });
