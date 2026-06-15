@@ -17,7 +17,9 @@
     "build": "node ./node_modules/vite/bin/vite.js build",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "typecheck": "node ./node_modules/typescript/bin/tsc -p ./jsconfig.json",
-    "preview": "node ./node_modules/vite/bin/vite.js preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "deploy": "npm run build:backend && npm run db:generate && ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'",
+    "deploy:pull": "ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1020.0",
