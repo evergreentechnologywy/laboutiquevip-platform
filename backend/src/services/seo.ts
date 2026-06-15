@@ -14,12 +14,23 @@ export interface SeoProfileRecord {
 
 const BASE_URL = process.env.PUBLIC_BASE_URL ?? "https://example.com";
 
+export const STATIC_SITEMAP_PATHS = [
+  "/",
+  "/Browse",
+  "/Pricing",
+  "/Trust",
+  "/FAQ",
+  "/Terms",
+  "/Privacy",
+  "/Contact",
+];
+
 export function cityHubPath(citySlug: string): string {
-  return `/city/${citySlug}`;
+  return `/Browse?location=${encodeURIComponent(citySlug)}`;
 }
 
 export function profilePath(slug: string): string {
-  return `/profile/${slug}`;
+  return `/ViewProfile?id=${encodeURIComponent(slug)}`;
 }
 
 export function generateCityHubRoutes(records: SeoCityHubRecord[]): Array<Record<string, unknown>> {
@@ -46,7 +57,11 @@ export function generateSitemapXml(
   cityRoutes: Array<Record<string, unknown>>,
   profileRoutes: Array<Record<string, unknown>>,
 ): string {
-  const urls = [...cityRoutes, ...profileRoutes];
+  const staticUrls = STATIC_SITEMAP_PATHS.map((path) => ({
+    path,
+    lastModified: new Date().toISOString(),
+  }));
+  const urls = [...staticUrls, ...cityRoutes, ...profileRoutes];
   const xmlRows = urls.map((entry) => {
     const path = String(entry.path ?? "/");
     const lastModified = String(entry.lastModified ?? new Date().toISOString());

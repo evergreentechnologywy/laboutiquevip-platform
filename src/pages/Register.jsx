@@ -119,6 +119,7 @@ export default function Register() {
                 placeholder="Name" 
                 value={fullName} 
                 onChange={(e) => setFullName(e.target.value)} 
+                required
                 className="h-12 rounded-xl border-stone-200"
               />
             </div>

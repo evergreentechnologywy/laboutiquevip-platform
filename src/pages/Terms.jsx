@@ -7,7 +7,7 @@ export default function Terms() {
       <SEO
         title="Terms of Service | La Boutique VIP International"
         description="Read the Terms of Service for using La Boutique VIP International."
-        noindex
+        canonicalUrl="https://www.laboutiquevip.net/Terms"
       />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-8">Terms of Service</h1>
