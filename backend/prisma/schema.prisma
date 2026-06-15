@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clerk_id      String?         @unique
   email         String          @unique
   role          String          @default("member")
   status        String          @default("active")
@@ -299,6 +300,7 @@ model Block {
   blocker       User     @relation("blocks_by", fields: [blockerId], references: [id])
   blockedUser   User     @relation("blocks_target", fields: [blockedUserId], references: [id])
 
+  @@unique([blockerId, blockedUserId])
   @@map("blocks")
 }
 
@@ -334,7 +336,7 @@ model WebhookEventReceipt {
 
 model Provider {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                String   @db.Uuid
+  user_id                String?  @db.Uuid
   display_name           String
   tagline                String?
   bio                    String?

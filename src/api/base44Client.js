@@ -59,17 +59,9 @@ function createEntityClient(entity) {
 export const base44 = {
   auth: {
     hasToken: () => Boolean(getToken()),
+    setToken: setToken,
+    clearToken: clearToken,
     me: async () => api('/api/auth/me', { auth: true }),
-    login: async (email, password) => {
-      const out = await api('/api/auth/login', { method: 'POST', body: { email, password } });
-      setToken(out.token);
-      return out.user;
-    },
-    register: async (email, password, full_name) => {
-      const out = await api('/api/auth/register', { method: 'POST', body: { email, password, full_name } });
-      setToken(out.token);
-      return out.user;
-    },
     logout: async (url) => {
       try { await api('/api/auth/logout', { method: 'POST', auth: true }); } catch {}
       clearToken();

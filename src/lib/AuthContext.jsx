@@ -1,9 +1,13 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-react';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const { getToken, signOut, isLoaded: isAuthLoaded } = useClerkAuth();
+  const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useClerkUser();
+
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
@@ -12,21 +16,36 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null);
 
   const checkAppState = async () => {
-    setIsLoadingAuth(true);
     setAuthError(null);
-    if (!base44.auth.hasToken()) {
+    if (!isUserLoaded || !isAuthLoaded) {
+      setIsLoadingAuth(true);
+      return;
+    }
+
+    if (!isSignedIn) {
       setUser(null);
       setIsAuthenticated(false);
+      base44.auth.clearToken();
       setIsLoadingAuth(false);
       return;
     }
+
     try {
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
+      const token = await getToken();
+      if (token) {
+        base44.auth.setToken(token);
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        base44.auth.clearToken();
+      }
     } catch {
       setUser(null);
       setIsAuthenticated(false);
+      base44.auth.clearToken();
     } finally {
       setIsLoadingAuth(false);
     }
@@ -34,20 +53,20 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAppState();
-  }, []);
+  }, [isUserLoaded, isAuthLoaded, isSignedIn, clerkUser]);
 
-  const logout = (shouldRedirect = true) => {
+  const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
+    base44.auth.clearToken();
+    await signOut();
     if (shouldRedirect) {
-      base44.auth.logout(window.location.href);
-    } else {
-      base44.auth.logout();
+      window.location.href = '/';
     }
   };
 
   const navigateToLogin = () => {
-    base44.auth.redirectToLogin(window.location.href);
+    window.location.href = '/login';
   };
 
   return (

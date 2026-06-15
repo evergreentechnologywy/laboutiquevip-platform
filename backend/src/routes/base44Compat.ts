@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@clerk/backend";
 import { z } from "zod";
 import type { ApiRequest, ApiResponse, Role } from "../types.js";
 import {
@@ -17,8 +17,7 @@ import { storeUpload } from "../storage/uploads.js";
 import { storeVideo, isAllowedVideoType, MAX_VIDEO_BYTES } from "../storage/video.js";
 import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
-const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
 const ALLOWED_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ANTI_SPAM_WINDOW_MS = 15 * 60 * 1000;
@@ -34,21 +33,6 @@ type JwtClaims = {
   exp: number;
   iat: number;
 };
-
-function signJwt(claims: { sub: string; role: Role }): string {
-  return jwt.sign({ sub: claims.sub, role: claims.role }, JWT_SECRET, {
-    algorithm: "HS256",
-    expiresIn: JWT_TTL_SECONDS,
-  });
-}
-
-function verifyJwt(token: string): JwtClaims | null {
-  try {
-    return jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as JwtClaims;
-  } catch {
-    return null;
-  }
-}
 
 function getBearerToken(req: ApiRequest): string | null {
   const auth = req.headers.authorization;
@@ -75,12 +59,35 @@ function enforceAntiSpam(req: ApiRequest, action: string, target: string): ApiRe
   return null;
 }
 
+async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
+  if (!CLERK_SECRET_KEY) return null;
+  try {
+    const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
+    // Try to extract role from publicMetadata, defaulting to member
+    const role = (verified.publicMetadata?.role as Role) || "member";
+    return {
+      sub: verified.sub,
+      role: role,
+      exp: verified.exp,
+      iat: verified.iat ?? 0,
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
 async function requireUser(req: ApiRequest, prisma: any): Promise<any | null> {
   const token = getBearerToken(req);
   if (!token) return null;
-  const payload = verifyJwt(token);
+  const payload = await verifyClerkJwt(token);
   if (!payload?.sub) return null;
-  return prisma.user.findUnique({ where: { id: payload.sub } });
+  
+  // Try to find user by clerk_id or fallback to trying id if they matched
+  let user = await prisma.user.findFirst({ where: { clerk_id: payload.sub } });
+  if (!user) {
+    user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  }
+  return user;
 }
 
 function parseSort(sort?: string | null): any {
@@ -335,8 +342,49 @@ export async function loginHandler(req: ApiRequest, { prisma }: Ctx): Promise<Ap
   return { statusCode: 200, body: { token, user: normalizeDates(safeUserL) } };
 }
 
+import { createClerkClient } from "@clerk/backend";
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY || "" });
+
 export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiResponse> {
-  const user = await requireUser(req, prisma);
+  const token = getBearerToken(req);
+  if (!token) return { statusCode: 401, body: { error: "unauthorized" } };
+
+  const payload = await verifyClerkJwt(token);
+  if (!payload?.sub) return { statusCode: 401, body: { error: "unauthorized" } };
+
+  let user = await prisma.user.findFirst({ where: { clerk_id: payload.sub } });
+
+  if (!user) {
+    // Sync from Clerk
+    try {
+      const clerkUser = await clerkClient.users.getUser(payload.sub);
+      const email = clerkUser.emailAddresses[0]?.emailAddress;
+      if (email) {
+        user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+          // Link existing user
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { clerk_id: payload.sub }
+          });
+        } else {
+          // Create new user
+          user = await prisma.user.create({
+            data: {
+              clerk_id: payload.sub,
+              email: email,
+              role: payload.role || "member",
+              full_name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Clerk sync error:", e);
+    }
+  }
+
   if (!user) return { statusCode: 401, body: { error: "unauthorized" } };
   const { password_hash: _m, ...safeUserM } = user as any;
   return { statusCode: 200, body: normalizeDates(safeUserM) };

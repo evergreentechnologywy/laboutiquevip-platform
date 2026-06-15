@@ -7,7 +7,7 @@ export default function Privacy() {
       <SEO
         title="Privacy Policy | La Boutique VIP International"
         description="Learn how La Boutique VIP collects, uses, and protects your personal information."
-        canonicalUrl="https://www.laboutiquevip.net/Privacy"
+        noindex
       />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-8">Privacy Policy</h1>

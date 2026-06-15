@@ -112,7 +112,7 @@ export default function ViewProfile() {
         ogTitle={`${provider.display_name} | La Boutique VIP`}
         ogDescription={provider.tagline}
         ogImage={provider.photos?.[0]}
-        canonicalUrl={`https://www.laboutiquevip.net/ViewProfile?id=${providerId}`}
+        noindex={true}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Photo Gallery */}
@@ -131,7 +131,6 @@ export default function ViewProfile() {
                 <button
                   key={index}
                   onClick={() => setSelectedPhoto(index)}
-                  aria-label={`View photo ${index + 1} of ${provider.display_name}`}
                   className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
                     selectedPhoto === index ? 'border-rose-500' : 'border-zinc-800 hover:border-zinc-600'
                   }`}
