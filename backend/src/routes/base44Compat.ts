@@ -73,11 +73,12 @@ async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
   if (!CLERK_SECRET_KEY) return null;
   try {
     const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
+    const claims = verified as any;
     return {
-      sub: (verified as any).sub,
-      role: "member", // role is resolved from Clerk API, not JWT claims
-      exp: (verified as any).exp,
-      iat: (verified as any).iat ?? 0,
+      sub: claims.sub,
+      role: claims.role || "member",
+      exp: claims.exp,
+      iat: claims.iat ?? 0,
     };
   } catch (err) {
     return null;
