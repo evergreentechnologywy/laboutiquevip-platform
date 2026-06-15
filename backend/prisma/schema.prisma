@@ -342,6 +342,26 @@ model Provider {
   location_state         String?
   location_country       String?
   age                    Int?
+  ethnicity              String?
+  height                 String?
+  body_type              String?
+  hair_color             String?
+  eye_color              String?
+  service_type           String?
+  services_offered       Json?
+  social_media           Json?
+  tour_plan              Json?
+  ad_headline            String?
+  ad_body                String?
+  ai_last_draft          Json?
+  ad_text_moderation_status String?
+  ad_text_moderation_reason String?
+  ad_text_moderated_at   DateTime?
+  photo_review_status    String?
+  photo_similarity_score Float?
+  photo_similarity_threshold Float?
+  photo_similarity_source String?
+  photo_similarity_checked_at DateTime?
   phone                  String?
   email                  String?
   verification_provider  String?
@@ -357,6 +377,7 @@ model Provider {
   verification_documents Json?
   photos                 Json?
   pending_photos         Json?
+  video_url              String?
   status                 String   @default("pending_verification")
   is_premium             Boolean  @default(false)
   is_verified            Boolean  @default(false)

@@ -54,6 +54,8 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
         SELECT city, city_slug FROM provider_availability_blocks
         UNION ALL
         SELECT city, city_slug FROM provider_tours
+        UNION ALL
+        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true
       ) city_pool
       WHERE lower(city) LIKE ${partial}
          OR lower(city_slug) LIKE ${prefix}
@@ -123,10 +125,10 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const where = { AND: andFilters };
     const orderBy =
-      query.sort === "rating" ? [{ rating_average: "desc" }, { created_date: "desc" }] :
-      query.sort === "price_low" ? [{ rate_hourly: "asc" }, { created_date: "desc" }] :
-      query.sort === "price_high" ? [{ rate_hourly: "desc" }, { created_date: "desc" }] :
-      [{ created_date: "desc" }];
+      query.sort === "rating" ? [{ is_premium: "desc" }, { rating_average: "desc" }, { created_date: "desc" }] :
+      query.sort === "price_low" ? [{ is_premium: "desc" }, { rate_hourly: "asc" }, { created_date: "desc" }] :
+      query.sort === "price_high" ? [{ is_premium: "desc" }, { rate_hourly: "desc" }, { created_date: "desc" }] :
+      [{ is_premium: "desc" }, { created_date: "desc" }];
 
     const skip = (query.page - 1) * query.limit;
 
@@ -145,6 +147,16 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           location_state: true,
           location_country: true,
           age: true,
+          ethnicity: true,
+          height: true,
+          body_type: true,
+          hair_color: true,
+          eye_color: true,
+          service_type: true,
+          services_offered: true,
+          social_media: true,
+          phone: true,
+          email: true,
           verification_provider: true,
           verification_username: true,
           verification_url: true,
@@ -152,8 +164,12 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           review_username: true,
           review_url: true,
           photos: true,
+          tour_plan: true,
+          ad_headline: true,
+          ad_body: true,
           is_premium: true,
           is_verified: true,
+          ad_package: true,
           views_count: true,
           rating_average: true,
           reviews_count: true,

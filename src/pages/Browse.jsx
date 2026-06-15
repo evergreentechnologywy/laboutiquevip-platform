@@ -14,6 +14,7 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -104,6 +105,7 @@ export default function Browse() {
   const groupedProviders = groupProvidersByCity(providers);
   const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
   const hasLowResults = !isLoading && providers.length > 0 && providers.length <= 3;
+  const touringProviders = providers.filter((provider) => provider.tour_plan?.cities?.length > 0).slice(0, 6);
 
   const toggleFilter = (filter) => {
     setSelectedFilters((prev) => ({ ...prev, [filter]: !prev[filter] }));
@@ -157,13 +159,11 @@ export default function Browse() {
                 />
               </div>
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
-                <Input
-                  placeholder="City or state"
-                  aria-label="City or state"
+                <MapPin className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                <CityAutocomplete
                   value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
+                  onChange={setLocation}
+                  className="h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 pl-11 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
                 />
               </div>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -256,6 +256,36 @@ export default function Browse() {
             </div>
           )}
         </div>
+
+        {touringProviders.length > 0 && (
+          <div className="mb-10 rounded-[28px] border border-rose-100 bg-rose-50/70 p-5 shadow-[0_24px_80px_-40px_rgba(190,18,60,0.24)]">
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.18em] text-rose-600">Touring soon</p>
+                <h3 className="mt-2 text-2xl font-semibold text-stone-900">Advertisers with scheduled city dates</h3>
+              </div>
+              <p className="max-w-xl text-sm leading-6 text-stone-600">Tour Pro profiles can show upcoming city stops so clients can plan ahead.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {touringProviders.map((provider) => {
+                const nextStop = provider.tour_plan.cities[0];
+                return (
+                  <Link key={`tour-${provider.id}`} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="rounded-2xl border border-rose-100 bg-white p-4 transition hover:border-rose-200 hover:shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-stone-900">{provider.display_name}</p>
+                        <p className="mt-1 text-sm text-stone-500">{nextStop.city}{nextStop.region ? `, ${nextStop.region}` : ""}</p>
+                      </div>
+                      <Badge className="rounded-full bg-rose-100 text-rose-700 shadow-none">Touring</Badge>
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-stone-700">{nextStop.startsAt} to {nextStop.endsAt}</p>
+                    {provider.ad_headline ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{provider.ad_headline}</p> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {hasLowResults && (
           <div className="mb-8 grid gap-4 rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)] lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-center">
@@ -422,6 +452,12 @@ function ProviderCard({ provider }) {
                 Premium
               </Badge>
             )}
+            {provider.tour_plan?.cities?.length > 0 && (
+              <Badge className="rounded-full bg-rose-50 px-3 py-1 text-rose-700 shadow-none border border-rose-100">
+                <MapPin className="mr-1 h-3 w-3" />
+                Touring
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -443,7 +479,13 @@ function ProviderCard({ provider }) {
           </div>
 
           {provider.tagline && (
-            <p className="mt-4 line-clamp-2 text-sm leading-6 text-stone-600">{provider.tagline}</p>
+            <p className="mt-4 line-clamp-2 text-sm leading-6 text-stone-600">{provider.ad_headline || provider.tagline}</p>
+          )}
+
+          {provider.tour_plan?.cities?.length > 0 && (
+            <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-rose-600">
+              Next: {provider.tour_plan.cities[0].city} · {provider.tour_plan.cities[0].startsAt}
+            </p>
           )}
 
           <div className="mt-6 flex items-center justify-between gap-4 text-sm">

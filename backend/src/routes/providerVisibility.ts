@@ -10,6 +10,13 @@ function parseConfiguredBlockedNames(): string[] {
 }
 
 function buildTestDataExclusion(): Record<string, unknown> {
+  // NOTE: Uses Prisma mode:"insensitive" which generates ILIKE in PostgreSQL.
+  // PostgreSQL behavior: NULL ILIKE '%x%' returns NULL, not FALSE.
+  // When chained with OR: FALSE OR NULL = NULL, so NOT(NULL) = NULL → row excluded.
+  // To prevent this, all fields here must handle NULL. Prisma's contains on a
+  // nullable field with ILIKE mode generates: "field" IS NOT NULL AND "field" ILIKE '%x%'
+  // which correctly evaluates to FALSE when the field is NULL.
+  // Verified: Prisma wraps nullable field ILIKE as (field IS NOT NULL AND field ILIKE '%x%')
   return {
     OR: [
       { display_name: { contains: "batch", mode: "insensitive" } },
@@ -47,6 +54,10 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
   return {
     status: "active",
     is_profile_approved: true,
+    OR: [
+      { ad_package_expiry: null },
+      { ad_package_expiry: { gte: new Date().toISOString() } },
+    ],
     NOT: notConditions,
   };
 }

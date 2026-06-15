@@ -56,6 +56,9 @@ import {
 } from "./routes/orders.js";
 import type { ApiRequest, ApiResponse } from "./types.js";
 import { ImmutableAuditLogger } from "./utils/auditLogger.js";
+import { videoUploadHandler } from "./routes/base44Compat.js";
+import { r2PhotoProxyHandler } from "./routes/r2-photo-proxy.js";
+
 
 const PORT = Number(process.env.API_PORT ?? 8787);
 
@@ -103,10 +106,10 @@ function sendResponse(res: http.ServerResponse, payload: ApiResponse): void {
   res.end(JSON.stringify(payload.body ?? {}));
 }
 
-async function readBody(req: http.IncomingMessage): Promise<{ rawBody: string | null; body: unknown }> {
+async function readBody(req: http.IncomingMessage): Promise<{ rawBody: string | null; rawBuffer: Buffer | null; body: unknown }> {
   const method = req.method ?? "GET";
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    return { rawBody: null, body: undefined };
+    return { rawBody: null, rawBuffer: null, body: undefined };
   }
 
   const chunks: Buffer[] = [];
@@ -116,21 +119,28 @@ async function readBody(req: http.IncomingMessage): Promise<{ rawBody: string | 
   }
 
   if (chunks.length === 0) {
-    return { rawBody: null, body: undefined };
+    return { rawBody: null, rawBuffer: null, body: undefined };
   }
 
-  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  const rawBuffer = Buffer.concat(chunks);
+  const raw = rawBuffer.toString("utf8").trim();
   if (!raw) {
-    return { rawBody: null, body: undefined };
+    return { rawBody: null, rawBuffer: null, body: undefined };
   }
 
   const contentType = req.headers["content-type"];
   const resolvedType = Array.isArray(contentType) ? contentType[0] : contentType;
-  if (!resolvedType?.includes("application/json")) {
-    return { rawBody: raw, body: undefined };
+
+  // For multipart, keep the raw Buffer
+  if (resolvedType?.includes("multipart/form-data")) {
+    return { rawBody: null, rawBuffer, body: undefined };
   }
 
-  return { rawBody: raw, body: JSON.parse(raw) };
+  if (!resolvedType?.includes("application/json")) {
+    return { rawBody: raw, rawBuffer: null, body: undefined };
+  }
+
+  return { rawBody: raw, rawBuffer: null, body: JSON.parse(raw) };
 }
 
 function matchTourPath(pathname: string): string | null {
@@ -170,6 +180,7 @@ function resolveRequestIp(req: http.IncomingMessage): string | null {
 }
 
 async function routeRequest(request: ApiRequest, context: { prisma: any; auditLogger: ImmutableAuditLogger }): Promise<ApiResponse> {
+  console.log("routeRequest PATH:", request.pathname, "METHOD:", request.method);
   if (request.pathname === "/api/health" && request.method === "GET") {
     return healthHandler();
   }
@@ -191,6 +202,12 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
   }
 
   if (request.pathname === "/api/upload" && request.method === "POST") return uploadHandler(request);
+
+  if (request.pathname === "/api/video/upload" && request.method === "POST") return videoUploadHandler(request);
+
+  if (request.pathname.startsWith("/api/r2-photo/") && request.method === "GET") {
+    return r2PhotoProxyHandler(request);
+  }
 
   if (request.pathname.startsWith("/api/admin")) {
     const allowlist = adminIpAllowlist();
@@ -373,7 +390,7 @@ const server = http.createServer(async (req, res) => {
     return sendResponse(res, { statusCode: 204, headers: baseHeaders });
   }
 
-  let payload: { rawBody: string | null; body: unknown };
+  let payload: { rawBody: string | null; rawBuffer: Buffer | null; body: unknown };
   try {
     payload = await readBody(req);
   } catch {
@@ -396,6 +413,7 @@ const server = http.createServer(async (req, res) => {
     ipAddress: resolveRequestIp(req),
     requestId,
     rawBody: payload.rawBody,
+    rawBuffer: payload.rawBuffer ?? undefined,
     auth: authFromHeaders(req.headers),
     body: payload.body,
   };

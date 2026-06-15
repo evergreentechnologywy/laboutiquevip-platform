@@ -14,6 +14,7 @@ import {
   uploadSchema,
 } from "../validation/base44Compat.js";
 import { storeUpload } from "../storage/uploads.js";
+import { storeVideo, isAllowedVideoType, MAX_VIDEO_BYTES } from "../storage/video.js";
 import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
@@ -312,7 +313,8 @@ export async function registerHandler(req: ApiRequest, { prisma }: Ctx): Promise
   });
 
   const token = signJwt({ sub: user.id, role: user.role as Role });
-  return { statusCode: 200, body: { token, user: normalizeDates(user) } };
+  const { password_hash: _, ...safeUserR } = user as any;
+  return { statusCode: 200, body: { token, user: normalizeDates(safeUserR) } };
 }
 
 export async function loginHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiResponse> {
@@ -329,13 +331,15 @@ export async function loginHandler(req: ApiRequest, { prisma }: Ctx): Promise<Ap
   if (hash !== stored) return { statusCode: 401, body: { error: "invalid_credentials" } };
 
   const token = signJwt({ sub: user.id, role: user.role as Role });
-  return { statusCode: 200, body: { token, user: normalizeDates(user) } };
+  const { password_hash: _l, ...safeUserL } = user as any;
+  return { statusCode: 200, body: { token, user: normalizeDates(safeUserL) } };
 }
 
 export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiResponse> {
   const user = await requireUser(req, prisma);
   if (!user) return { statusCode: 401, body: { error: "unauthorized" } };
-  return { statusCode: 200, body: normalizeDates(user) };
+  const { password_hash: _m, ...safeUserM } = user as any;
+  return { statusCode: 200, body: normalizeDates(safeUserM) };
 }
 
 export async function logoutHandler(): Promise<ApiResponse> {
@@ -503,5 +507,92 @@ export async function uploadHandler(req: ApiRequest): Promise<ApiResponse> {
   } catch (error) {
     console.error("Upload failed", error);
     return { statusCode: 500, body: { error: "upload_failed" } };
+  }
+}
+
+export async function videoUploadHandler(req: ApiRequest): Promise<ApiResponse> {
+  if (!req.auth?.userId) {
+    return { statusCode: 401, body: { error: "unauthorized" } };
+  }
+
+  // Check body - parse multipart
+  // The request body arrives as a raw Buffer from the server
+  const body = (req as any).rawBody;
+  if (!body || !Buffer.isBuffer(body) || body.length === 0) {
+    return { statusCode: 400, body: { error: "missing_body", message: "Send file as multipart/form-data with field name 'file'" } };
+  }
+
+  const contentType = req.headers["content-type"];
+  const ct = Array.isArray(contentType) ? contentType[0] : contentType;
+  if (!ct || !ct.includes("multipart/form-data")) {
+    return { statusCode: 400, body: { error: "invalid_content_type", message: "Use multipart/form-data" } };
+  }
+
+  // Parse boundary from content-type
+  const boundaryMatch = ct.match(/boundary=([^;]+)/);
+  if (!boundaryMatch) {
+    return { statusCode: 400, body: { error: "missing_boundary" } };
+  }
+  const boundary = boundaryMatch[1].trim();
+
+  try {
+    // Parse multipart
+    const busboy = require("busboy");
+    const bb = busboy({ headers: { "content-type": ct } });
+    
+    return new Promise<ApiResponse>((resolve) => {
+      let fileBuffer: Buffer | null = null;
+      let filename = "video.mp4";
+      let fileMimeType = "video/mp4";
+
+      bb.on("file", (fieldname: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
+        filename = info.filename;
+        fileMimeType = info.mimeType;
+        const chunks: Buffer[] = [];
+        file.on("data", (chunk: Buffer) => chunks.push(chunk));
+        file.on("end", () => {
+          fileBuffer = Buffer.concat(chunks);
+        });
+      });
+
+      bb.on("finish", async () => {
+        if (!fileBuffer || fileBuffer.length === 0) {
+          resolve({ statusCode: 400, body: { error: "no_file", message: "No file uploaded. Field name should be 'file'." } });
+          return;
+        }
+
+        if (!isAllowedVideoType(fileMimeType)) {
+          resolve({ statusCode: 400, body: { error: "unsupported_video_type" } });
+          return;
+        }
+
+        if (fileBuffer.length > MAX_VIDEO_BYTES) {
+          resolve({ statusCode: 413, body: { error: "file_too_large", maxBytes: MAX_VIDEO_BYTES } });
+          return;
+        }
+
+        try {
+          const uploaded = await storeVideo({
+            filename,
+            contentType: fileMimeType,
+            fileBuffer,
+          });
+          resolve({ statusCode: 200, body: { file_url: uploaded.fileUrl, storage_key: uploaded.storageKey } });
+        } catch (err) {
+          console.error("Video upload failed", err);
+          resolve({ statusCode: 500, body: { error: "video_upload_failed" } });
+        }
+      });
+
+      bb.on("error", (err: Error) => {
+        console.error("Busboy error", err);
+        resolve({ statusCode: 400, body: { error: "parse_error" } });
+      });
+
+      bb.end(body);
+    });
+  } catch (err) {
+    console.error("Video upload init failed", err);
+    return { statusCode: 500, body: { error: "video_upload_init_failed" } };
   }
 }

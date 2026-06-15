@@ -14,6 +14,8 @@ export interface ApiRequest {
   ipAddress: string | null;
   requestId: string;
   rawBody: string | null;
+  /** Binary raw body for multipart uploads (video, etc.) */
+  rawBuffer?: Buffer;
   auth?: AuthContext;
   body?: unknown;
 }

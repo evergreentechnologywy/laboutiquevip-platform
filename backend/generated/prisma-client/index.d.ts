@@ -28132,6 +28132,8 @@ export namespace Prisma {
 
   export type ProviderAvgAggregateOutputType = {
     age: number | null
+    photo_similarity_score: number | null
+    photo_similarity_threshold: number | null
     views_count: number | null
     rating_average: number | null
     reviews_count: number | null
@@ -28140,6 +28142,8 @@ export namespace Prisma {
 
   export type ProviderSumAggregateOutputType = {
     age: number | null
+    photo_similarity_score: number | null
+    photo_similarity_threshold: number | null
     views_count: number | null
     rating_average: number | null
     reviews_count: number | null
@@ -28156,6 +28160,22 @@ export namespace Prisma {
     location_state: string | null
     location_country: string | null
     age: number | null
+    ethnicity: string | null
+    height: string | null
+    body_type: string | null
+    hair_color: string | null
+    eye_color: string | null
+    service_type: string | null
+    ad_headline: string | null
+    ad_body: string | null
+    ad_text_moderation_status: string | null
+    ad_text_moderation_reason: string | null
+    ad_text_moderated_at: Date | null
+    photo_review_status: string | null
+    photo_similarity_score: number | null
+    photo_similarity_threshold: number | null
+    photo_similarity_source: string | null
+    photo_similarity_checked_at: Date | null
     phone: string | null
     email: string | null
     verification_provider: string | null
@@ -28168,6 +28188,7 @@ export namespace Prisma {
     ad_package_expiry: string | null
     ad_package_started_at: string | null
     ad_package_expiration_reminder_sent_at: string | null
+    video_url: string | null
     status: string | null
     is_premium: boolean | null
     is_verified: boolean | null
@@ -28192,6 +28213,22 @@ export namespace Prisma {
     location_state: string | null
     location_country: string | null
     age: number | null
+    ethnicity: string | null
+    height: string | null
+    body_type: string | null
+    hair_color: string | null
+    eye_color: string | null
+    service_type: string | null
+    ad_headline: string | null
+    ad_body: string | null
+    ad_text_moderation_status: string | null
+    ad_text_moderation_reason: string | null
+    ad_text_moderated_at: Date | null
+    photo_review_status: string | null
+    photo_similarity_score: number | null
+    photo_similarity_threshold: number | null
+    photo_similarity_source: string | null
+    photo_similarity_checked_at: Date | null
     phone: string | null
     email: string | null
     verification_provider: string | null
@@ -28204,6 +28241,7 @@ export namespace Prisma {
     ad_package_expiry: string | null
     ad_package_started_at: string | null
     ad_package_expiration_reminder_sent_at: string | null
+    video_url: string | null
     status: string | null
     is_premium: boolean | null
     is_verified: boolean | null
@@ -28228,6 +28266,26 @@ export namespace Prisma {
     location_state: number
     location_country: number
     age: number
+    ethnicity: number
+    height: number
+    body_type: number
+    hair_color: number
+    eye_color: number
+    service_type: number
+    services_offered: number
+    social_media: number
+    tour_plan: number
+    ad_headline: number
+    ad_body: number
+    ai_last_draft: number
+    ad_text_moderation_status: number
+    ad_text_moderation_reason: number
+    ad_text_moderated_at: number
+    photo_review_status: number
+    photo_similarity_score: number
+    photo_similarity_threshold: number
+    photo_similarity_source: number
+    photo_similarity_checked_at: number
     phone: number
     email: number
     verification_provider: number
@@ -28243,6 +28301,7 @@ export namespace Prisma {
     verification_documents: number
     photos: number
     pending_photos: number
+    video_url: number
     status: number
     is_premium: number
     is_verified: number
@@ -28261,6 +28320,8 @@ export namespace Prisma {
 
   export type ProviderAvgAggregateInputType = {
     age?: true
+    photo_similarity_score?: true
+    photo_similarity_threshold?: true
     views_count?: true
     rating_average?: true
     reviews_count?: true
@@ -28269,6 +28330,8 @@ export namespace Prisma {
 
   export type ProviderSumAggregateInputType = {
     age?: true
+    photo_similarity_score?: true
+    photo_similarity_threshold?: true
     views_count?: true
     rating_average?: true
     reviews_count?: true
@@ -28285,6 +28348,22 @@ export namespace Prisma {
     location_state?: true
     location_country?: true
     age?: true
+    ethnicity?: true
+    height?: true
+    body_type?: true
+    hair_color?: true
+    eye_color?: true
+    service_type?: true
+    ad_headline?: true
+    ad_body?: true
+    ad_text_moderation_status?: true
+    ad_text_moderation_reason?: true
+    ad_text_moderated_at?: true
+    photo_review_status?: true
+    photo_similarity_score?: true
+    photo_similarity_threshold?: true
+    photo_similarity_source?: true
+    photo_similarity_checked_at?: true
     phone?: true
     email?: true
     verification_provider?: true
@@ -28297,6 +28376,7 @@ export namespace Prisma {
     ad_package_expiry?: true
     ad_package_started_at?: true
     ad_package_expiration_reminder_sent_at?: true
+    video_url?: true
     status?: true
     is_premium?: true
     is_verified?: true
@@ -28321,6 +28401,22 @@ export namespace Prisma {
     location_state?: true
     location_country?: true
     age?: true
+    ethnicity?: true
+    height?: true
+    body_type?: true
+    hair_color?: true
+    eye_color?: true
+    service_type?: true
+    ad_headline?: true
+    ad_body?: true
+    ad_text_moderation_status?: true
+    ad_text_moderation_reason?: true
+    ad_text_moderated_at?: true
+    photo_review_status?: true
+    photo_similarity_score?: true
+    photo_similarity_threshold?: true
+    photo_similarity_source?: true
+    photo_similarity_checked_at?: true
     phone?: true
     email?: true
     verification_provider?: true
@@ -28333,6 +28429,7 @@ export namespace Prisma {
     ad_package_expiry?: true
     ad_package_started_at?: true
     ad_package_expiration_reminder_sent_at?: true
+    video_url?: true
     status?: true
     is_premium?: true
     is_verified?: true
@@ -28357,6 +28454,26 @@ export namespace Prisma {
     location_state?: true
     location_country?: true
     age?: true
+    ethnicity?: true
+    height?: true
+    body_type?: true
+    hair_color?: true
+    eye_color?: true
+    service_type?: true
+    services_offered?: true
+    social_media?: true
+    tour_plan?: true
+    ad_headline?: true
+    ad_body?: true
+    ai_last_draft?: true
+    ad_text_moderation_status?: true
+    ad_text_moderation_reason?: true
+    ad_text_moderated_at?: true
+    photo_review_status?: true
+    photo_similarity_score?: true
+    photo_similarity_threshold?: true
+    photo_similarity_source?: true
+    photo_similarity_checked_at?: true
     phone?: true
     email?: true
     verification_provider?: true
@@ -28372,6 +28489,7 @@ export namespace Prisma {
     verification_documents?: true
     photos?: true
     pending_photos?: true
+    video_url?: true
     status?: true
     is_premium?: true
     is_verified?: true
@@ -28483,6 +28601,26 @@ export namespace Prisma {
     location_state: string | null
     location_country: string | null
     age: number | null
+    ethnicity: string | null
+    height: string | null
+    body_type: string | null
+    hair_color: string | null
+    eye_color: string | null
+    service_type: string | null
+    services_offered: JsonValue | null
+    social_media: JsonValue | null
+    tour_plan: JsonValue | null
+    ad_headline: string | null
+    ad_body: string | null
+    ai_last_draft: JsonValue | null
+    ad_text_moderation_status: string | null
+    ad_text_moderation_reason: string | null
+    ad_text_moderated_at: Date | null
+    photo_review_status: string | null
+    photo_similarity_score: number | null
+    photo_similarity_threshold: number | null
+    photo_similarity_source: string | null
+    photo_similarity_checked_at: Date | null
     phone: string | null
     email: string | null
     verification_provider: string | null
@@ -28498,6 +28636,7 @@ export namespace Prisma {
     verification_documents: JsonValue | null
     photos: JsonValue | null
     pending_photos: JsonValue | null
+    video_url: string | null
     status: string
     is_premium: boolean
     is_verified: boolean
@@ -28541,6 +28680,26 @@ export namespace Prisma {
     location_state?: boolean
     location_country?: boolean
     age?: boolean
+    ethnicity?: boolean
+    height?: boolean
+    body_type?: boolean
+    hair_color?: boolean
+    eye_color?: boolean
+    service_type?: boolean
+    services_offered?: boolean
+    social_media?: boolean
+    tour_plan?: boolean
+    ad_headline?: boolean
+    ad_body?: boolean
+    ai_last_draft?: boolean
+    ad_text_moderation_status?: boolean
+    ad_text_moderation_reason?: boolean
+    ad_text_moderated_at?: boolean
+    photo_review_status?: boolean
+    photo_similarity_score?: boolean
+    photo_similarity_threshold?: boolean
+    photo_similarity_source?: boolean
+    photo_similarity_checked_at?: boolean
     phone?: boolean
     email?: boolean
     verification_provider?: boolean
@@ -28556,6 +28715,7 @@ export namespace Prisma {
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
+    video_url?: boolean
     status?: boolean
     is_premium?: boolean
     is_verified?: boolean
@@ -28580,6 +28740,26 @@ export namespace Prisma {
     location_state?: boolean
     location_country?: boolean
     age?: boolean
+    ethnicity?: boolean
+    height?: boolean
+    body_type?: boolean
+    hair_color?: boolean
+    eye_color?: boolean
+    service_type?: boolean
+    services_offered?: boolean
+    social_media?: boolean
+    tour_plan?: boolean
+    ad_headline?: boolean
+    ad_body?: boolean
+    ai_last_draft?: boolean
+    ad_text_moderation_status?: boolean
+    ad_text_moderation_reason?: boolean
+    ad_text_moderated_at?: boolean
+    photo_review_status?: boolean
+    photo_similarity_score?: boolean
+    photo_similarity_threshold?: boolean
+    photo_similarity_source?: boolean
+    photo_similarity_checked_at?: boolean
     phone?: boolean
     email?: boolean
     verification_provider?: boolean
@@ -28595,6 +28775,7 @@ export namespace Prisma {
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
+    video_url?: boolean
     status?: boolean
     is_premium?: boolean
     is_verified?: boolean
@@ -28619,6 +28800,26 @@ export namespace Prisma {
     location_state?: boolean
     location_country?: boolean
     age?: boolean
+    ethnicity?: boolean
+    height?: boolean
+    body_type?: boolean
+    hair_color?: boolean
+    eye_color?: boolean
+    service_type?: boolean
+    services_offered?: boolean
+    social_media?: boolean
+    tour_plan?: boolean
+    ad_headline?: boolean
+    ad_body?: boolean
+    ai_last_draft?: boolean
+    ad_text_moderation_status?: boolean
+    ad_text_moderation_reason?: boolean
+    ad_text_moderated_at?: boolean
+    photo_review_status?: boolean
+    photo_similarity_score?: boolean
+    photo_similarity_threshold?: boolean
+    photo_similarity_source?: boolean
+    photo_similarity_checked_at?: boolean
     phone?: boolean
     email?: boolean
     verification_provider?: boolean
@@ -28634,6 +28835,7 @@ export namespace Prisma {
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
+    video_url?: boolean
     status?: boolean
     is_premium?: boolean
     is_verified?: boolean
@@ -28658,6 +28860,26 @@ export namespace Prisma {
     location_state?: boolean
     location_country?: boolean
     age?: boolean
+    ethnicity?: boolean
+    height?: boolean
+    body_type?: boolean
+    hair_color?: boolean
+    eye_color?: boolean
+    service_type?: boolean
+    services_offered?: boolean
+    social_media?: boolean
+    tour_plan?: boolean
+    ad_headline?: boolean
+    ad_body?: boolean
+    ai_last_draft?: boolean
+    ad_text_moderation_status?: boolean
+    ad_text_moderation_reason?: boolean
+    ad_text_moderated_at?: boolean
+    photo_review_status?: boolean
+    photo_similarity_score?: boolean
+    photo_similarity_threshold?: boolean
+    photo_similarity_source?: boolean
+    photo_similarity_checked_at?: boolean
     phone?: boolean
     email?: boolean
     verification_provider?: boolean
@@ -28673,6 +28895,7 @@ export namespace Prisma {
     verification_documents?: boolean
     photos?: boolean
     pending_photos?: boolean
+    video_url?: boolean
     status?: boolean
     is_premium?: boolean
     is_verified?: boolean
@@ -28687,7 +28910,7 @@ export namespace Prisma {
     updated_date?: boolean
   }
 
-  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "phone" | "email" | "verification_provider" | "verification_username" | "verification_url" | "review_provider" | "review_username" | "review_url" | "ad_package" | "ad_package_expiry" | "ad_package_started_at" | "ad_package_expiration_reminder_sent_at" | "verification_documents" | "photos" | "pending_photos" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date", ExtArgs["result"]["provider"]>
+  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "ethnicity" | "height" | "body_type" | "hair_color" | "eye_color" | "service_type" | "services_offered" | "social_media" | "tour_plan" | "ad_headline" | "ad_body" | "ai_last_draft" | "ad_text_moderation_status" | "ad_text_moderation_reason" | "ad_text_moderated_at" | "photo_review_status" | "photo_similarity_score" | "photo_similarity_threshold" | "photo_similarity_source" | "photo_similarity_checked_at" | "phone" | "email" | "verification_provider" | "verification_username" | "verification_url" | "review_provider" | "review_username" | "review_url" | "ad_package" | "ad_package_expiry" | "ad_package_started_at" | "ad_package_expiration_reminder_sent_at" | "verification_documents" | "photos" | "pending_photos" | "video_url" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date", ExtArgs["result"]["provider"]>
 
   export type $ProviderPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Provider"
@@ -28702,6 +28925,26 @@ export namespace Prisma {
       location_state: string | null
       location_country: string | null
       age: number | null
+      ethnicity: string | null
+      height: string | null
+      body_type: string | null
+      hair_color: string | null
+      eye_color: string | null
+      service_type: string | null
+      services_offered: Prisma.JsonValue | null
+      social_media: Prisma.JsonValue | null
+      tour_plan: Prisma.JsonValue | null
+      ad_headline: string | null
+      ad_body: string | null
+      ai_last_draft: Prisma.JsonValue | null
+      ad_text_moderation_status: string | null
+      ad_text_moderation_reason: string | null
+      ad_text_moderated_at: Date | null
+      photo_review_status: string | null
+      photo_similarity_score: number | null
+      photo_similarity_threshold: number | null
+      photo_similarity_source: string | null
+      photo_similarity_checked_at: Date | null
       phone: string | null
       email: string | null
       verification_provider: string | null
@@ -28717,6 +28960,7 @@ export namespace Prisma {
       verification_documents: Prisma.JsonValue | null
       photos: Prisma.JsonValue | null
       pending_photos: Prisma.JsonValue | null
+      video_url: string | null
       status: string
       is_premium: boolean
       is_verified: boolean
@@ -29161,6 +29405,26 @@ export namespace Prisma {
     readonly location_state: FieldRef<"Provider", 'String'>
     readonly location_country: FieldRef<"Provider", 'String'>
     readonly age: FieldRef<"Provider", 'Int'>
+    readonly ethnicity: FieldRef<"Provider", 'String'>
+    readonly height: FieldRef<"Provider", 'String'>
+    readonly body_type: FieldRef<"Provider", 'String'>
+    readonly hair_color: FieldRef<"Provider", 'String'>
+    readonly eye_color: FieldRef<"Provider", 'String'>
+    readonly service_type: FieldRef<"Provider", 'String'>
+    readonly services_offered: FieldRef<"Provider", 'Json'>
+    readonly social_media: FieldRef<"Provider", 'Json'>
+    readonly tour_plan: FieldRef<"Provider", 'Json'>
+    readonly ad_headline: FieldRef<"Provider", 'String'>
+    readonly ad_body: FieldRef<"Provider", 'String'>
+    readonly ai_last_draft: FieldRef<"Provider", 'Json'>
+    readonly ad_text_moderation_status: FieldRef<"Provider", 'String'>
+    readonly ad_text_moderation_reason: FieldRef<"Provider", 'String'>
+    readonly ad_text_moderated_at: FieldRef<"Provider", 'DateTime'>
+    readonly photo_review_status: FieldRef<"Provider", 'String'>
+    readonly photo_similarity_score: FieldRef<"Provider", 'Float'>
+    readonly photo_similarity_threshold: FieldRef<"Provider", 'Float'>
+    readonly photo_similarity_source: FieldRef<"Provider", 'String'>
+    readonly photo_similarity_checked_at: FieldRef<"Provider", 'DateTime'>
     readonly phone: FieldRef<"Provider", 'String'>
     readonly email: FieldRef<"Provider", 'String'>
     readonly verification_provider: FieldRef<"Provider", 'String'>
@@ -29176,6 +29440,7 @@ export namespace Prisma {
     readonly verification_documents: FieldRef<"Provider", 'Json'>
     readonly photos: FieldRef<"Provider", 'Json'>
     readonly pending_photos: FieldRef<"Provider", 'Json'>
+    readonly video_url: FieldRef<"Provider", 'String'>
     readonly status: FieldRef<"Provider", 'String'>
     readonly is_premium: FieldRef<"Provider", 'Boolean'>
     readonly is_verified: FieldRef<"Provider", 'Boolean'>
@@ -33113,6 +33378,26 @@ export namespace Prisma {
     location_state: 'location_state',
     location_country: 'location_country',
     age: 'age',
+    ethnicity: 'ethnicity',
+    height: 'height',
+    body_type: 'body_type',
+    hair_color: 'hair_color',
+    eye_color: 'eye_color',
+    service_type: 'service_type',
+    services_offered: 'services_offered',
+    social_media: 'social_media',
+    tour_plan: 'tour_plan',
+    ad_headline: 'ad_headline',
+    ad_body: 'ad_body',
+    ai_last_draft: 'ai_last_draft',
+    ad_text_moderation_status: 'ad_text_moderation_status',
+    ad_text_moderation_reason: 'ad_text_moderation_reason',
+    ad_text_moderated_at: 'ad_text_moderated_at',
+    photo_review_status: 'photo_review_status',
+    photo_similarity_score: 'photo_similarity_score',
+    photo_similarity_threshold: 'photo_similarity_threshold',
+    photo_similarity_source: 'photo_similarity_source',
+    photo_similarity_checked_at: 'photo_similarity_checked_at',
     phone: 'phone',
     email: 'email',
     verification_provider: 'verification_provider',
@@ -33128,6 +33413,7 @@ export namespace Prisma {
     verification_documents: 'verification_documents',
     photos: 'photos',
     pending_photos: 'pending_photos',
+    video_url: 'video_url',
     status: 'status',
     is_premium: 'is_premium',
     is_verified: 'is_verified',
@@ -34857,6 +35143,26 @@ export namespace Prisma {
     location_state?: StringNullableFilter<"Provider"> | string | null
     location_country?: StringNullableFilter<"Provider"> | string | null
     age?: IntNullableFilter<"Provider"> | number | null
+    ethnicity?: StringNullableFilter<"Provider"> | string | null
+    height?: StringNullableFilter<"Provider"> | string | null
+    body_type?: StringNullableFilter<"Provider"> | string | null
+    hair_color?: StringNullableFilter<"Provider"> | string | null
+    eye_color?: StringNullableFilter<"Provider"> | string | null
+    service_type?: StringNullableFilter<"Provider"> | string | null
+    services_offered?: JsonNullableFilter<"Provider">
+    social_media?: JsonNullableFilter<"Provider">
+    tour_plan?: JsonNullableFilter<"Provider">
+    ad_headline?: StringNullableFilter<"Provider"> | string | null
+    ad_body?: StringNullableFilter<"Provider"> | string | null
+    ai_last_draft?: JsonNullableFilter<"Provider">
+    ad_text_moderation_status?: StringNullableFilter<"Provider"> | string | null
+    ad_text_moderation_reason?: StringNullableFilter<"Provider"> | string | null
+    ad_text_moderated_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    photo_review_status?: StringNullableFilter<"Provider"> | string | null
+    photo_similarity_score?: FloatNullableFilter<"Provider"> | number | null
+    photo_similarity_threshold?: FloatNullableFilter<"Provider"> | number | null
+    photo_similarity_source?: StringNullableFilter<"Provider"> | string | null
+    photo_similarity_checked_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
     phone?: StringNullableFilter<"Provider"> | string | null
     email?: StringNullableFilter<"Provider"> | string | null
     verification_provider?: StringNullableFilter<"Provider"> | string | null
@@ -34872,6 +35178,7 @@ export namespace Prisma {
     verification_documents?: JsonNullableFilter<"Provider">
     photos?: JsonNullableFilter<"Provider">
     pending_photos?: JsonNullableFilter<"Provider">
+    video_url?: StringNullableFilter<"Provider"> | string | null
     status?: StringFilter<"Provider"> | string
     is_premium?: BoolFilter<"Provider"> | boolean
     is_verified?: BoolFilter<"Provider"> | boolean
@@ -34896,6 +35203,26 @@ export namespace Prisma {
     location_state?: SortOrderInput | SortOrder
     location_country?: SortOrderInput | SortOrder
     age?: SortOrderInput | SortOrder
+    ethnicity?: SortOrderInput | SortOrder
+    height?: SortOrderInput | SortOrder
+    body_type?: SortOrderInput | SortOrder
+    hair_color?: SortOrderInput | SortOrder
+    eye_color?: SortOrderInput | SortOrder
+    service_type?: SortOrderInput | SortOrder
+    services_offered?: SortOrderInput | SortOrder
+    social_media?: SortOrderInput | SortOrder
+    tour_plan?: SortOrderInput | SortOrder
+    ad_headline?: SortOrderInput | SortOrder
+    ad_body?: SortOrderInput | SortOrder
+    ai_last_draft?: SortOrderInput | SortOrder
+    ad_text_moderation_status?: SortOrderInput | SortOrder
+    ad_text_moderation_reason?: SortOrderInput | SortOrder
+    ad_text_moderated_at?: SortOrderInput | SortOrder
+    photo_review_status?: SortOrderInput | SortOrder
+    photo_similarity_score?: SortOrderInput | SortOrder
+    photo_similarity_threshold?: SortOrderInput | SortOrder
+    photo_similarity_source?: SortOrderInput | SortOrder
+    photo_similarity_checked_at?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
     verification_provider?: SortOrderInput | SortOrder
@@ -34911,6 +35238,7 @@ export namespace Prisma {
     verification_documents?: SortOrderInput | SortOrder
     photos?: SortOrderInput | SortOrder
     pending_photos?: SortOrderInput | SortOrder
+    video_url?: SortOrderInput | SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -34938,6 +35266,26 @@ export namespace Prisma {
     location_state?: StringNullableFilter<"Provider"> | string | null
     location_country?: StringNullableFilter<"Provider"> | string | null
     age?: IntNullableFilter<"Provider"> | number | null
+    ethnicity?: StringNullableFilter<"Provider"> | string | null
+    height?: StringNullableFilter<"Provider"> | string | null
+    body_type?: StringNullableFilter<"Provider"> | string | null
+    hair_color?: StringNullableFilter<"Provider"> | string | null
+    eye_color?: StringNullableFilter<"Provider"> | string | null
+    service_type?: StringNullableFilter<"Provider"> | string | null
+    services_offered?: JsonNullableFilter<"Provider">
+    social_media?: JsonNullableFilter<"Provider">
+    tour_plan?: JsonNullableFilter<"Provider">
+    ad_headline?: StringNullableFilter<"Provider"> | string | null
+    ad_body?: StringNullableFilter<"Provider"> | string | null
+    ai_last_draft?: JsonNullableFilter<"Provider">
+    ad_text_moderation_status?: StringNullableFilter<"Provider"> | string | null
+    ad_text_moderation_reason?: StringNullableFilter<"Provider"> | string | null
+    ad_text_moderated_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    photo_review_status?: StringNullableFilter<"Provider"> | string | null
+    photo_similarity_score?: FloatNullableFilter<"Provider"> | number | null
+    photo_similarity_threshold?: FloatNullableFilter<"Provider"> | number | null
+    photo_similarity_source?: StringNullableFilter<"Provider"> | string | null
+    photo_similarity_checked_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
     phone?: StringNullableFilter<"Provider"> | string | null
     email?: StringNullableFilter<"Provider"> | string | null
     verification_provider?: StringNullableFilter<"Provider"> | string | null
@@ -34953,6 +35301,7 @@ export namespace Prisma {
     verification_documents?: JsonNullableFilter<"Provider">
     photos?: JsonNullableFilter<"Provider">
     pending_photos?: JsonNullableFilter<"Provider">
+    video_url?: StringNullableFilter<"Provider"> | string | null
     status?: StringFilter<"Provider"> | string
     is_premium?: BoolFilter<"Provider"> | boolean
     is_verified?: BoolFilter<"Provider"> | boolean
@@ -34977,6 +35326,26 @@ export namespace Prisma {
     location_state?: SortOrderInput | SortOrder
     location_country?: SortOrderInput | SortOrder
     age?: SortOrderInput | SortOrder
+    ethnicity?: SortOrderInput | SortOrder
+    height?: SortOrderInput | SortOrder
+    body_type?: SortOrderInput | SortOrder
+    hair_color?: SortOrderInput | SortOrder
+    eye_color?: SortOrderInput | SortOrder
+    service_type?: SortOrderInput | SortOrder
+    services_offered?: SortOrderInput | SortOrder
+    social_media?: SortOrderInput | SortOrder
+    tour_plan?: SortOrderInput | SortOrder
+    ad_headline?: SortOrderInput | SortOrder
+    ad_body?: SortOrderInput | SortOrder
+    ai_last_draft?: SortOrderInput | SortOrder
+    ad_text_moderation_status?: SortOrderInput | SortOrder
+    ad_text_moderation_reason?: SortOrderInput | SortOrder
+    ad_text_moderated_at?: SortOrderInput | SortOrder
+    photo_review_status?: SortOrderInput | SortOrder
+    photo_similarity_score?: SortOrderInput | SortOrder
+    photo_similarity_threshold?: SortOrderInput | SortOrder
+    photo_similarity_source?: SortOrderInput | SortOrder
+    photo_similarity_checked_at?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
     email?: SortOrderInput | SortOrder
     verification_provider?: SortOrderInput | SortOrder
@@ -34992,6 +35361,7 @@ export namespace Prisma {
     verification_documents?: SortOrderInput | SortOrder
     photos?: SortOrderInput | SortOrder
     pending_photos?: SortOrderInput | SortOrder
+    video_url?: SortOrderInput | SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -35024,6 +35394,26 @@ export namespace Prisma {
     location_state?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     location_country?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     age?: IntNullableWithAggregatesFilter<"Provider"> | number | null
+    ethnicity?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    height?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    body_type?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    hair_color?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    eye_color?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    service_type?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    services_offered?: JsonNullableWithAggregatesFilter<"Provider">
+    social_media?: JsonNullableWithAggregatesFilter<"Provider">
+    tour_plan?: JsonNullableWithAggregatesFilter<"Provider">
+    ad_headline?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ad_body?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ai_last_draft?: JsonNullableWithAggregatesFilter<"Provider">
+    ad_text_moderation_status?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ad_text_moderation_reason?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    ad_text_moderated_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
+    photo_review_status?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    photo_similarity_score?: FloatNullableWithAggregatesFilter<"Provider"> | number | null
+    photo_similarity_threshold?: FloatNullableWithAggregatesFilter<"Provider"> | number | null
+    photo_similarity_source?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    photo_similarity_checked_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
     phone?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     email?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     verification_provider?: StringNullableWithAggregatesFilter<"Provider"> | string | null
@@ -35039,6 +35429,7 @@ export namespace Prisma {
     verification_documents?: JsonNullableWithAggregatesFilter<"Provider">
     photos?: JsonNullableWithAggregatesFilter<"Provider">
     pending_photos?: JsonNullableWithAggregatesFilter<"Provider">
+    video_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     status?: StringWithAggregatesFilter<"Provider"> | string
     is_premium?: BoolWithAggregatesFilter<"Provider"> | boolean
     is_verified?: BoolWithAggregatesFilter<"Provider"> | boolean
@@ -36914,6 +37305,26 @@ export namespace Prisma {
     location_state?: string | null
     location_country?: string | null
     age?: number | null
+    ethnicity?: string | null
+    height?: string | null
+    body_type?: string | null
+    hair_color?: string | null
+    eye_color?: string | null
+    service_type?: string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: string | null
+    ad_body?: string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: string | null
+    ad_text_moderation_reason?: string | null
+    ad_text_moderated_at?: Date | string | null
+    photo_review_status?: string | null
+    photo_similarity_score?: number | null
+    photo_similarity_threshold?: number | null
+    photo_similarity_source?: string | null
+    photo_similarity_checked_at?: Date | string | null
     phone?: string | null
     email?: string | null
     verification_provider?: string | null
@@ -36929,6 +37340,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: string | null
     status?: string
     is_premium?: boolean
     is_verified?: boolean
@@ -36953,6 +37365,26 @@ export namespace Prisma {
     location_state?: string | null
     location_country?: string | null
     age?: number | null
+    ethnicity?: string | null
+    height?: string | null
+    body_type?: string | null
+    hair_color?: string | null
+    eye_color?: string | null
+    service_type?: string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: string | null
+    ad_body?: string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: string | null
+    ad_text_moderation_reason?: string | null
+    ad_text_moderated_at?: Date | string | null
+    photo_review_status?: string | null
+    photo_similarity_score?: number | null
+    photo_similarity_threshold?: number | null
+    photo_similarity_source?: string | null
+    photo_similarity_checked_at?: Date | string | null
     phone?: string | null
     email?: string | null
     verification_provider?: string | null
@@ -36968,6 +37400,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: string | null
     status?: string
     is_premium?: boolean
     is_verified?: boolean
@@ -36992,6 +37425,26 @@ export namespace Prisma {
     location_state?: NullableStringFieldUpdateOperationsInput | string | null
     location_country?: NullableStringFieldUpdateOperationsInput | string | null
     age?: NullableIntFieldUpdateOperationsInput | number | null
+    ethnicity?: NullableStringFieldUpdateOperationsInput | string | null
+    height?: NullableStringFieldUpdateOperationsInput | string | null
+    body_type?: NullableStringFieldUpdateOperationsInput | string | null
+    hair_color?: NullableStringFieldUpdateOperationsInput | string | null
+    eye_color?: NullableStringFieldUpdateOperationsInput | string | null
+    service_type?: NullableStringFieldUpdateOperationsInput | string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_body?: NullableStringFieldUpdateOperationsInput | string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderation_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    photo_review_status?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_score?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_threshold?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_source?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_checked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37007,6 +37460,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     is_premium?: BoolFieldUpdateOperationsInput | boolean
     is_verified?: BoolFieldUpdateOperationsInput | boolean
@@ -37031,6 +37485,26 @@ export namespace Prisma {
     location_state?: NullableStringFieldUpdateOperationsInput | string | null
     location_country?: NullableStringFieldUpdateOperationsInput | string | null
     age?: NullableIntFieldUpdateOperationsInput | number | null
+    ethnicity?: NullableStringFieldUpdateOperationsInput | string | null
+    height?: NullableStringFieldUpdateOperationsInput | string | null
+    body_type?: NullableStringFieldUpdateOperationsInput | string | null
+    hair_color?: NullableStringFieldUpdateOperationsInput | string | null
+    eye_color?: NullableStringFieldUpdateOperationsInput | string | null
+    service_type?: NullableStringFieldUpdateOperationsInput | string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_body?: NullableStringFieldUpdateOperationsInput | string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderation_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    photo_review_status?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_score?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_threshold?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_source?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_checked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37046,6 +37520,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     is_premium?: BoolFieldUpdateOperationsInput | boolean
     is_verified?: BoolFieldUpdateOperationsInput | boolean
@@ -37070,6 +37545,26 @@ export namespace Prisma {
     location_state?: string | null
     location_country?: string | null
     age?: number | null
+    ethnicity?: string | null
+    height?: string | null
+    body_type?: string | null
+    hair_color?: string | null
+    eye_color?: string | null
+    service_type?: string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: string | null
+    ad_body?: string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: string | null
+    ad_text_moderation_reason?: string | null
+    ad_text_moderated_at?: Date | string | null
+    photo_review_status?: string | null
+    photo_similarity_score?: number | null
+    photo_similarity_threshold?: number | null
+    photo_similarity_source?: string | null
+    photo_similarity_checked_at?: Date | string | null
     phone?: string | null
     email?: string | null
     verification_provider?: string | null
@@ -37085,6 +37580,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: string | null
     status?: string
     is_premium?: boolean
     is_verified?: boolean
@@ -37109,6 +37605,26 @@ export namespace Prisma {
     location_state?: NullableStringFieldUpdateOperationsInput | string | null
     location_country?: NullableStringFieldUpdateOperationsInput | string | null
     age?: NullableIntFieldUpdateOperationsInput | number | null
+    ethnicity?: NullableStringFieldUpdateOperationsInput | string | null
+    height?: NullableStringFieldUpdateOperationsInput | string | null
+    body_type?: NullableStringFieldUpdateOperationsInput | string | null
+    hair_color?: NullableStringFieldUpdateOperationsInput | string | null
+    eye_color?: NullableStringFieldUpdateOperationsInput | string | null
+    service_type?: NullableStringFieldUpdateOperationsInput | string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_body?: NullableStringFieldUpdateOperationsInput | string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderation_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    photo_review_status?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_score?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_threshold?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_source?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_checked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37124,6 +37640,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     is_premium?: BoolFieldUpdateOperationsInput | boolean
     is_verified?: BoolFieldUpdateOperationsInput | boolean
@@ -37148,6 +37665,26 @@ export namespace Prisma {
     location_state?: NullableStringFieldUpdateOperationsInput | string | null
     location_country?: NullableStringFieldUpdateOperationsInput | string | null
     age?: NullableIntFieldUpdateOperationsInput | number | null
+    ethnicity?: NullableStringFieldUpdateOperationsInput | string | null
+    height?: NullableStringFieldUpdateOperationsInput | string | null
+    body_type?: NullableStringFieldUpdateOperationsInput | string | null
+    hair_color?: NullableStringFieldUpdateOperationsInput | string | null
+    eye_color?: NullableStringFieldUpdateOperationsInput | string | null
+    service_type?: NullableStringFieldUpdateOperationsInput | string | null
+    services_offered?: NullableJsonNullValueInput | InputJsonValue
+    social_media?: NullableJsonNullValueInput | InputJsonValue
+    tour_plan?: NullableJsonNullValueInput | InputJsonValue
+    ad_headline?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_body?: NullableStringFieldUpdateOperationsInput | string | null
+    ai_last_draft?: NullableJsonNullValueInput | InputJsonValue
+    ad_text_moderation_status?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderation_reason?: NullableStringFieldUpdateOperationsInput | string | null
+    ad_text_moderated_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    photo_review_status?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_score?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_threshold?: NullableFloatFieldUpdateOperationsInput | number | null
+    photo_similarity_source?: NullableStringFieldUpdateOperationsInput | string | null
+    photo_similarity_checked_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     email?: NullableStringFieldUpdateOperationsInput | string | null
     verification_provider?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37163,6 +37700,7 @@ export namespace Prisma {
     verification_documents?: NullableJsonNullValueInput | InputJsonValue
     photos?: NullableJsonNullValueInput | InputJsonValue
     pending_photos?: NullableJsonNullValueInput | InputJsonValue
+    video_url?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     is_premium?: BoolFieldUpdateOperationsInput | boolean
     is_verified?: BoolFieldUpdateOperationsInput | boolean
@@ -38716,6 +39254,26 @@ export namespace Prisma {
     location_state?: SortOrder
     location_country?: SortOrder
     age?: SortOrder
+    ethnicity?: SortOrder
+    height?: SortOrder
+    body_type?: SortOrder
+    hair_color?: SortOrder
+    eye_color?: SortOrder
+    service_type?: SortOrder
+    services_offered?: SortOrder
+    social_media?: SortOrder
+    tour_plan?: SortOrder
+    ad_headline?: SortOrder
+    ad_body?: SortOrder
+    ai_last_draft?: SortOrder
+    ad_text_moderation_status?: SortOrder
+    ad_text_moderation_reason?: SortOrder
+    ad_text_moderated_at?: SortOrder
+    photo_review_status?: SortOrder
+    photo_similarity_score?: SortOrder
+    photo_similarity_threshold?: SortOrder
+    photo_similarity_source?: SortOrder
+    photo_similarity_checked_at?: SortOrder
     phone?: SortOrder
     email?: SortOrder
     verification_provider?: SortOrder
@@ -38731,6 +39289,7 @@ export namespace Prisma {
     verification_documents?: SortOrder
     photos?: SortOrder
     pending_photos?: SortOrder
+    video_url?: SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -38747,6 +39306,8 @@ export namespace Prisma {
 
   export type ProviderAvgOrderByAggregateInput = {
     age?: SortOrder
+    photo_similarity_score?: SortOrder
+    photo_similarity_threshold?: SortOrder
     views_count?: SortOrder
     rating_average?: SortOrder
     reviews_count?: SortOrder
@@ -38763,6 +39324,22 @@ export namespace Prisma {
     location_state?: SortOrder
     location_country?: SortOrder
     age?: SortOrder
+    ethnicity?: SortOrder
+    height?: SortOrder
+    body_type?: SortOrder
+    hair_color?: SortOrder
+    eye_color?: SortOrder
+    service_type?: SortOrder
+    ad_headline?: SortOrder
+    ad_body?: SortOrder
+    ad_text_moderation_status?: SortOrder
+    ad_text_moderation_reason?: SortOrder
+    ad_text_moderated_at?: SortOrder
+    photo_review_status?: SortOrder
+    photo_similarity_score?: SortOrder
+    photo_similarity_threshold?: SortOrder
+    photo_similarity_source?: SortOrder
+    photo_similarity_checked_at?: SortOrder
     phone?: SortOrder
     email?: SortOrder
     verification_provider?: SortOrder
@@ -38775,6 +39352,7 @@ export namespace Prisma {
     ad_package_expiry?: SortOrder
     ad_package_started_at?: SortOrder
     ad_package_expiration_reminder_sent_at?: SortOrder
+    video_url?: SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -38799,6 +39377,22 @@ export namespace Prisma {
     location_state?: SortOrder
     location_country?: SortOrder
     age?: SortOrder
+    ethnicity?: SortOrder
+    height?: SortOrder
+    body_type?: SortOrder
+    hair_color?: SortOrder
+    eye_color?: SortOrder
+    service_type?: SortOrder
+    ad_headline?: SortOrder
+    ad_body?: SortOrder
+    ad_text_moderation_status?: SortOrder
+    ad_text_moderation_reason?: SortOrder
+    ad_text_moderated_at?: SortOrder
+    photo_review_status?: SortOrder
+    photo_similarity_score?: SortOrder
+    photo_similarity_threshold?: SortOrder
+    photo_similarity_source?: SortOrder
+    photo_similarity_checked_at?: SortOrder
     phone?: SortOrder
     email?: SortOrder
     verification_provider?: SortOrder
@@ -38811,6 +39405,7 @@ export namespace Prisma {
     ad_package_expiry?: SortOrder
     ad_package_started_at?: SortOrder
     ad_package_expiration_reminder_sent_at?: SortOrder
+    video_url?: SortOrder
     status?: SortOrder
     is_premium?: SortOrder
     is_verified?: SortOrder
@@ -38827,6 +39422,8 @@ export namespace Prisma {
 
   export type ProviderSumOrderByAggregateInput = {
     age?: SortOrder
+    photo_similarity_score?: SortOrder
+    photo_similarity_threshold?: SortOrder
     views_count?: SortOrder
     rating_average?: SortOrder
     reviews_count?: SortOrder

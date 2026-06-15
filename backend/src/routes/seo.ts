@@ -14,17 +14,38 @@ function json(statusCode: number, body: unknown): ApiResponse {
 }
 
 export async function seoCityHubsHandler(_request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
+  // Query both new model profiles AND legacy Provider table
   const rows = await context.prisma.$queryRaw`
-    SELECT
-      city,
-      city_slug,
-      COUNT(*)::int AS profile_count,
-      SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
-      MAX(updated_at) AS last_updated_at
-    FROM provider_profiles
-    WHERE is_published = true
-      AND display_name !~* '(batch|user|simulation|test|approval|concurrency)'
-      AND (bio IS NULL OR bio !~* '(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)')
+    SELECT city, city_slug, SUM(profile_count)::int AS profile_count, SUM(verified_count)::int AS verified_count, MAX(last_updated_at) AS last_updated_at
+    FROM (
+      SELECT
+        city,
+        city_slug,
+        COUNT(*)::int AS profile_count,
+        SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
+        MAX(updated_at) AS last_updated_at
+      FROM provider_profiles
+      WHERE is_published = true
+        AND display_name !~* ${'(batch|user|simulation|test|approval|concurrency)'}
+        AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
+      GROUP BY city, city_slug
+
+      UNION ALL
+
+      SELECT
+        location_city AS city,
+        lower(regexp_replace(location_city, ${'[^a-zA-Z0-9]+'}, ${'-'}, ${'g'})) AS city_slug,
+        COUNT(*)::int AS profile_count,
+        SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
+        MAX(updated_date) AS last_updated_at
+      FROM "Provider"
+      WHERE status = ${'active'}
+        AND is_profile_approved = true
+        AND location_city IS NOT NULL
+        AND display_name !~* ${'(batch|user|simulation|test|approval|concurrency)'}
+        AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
+      GROUP BY location_city
+    ) combined
     GROUP BY city, city_slug
     ORDER BY city ASC
   `;
@@ -44,7 +65,9 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
 
 export async function seoProfilesHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
   const limit = Math.min(1000, Number(request.query.get("limit") ?? 500));
-  const profiles = await context.prisma.providerProfile.findMany({
+
+  // Get profiles from both systems
+  const newProfiles = await context.prisma.providerProfile.findMany({
     where: {
       isPublished: true,
       NOT: {
@@ -66,12 +89,44 @@ export async function seoProfilesHandler(request: ApiRequest, context: SeoContex
     },
     select: { slug: true, citySlug: true, updatedAt: true },
     orderBy: [{ updatedAt: "desc" }],
-    take: Number.isFinite(limit) && limit > 0 ? limit : 500,
+    take: limit,
   });
 
-  return json(200, {
-    items: generateProfileRoutes(profiles),
+  // Get legacy Provider profiles
+  const legacyProviders = await context.prisma.provider.findMany({
+    where: {
+      status: "active",
+      is_profile_approved: true,
+      NOT: {
+        OR: [
+          { display_name: { contains: "batch", mode: "insensitive" } },
+          { display_name: { contains: "user", mode: "insensitive" } },
+          { display_name: { contains: "simulation", mode: "insensitive" } },
+          { display_name: { contains: "test", mode: "insensitive" } },
+          { display_name: { contains: "approval", mode: "insensitive" } },
+          { display_name: { contains: "concurrency", mode: "insensitive" } },
+        ],
+      },
+    },
+    select: { id: true, location_city: true, updated_date: true },
+    orderBy: [{ updated_date: "desc" }],
+    take: limit,
   });
+
+  const profileRoutes = [
+    ...generateProfileRoutes(newProfiles.map((p: any) => ({
+      slug: p.slug,
+      citySlug: p.citySlug,
+      updatedAt: p.updatedAt,
+    }))),
+    ...generateProfileRoutes(legacyProviders.map((p: any) => ({
+      slug: p.id,
+      citySlug: (p.location_city || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      updatedAt: p.updated_date,
+    }))),
+  ].slice(0, limit);
+
+  return json(200, { items: profileRoutes });
 }
 
 export async function sitemapHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {

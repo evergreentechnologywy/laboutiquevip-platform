@@ -50,6 +50,7 @@ const emptyProfile = {
   review_provider: "",
   review_username: "",
   review_url: "",
+  video_url: "",
   rate_hourly: "",
   ad_package: "none",
 };
@@ -273,6 +274,7 @@ export default function ProviderDashboard() {
       review_provider: normalizeOptionalString(formData.review_provider),
       review_username: normalizeOptionalString(formData.review_username),
       review_url: normalizeOptionalUrl(formData.review_url),
+      video_url: normalizeOptionalUrl(formData.video_url),
       rate_hourly: normalizeOptionalNumber(formData.rate_hourly),
     };
 
@@ -520,6 +522,46 @@ export default function ProviderDashboard() {
             </div>
           </TabsContent>
 
+          {/* Advertiser tools — affiliate section with payment processing + hosting */}
+          <Card className="bg-zinc-900 border-zinc-800 mb-6">
+            <CardHeader>
+              <CardTitle className="text-zinc-100 text-base">Tools &amp; services for your business</CardTitle>
+              <CardDescription className="text-zinc-400">Services to help you grow your brand and accept payments.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <a
+                  href="https://stripe.com/referral/AFFILIATE_ID"
+                  target="_blank"
+                  rel="nofollow sponsored"
+                  className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-800"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-100">Accept card payments</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Stripe — fast setup, global reach</p>
+                  </div>
+                </a>
+                <a
+                  href="https://www.knownhost.com/aff.php?aff=AFFILIATE_ID"
+                  target="_blank"
+                  rel="nofollow sponsored"
+                  className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-800"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-100">Host your own site</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">KnownHost — adult-friendly, fast, reliable</p>
+                  </div>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+
           <TabsContent value="profile">
             <Card className="bg-zinc-900 border-zinc-800">
               <CardHeader>
@@ -590,6 +632,10 @@ export default function ProviderDashboard() {
 
                 <div className="grid md:grid-cols-1 gap-6">
                   <Field label="Hourly rate"><Input type="number" value={formData.rate_hourly} onChange={(e) => handleChange("rate_hourly", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" min={0} /></Field>
+                </div>
+
+                <div className="grid md:grid-cols-1 gap-6">
+                  <Field label="Video URL (YouTube, Vimeo, etc.)"><Input value={formData.video_url || ""} onChange={(e) => handleChange("video_url", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="https://www.youtube.com/watch?v=..." /></Field>
                 </div>
 
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">

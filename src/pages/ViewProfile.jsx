@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2 } from "lucide-react";
+import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -141,6 +141,25 @@ export default function ViewProfile() {
             </div>
           )}
         </div>
+
+        {/* Video Embed */}
+        {provider.video_url && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Video className="w-5 h-5 text-rose-400" />
+              <h2 className="text-xl font-semibold text-zinc-100">Video</h2>
+            </div>
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-zinc-900">
+              <iframe
+                src={getVideoEmbedUrl(provider.video_url)}
+                title="Provider video"
+                className="absolute inset-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -498,4 +517,18 @@ export default function ViewProfile() {
       </div>
     </div>
   );
+}
+
+function getVideoEmbedUrl(url) {
+  if (!url) return "";
+  // YouTube
+  const ytMatch = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  if (ytMatch) return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0`;
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  // Direct link or unknown — return as-is, the iframe will try it
+  return url;
 }
