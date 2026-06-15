@@ -463,6 +463,7 @@ const server = http.createServer(async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Unhandled route error:", error);
     captureBackendException(error, {
       pathname: request.pathname,
       method: request.method,
