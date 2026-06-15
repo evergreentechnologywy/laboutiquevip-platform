@@ -31,3 +31,4 @@ dist-ssr
 
 .env
 test-results/
+test-roles.sh

@@ -1,7 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
-import { authFromHeaders } from "./auth.js";
+import { authFromHeaders, authFromClerkJwt } from "./auth.js";
 import { getPrismaClient } from "./db/prisma.js";
 import { getLocalUploadPathFromRequestPath, shouldServeLocalUploads } from "./storage/uploads.js";
 import path from "node:path";
@@ -445,6 +445,15 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const auditLogger = new ImmutableAuditLogger(prisma);
+
+    // Enrich auth with Clerk JWT if legacy auth returned no userId
+    if (!request.auth?.userId) {
+      const clerkAuth = await authFromClerkJwt(request.headers);
+      if (clerkAuth) {
+        request.auth = clerkAuth;
+      }
+    }
+
     const response = await routeRequest(request, { prisma, auditLogger });
     return sendResponse(res, {
       ...response,

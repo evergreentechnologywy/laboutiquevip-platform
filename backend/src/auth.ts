@@ -1,8 +1,10 @@
 import jwt from "jsonwebtoken";
+import { verifyToken as clerkVerifyToken } from "@clerk/backend";
 import type { ApiRequest, AuthContext, Role } from "./types.js";
 import { allowHeaderAuthTrust } from "./config/security.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
 const ALLOWED_ROLES = new Set<Role>(["admin", "provider", "member", "service"]);
 
 type TokenClaims = {
@@ -20,11 +22,30 @@ function parseRoles(raw: string | undefined): Role[] {
     .filter((role): role is Role => ALLOWED_ROLES.has(role as Role));
 }
 
-function getBearerToken(headers: ApiRequest["headers"]): string | null {
+export function getBearerToken(headers: ApiRequest["headers"]): string | null {
   const authorization = headers.authorization;
   const value = Array.isArray(authorization) ? authorization[0] : authorization;
   if (!value?.startsWith("Bearer ")) return null;
   return value.slice(7);
+}
+
+/**
+ * Try to verify as a Clerk JWT when the legacy JWT auth fails.
+ * Returns auth context on success, null otherwise.
+ */
+export async function authFromClerkJwt(headers: ApiRequest["headers"]): Promise<AuthContext | null> {
+  if (!CLERK_SECRET_KEY) return null;
+  const token = getBearerToken(headers);
+  if (!token) return null;
+  try {
+    const verified = await clerkVerifyToken(token, { secretKey: CLERK_SECRET_KEY });
+    const sub = (verified as any).sub;
+    if (typeof sub !== "string") return null;
+    const role = ((verified as any).publicMetadata?.role as Role) || "member";
+    return { userId: sub, roles: [role] };
+  } catch {
+    return null;
+  }
 }
 
 function authFromBearerToken(headers: ApiRequest["headers"]): AuthContext | null {
