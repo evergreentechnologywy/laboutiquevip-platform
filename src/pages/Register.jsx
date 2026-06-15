@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { SignUp } from '@clerk/clerk-react';
+import { SignUp } from '@clerk/react';
 import { Crown, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { SEO } from '@/components/SEO';

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/react';
 
 const AuthContext = createContext();
 
