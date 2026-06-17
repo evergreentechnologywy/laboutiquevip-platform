@@ -53,7 +53,7 @@ export default function Home() {
         sort: "rating",
       });
       return (data.items || [])
-        .map((provider) => ({ ...provider, photos: getProfilePhotos(provider.photos) }))
+        .map((provider) => ({ ...provider, photos: getProfilePhotos(provider.photos, provider) }))
         .filter((provider) => provider.photos.length > 0);
     },
     staleTime: 60_000,
@@ -164,7 +164,8 @@ export default function Home() {
                     <ProfileImage
                       src={provider.photos?.[0]}
                       alt={provider.display_name}
-                      className="h-full w-full transition duration-500 group-hover:scale-105"
+                      className="h-full w-full transition duration-500 group-hover:scale-[1.03]"
+                      objectPosition="center 18%"
                     />
                   </div>
 

@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
+import { getProfilePhotos } from "@/lib/profilePhotos";
 import { SEO } from "@/components/SEO";
 
 export default function ViewProfile() {
@@ -53,6 +54,14 @@ export default function ViewProfile() {
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
+  const galleryPhotos = React.useMemo(
+    () => getProfilePhotos(provider?.photos, provider),
+    [provider],
+  );
+
+  React.useEffect(() => {
+    setSelectedPhoto(0);
+  }, [provider?.id, galleryPhotos.length]);
 
   const handleMessageSubmit = async (e) => {
     e.preventDefault();
@@ -75,15 +84,15 @@ export default function ViewProfile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 p-8">
-        <div className="max-w-6xl mx-auto">
-          <Skeleton className="h-96 w-full rounded-2xl mb-8" />
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="md:col-span-2 space-y-6">
+      <div className="min-h-screen bg-stone-50 p-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-10 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)]">
+            <Skeleton className="aspect-[4/5] w-full rounded-[28px]" />
+            <div className="space-y-6">
+              <Skeleton className="h-16 w-2/3" />
               <Skeleton className="h-40" />
               <Skeleton className="h-60" />
             </div>
-            <Skeleton className="h-80" />
           </div>
         </div>
       </div>
@@ -92,10 +101,10 @@ export default function ViewProfile() {
 
   if (!provider) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-zinc-300 mb-2">Profile not found</h2>
-          <p className="text-zinc-500">This provider profile doesn't exist or has been removed.</p>
+          <h2 className="text-2xl font-semibold text-stone-900 mb-2">Profile not found</h2>
+          <p className="text-stone-500">This provider profile doesn't exist or has been removed.</p>
         </div>
       </div>
     );
@@ -105,105 +114,113 @@ export default function ViewProfile() {
   const maskedEmail = provider.email ? provider.email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-stone-50 text-stone-900">
       <SEO
         title={`${provider.display_name} | ${provider.location_city} | La Boutique VIP`}
         description={provider.tagline || `View profile of ${provider.display_name} in ${provider.location_city}`}
         ogTitle={`${provider.display_name} | La Boutique VIP`}
         ogDescription={provider.tagline}
-        ogImage={provider.photos?.[0]}
+        ogImage={galleryPhotos[0]}
         noindex={true}
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Photo Gallery */}
-        <div className="mb-8">
-          <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-900 mb-4">
-            <ProfileImage
-              src={provider.photos?.[selectedPhoto]}
-              alt={provider.display_name}
-              className="w-full h-full"
-            />
-          </div>
-          
-          {provider.photos && provider.photos.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto">
-              {provider.photos.map((photo, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedPhoto(index)}
-                  className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedPhoto === index ? 'border-rose-500' : 'border-zinc-800 hover:border-zinc-600'
-                  }`}
-                >
-                  <ProfileImage src={photo} alt="" className="w-full h-full" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Video Embed */}
-        {provider.video_url && (
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Video className="w-5 h-5 text-rose-400" />
-              <h2 className="text-xl font-semibold text-zinc-100">Video</h2>
-            </div>
-            <div className="relative aspect-video rounded-2xl overflow-hidden bg-zinc-900">
-              <iframe
-                src={getVideoEmbedUrl(provider.video_url)}
-                title="Provider video"
-                className="absolute inset-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Header */}
-            <div>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-4xl font-bold text-zinc-100">{provider.display_name}</h1>
-                    {provider.is_verified && (
-                      <Badge className="bg-rose-500/20 border-rose-500 text-rose-400">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
-                    {provider.is_premium && (
-                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0">
-                        <Crown className="w-3 h-3 mr-1" />
-                        Premium
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xl text-zinc-400 mb-2">{provider.tagline}</p>
-                  <div className="flex items-center gap-4 text-zinc-500">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>{provider.location_city}, {provider.location_state}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>{ratingMeta.value} · {ratingMeta.detail}</span>
-                    </div>
-                  </div>
-                </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+        <div className="grid gap-10 lg:grid-cols-[minmax(300px,420px)_minmax(0,1fr)] lg:items-start">
+          {/* Photo-first gallery column */}
+          <aside className="space-y-4 lg:sticky lg:top-24">
+            <div className="overflow-hidden rounded-[28px] border border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)]">
+              <div className="relative aspect-[4/5]">
+                <ProfileImage
+                  src={galleryPhotos[selectedPhoto]}
+                  alt={provider.display_name}
+                  className="h-full w-full"
+                  priority
+                  objectPosition="center 12%"
+                />
               </div>
             </div>
 
-            <Card className="bg-amber-500/5 border-amber-500/20">
-              <CardContent className="pt-6 text-sm text-zinc-300">
+            {galleryPhotos.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {galleryPhotos.map((photo, index) => (
+                  <button
+                    key={`${photo}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedPhoto(index)}
+                    className={`flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all ${
+                      selectedPhoto === index
+                        ? "border-stone-900 ring-2 ring-stone-200"
+                        : "border-stone-200 hover:border-stone-400"
+                    }`}
+                  >
+                    <ProfileImage
+                      src={photo}
+                      alt={`${provider.display_name} photo ${index + 1}`}
+                      className="h-24 w-24 sm:h-28 sm:w-28"
+                      objectPosition="center 15%"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {provider.video_url && (
+              <div className="rounded-[28px] border border-stone-200 bg-white p-4 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)]">
+                <div className="mb-3 flex items-center gap-2">
+                  <Video className="h-5 w-5 text-stone-600" />
+                  <h2 className="text-lg font-semibold text-stone-900">Video</h2>
+                </div>
+                <div className="relative aspect-video overflow-hidden rounded-2xl bg-stone-100">
+                  <iframe
+                    src={getVideoEmbedUrl(provider.video_url)}
+                    title="Provider video"
+                    className="absolute inset-0 h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Profile content */}
+          <div className="space-y-8">
+            <header className="rounded-[28px] border border-stone-200 bg-white p-6 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)] sm:p-8">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">{provider.display_name}</h1>
+                {provider.is_verified && (
+                  <Badge className="rounded-full border border-stone-200 bg-stone-100 text-stone-700 shadow-none">
+                    <Shield className="mr-1 h-3 w-3" />
+                    Verified
+                  </Badge>
+                )}
+                {provider.is_premium && (
+                  <Badge className="rounded-full border-0 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-none">
+                    <Crown className="mr-1 h-3 w-3" />
+                    Premium
+                  </Badge>
+                )}
+              </div>
+              {provider.tagline ? <p className="mt-3 text-lg text-stone-600">{provider.tagline}</p> : null}
+              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-stone-500">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4" />
+                  <span>{provider.location_city}, {provider.location_state}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <span>{ratingMeta.value} · {ratingMeta.detail}</span>
+                </div>
+              </div>
+            </header>
+
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="space-y-6">
+            <Card className="border-amber-200/80 bg-amber-50/70 shadow-none">
+              <CardContent className="pt-6 text-sm text-stone-700">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
                   <div>
-                    <p className="font-medium text-amber-100 mb-1">Verified Profile</p>
+                    <p className="mb-1 font-medium text-stone-900">Verified Profile</p>
                     <p className="leading-6">
                       Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval.
                     </p>
@@ -213,44 +230,44 @@ export default function ViewProfile() {
             </Card>
 
             {/* About */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
               <CardHeader>
-                <CardTitle className="text-zinc-100">About Me</CardTitle>
+                <CardTitle className="text-stone-900">About Me</CardTitle>
               </CardHeader>
-              <CardContent className="text-zinc-400">
+              <CardContent className="text-stone-600">
                 <p className="whitespace-pre-wrap">{provider.bio || 'No bio available.'}</p>
               </CardContent>
             </Card>
 
             {/* Details */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
               <CardHeader>
-                <CardTitle className="text-zinc-100">Details</CardTitle>
+                <CardTitle className="text-stone-900">Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid sm:grid-cols-2 gap-4 text-sm">
                   {provider.age && (
                     <div>
-                      <span className="text-zinc-500">Age:</span>
-                      <span className="ml-2 text-zinc-300">{provider.age}</span>
+                      <span className="text-stone-500">Age:</span>
+                      <span className="ml-2 text-stone-800">{provider.age}</span>
                     </div>
                   )}
                   {provider.ethnicity && (
                     <div>
-                      <span className="text-zinc-500">Ethnicity:</span>
-                      <span className="ml-2 text-zinc-300">{provider.ethnicity}</span>
+                      <span className="text-stone-500">Ethnicity:</span>
+                      <span className="ml-2 text-stone-800">{provider.ethnicity}</span>
                     </div>
                   )}
                   {provider.height && (
                     <div>
-                      <span className="text-zinc-500">Height:</span>
-                      <span className="ml-2 text-zinc-300">{provider.height}</span>
+                      <span className="text-stone-500">Height:</span>
+                      <span className="ml-2 text-stone-800">{provider.height}</span>
                     </div>
                   )}
                   {provider.body_type && (
                     <div>
-                      <span className="text-zinc-500">Body Type:</span>
-                      <span className="ml-2 text-zinc-300">{provider.body_type}</span>
+                      <span className="text-stone-500">Body Type:</span>
+                      <span className="ml-2 text-stone-800">{provider.body_type}</span>
                     </div>
                   )}
                 </div>
@@ -259,14 +276,14 @@ export default function ViewProfile() {
 
             {/* Services */}
             {provider.services_offered && provider.services_offered.length > 0 && (
-              <Card className="bg-zinc-900 border-zinc-800">
+              <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
                 <CardHeader>
-                  <CardTitle className="text-zinc-100">Services</CardTitle>
+                  <CardTitle className="text-stone-900">Services</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {provider.services_offered.map((service, index) => (
-                      <Badge key={index} variant="outline" className="border-zinc-700 text-zinc-300">
+                      <Badge key={index} variant="outline" className="rounded-full border-stone-300 text-stone-700">
                         <Check className="w-3 h-3 mr-1" />
                         {service}
                       </Badge>
@@ -277,36 +294,36 @@ export default function ViewProfile() {
             )}
 
             {/* Reviews */}
-              <Card className="bg-zinc-900 border-zinc-800">
+              <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
                 <CardHeader>
-                  <CardTitle className="text-zinc-100">Reviews ({reviews.length})</CardTitle>
+                  <CardTitle className="text-stone-900">Reviews ({reviews.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {reviews.length === 0 ? (
-                  <div className="py-8 text-center text-zinc-500">
+                  <div className="py-8 text-center text-stone-500">
                     <p>Be the first to leave a review. Reviews appear after moderation.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-zinc-800 last:border-0 pb-4 last:pb-0">
+                      <div key={review.id} className="border-b border-stone-200 last:border-0 pb-4 last:pb-0">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="flex">
                             {[...Array(5)].map((_, i) => (
                               <Star
                                 key={i}
                                 className={`w-4 h-4 ${
-                                  i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'
+                                  i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'
                                 }`}
                               />
                             ))}
                           </div>
-                          <span className="text-sm font-medium text-zinc-300">{review.reviewer_name}</span>
-                          <span className="text-xs text-zinc-500">
+                          <span className="text-sm font-medium text-stone-800">{review.reviewer_name}</span>
+                          <span className="text-xs text-stone-500">
                             {format(new Date(review.created_date), 'MMM d, yyyy')}
                           </span>
                         </div>
-                        <p className="text-zinc-400 text-sm">{review.comment}</p>
+                        <p className="text-stone-600 text-sm">{review.comment}</p>
                       </div>
                     ))}
                   </div>
@@ -317,66 +334,64 @@ export default function ViewProfile() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Rates */}
-            <Card className="bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-zinc-800">
+            <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
               <CardHeader>
-                <CardTitle className="text-zinc-100">Rates</CardTitle>
+                <CardTitle className="text-stone-900">Rates</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {provider.rate_hourly && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-400">1 Hour</span>
-                    <span className="text-2xl font-bold text-rose-400">${provider.rate_hourly}</span>
+                    <span className="text-stone-500">1 Hour</span>
+                    <span className="text-2xl font-semibold text-stone-900">${provider.rate_hourly}</span>
                   </div>
                 )}
                 {provider.rate_two_hours && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-400">2 Hours</span>
-                    <span className="text-2xl font-bold text-rose-400">${provider.rate_two_hours}</span>
+                    <span className="text-stone-500">2 Hours</span>
+                    <span className="text-2xl font-semibold text-stone-900">${provider.rate_two_hours}</span>
                   </div>
                 )}
                 {provider.rate_overnight && (
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-400">Overnight</span>
-                    <span className="text-2xl font-bold text-rose-400">${provider.rate_overnight}</span>
+                    <span className="text-stone-500">Overnight</span>
+                    <span className="text-2xl font-semibold text-stone-900">${provider.rate_overnight}</span>
                   </div>
                 )}
                 
-                <Separator className="bg-zinc-800" />
+                <Separator className="bg-stone-200" />
                 
-                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400">
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
                   This profile is published for advertising visibility. Contact details shown below are the only on-page contact route.
                 </div>
               </CardContent>
             </Card>
 
-            {/* Contact Form */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
               <CardHeader>
-                <CardTitle className="text-zinc-100">Send an enquiry</CardTitle>
+                <CardTitle className="text-stone-900">Send an enquiry</CardTitle>
               </CardHeader>
               <CardContent>
                 {sent ? (
-                  <div className="py-6 text-center text-green-400">
+                  <div className="py-6 text-center text-emerald-600">
                     <CheckCircle2 className="h-8 w-8 mx-auto mb-3" />
                     <p className="font-medium">Message sent successfully</p>
-                    <p className="text-xs text-zinc-500 mt-1">The provider has been notified.</p>
+                    <p className="text-xs text-stone-500 mt-1">The provider has been notified.</p>
                   </div>
                 ) : (
                   <form onSubmit={handleMessageSubmit} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sender-name" className="text-xs text-zinc-400">Your Name</Label>
+                      <Label htmlFor="sender-name" className="text-xs text-stone-500">Your Name</Label>
                       <Input 
                         id="sender-name" 
                         value={messageForm.name} 
                         onChange={e => setMessageForm({...messageForm, name: e.target.value})}
                         placeholder="Name" 
                         required 
-                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                        className="h-10 rounded-2xl border-stone-200 bg-stone-50 text-sm text-stone-900" 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sender-email" className="text-xs text-zinc-400">Email Address</Label>
+                      <Label htmlFor="sender-email" className="text-xs text-stone-500">Email Address</Label>
                       <Input 
                         id="sender-email" 
                         type="email" 
@@ -384,11 +399,11 @@ export default function ViewProfile() {
                         onChange={e => setMessageForm({...messageForm, email: e.target.value})}
                         placeholder="email@example.com" 
                         required 
-                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                        className="h-10 rounded-2xl border-stone-200 bg-stone-50 text-sm text-stone-900" 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="sender-msg" className="text-xs text-zinc-400">Message</Label>
+                      <Label htmlFor="sender-msg" className="text-xs text-stone-500">Message</Label>
                       <Textarea 
                         id="sender-msg" 
                         value={messageForm.message} 
@@ -396,17 +411,17 @@ export default function ViewProfile() {
                         placeholder="Inquire about availability or services..." 
                         required 
                         rows={4}
-                        className="bg-zinc-800 border-zinc-700 text-sm" 
+                        className="rounded-2xl border-stone-200 bg-stone-50 text-sm text-stone-900" 
                       />
                     </div>
                     <Button 
                       type="submit" 
                       disabled={sending}
-                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-10 text-sm font-semibold rounded-xl"
+                      className="h-10 w-full rounded-2xl bg-stone-900 text-sm font-semibold text-stone-50 hover:bg-stone-800"
                     >
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-2" /> Send Message</>}
                     </Button>
-                    <p className="text-[10px] text-zinc-500 text-center leading-4">
+                    <p className="text-center text-[10px] leading-4 text-stone-500">
                       Enquiries are stored securely and sent directly to the provider. 
                     </p>
                   </form>
@@ -414,28 +429,27 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact Details */}
-            <Card className="bg-zinc-900 border-zinc-800">
+            <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
               <CardHeader>
-                <CardTitle className="text-zinc-100">Contact Details</CardTitle>
+                <CardTitle className="text-stone-900">Contact Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {provider.phone && (
-                  <div className="flex items-center gap-2 text-zinc-400">
+                  <div className="flex items-center gap-2 text-stone-600">
                     <Phone className="w-4 h-4" />
                     <span className="text-sm">{maskedPhone} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.email && (
-                  <div className="flex items-center gap-2 text-zinc-400">
+                  <div className="flex items-center gap-2 text-stone-600">
                     <Mail className="w-4 h-4" />
                     <span className="text-sm">{maskedEmail} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.website && (
-                  <div className="flex items-center gap-2 text-zinc-400">
+                  <div className="flex items-center gap-2 text-stone-600">
                     <Globe className="w-4 h-4" />
-                    <a href={provider.website} target="_blank" rel="noopener noreferrer" className="text-sm hover:text-rose-400 transition-colors">
+                    <a href={provider.website} target="_blank" rel="noopener noreferrer" className="text-sm transition-colors hover:text-stone-900">
                       Website
                     </a>
                   </div>
@@ -444,36 +458,36 @@ export default function ViewProfile() {
             </Card>
 
             {(provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
-              <Card className="bg-zinc-900 border-zinc-800">
+              <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
                 <CardHeader>
-                  <CardTitle className="text-zinc-100">External trust references</CardTitle>
+                  <CardTitle className="text-stone-900">External trust references</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   {(provider.verification_provider || provider.verification_username || provider.verification_url) && (
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
-                      <p className="font-medium text-zinc-100">Verification account</p>
-                      <p className="mt-1 text-zinc-400">{provider.verification_provider || "External provider"}</p>
-                      {provider.verification_username && <p className="mt-2 text-zinc-300">@{String(provider.verification_username).replace(/^@/, "")}</p>}
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <p className="font-medium text-stone-900">Verification account</p>
+                      <p className="mt-1 text-stone-600">{provider.verification_provider || "External provider"}</p>
+                      {provider.verification_username && <p className="mt-2 text-stone-800">@{String(provider.verification_username).replace(/^@/, "")}</p>}
                       {provider.verification_url && (
-                        <a href={provider.verification_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                        <a href={provider.verification_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-stone-700 transition-colors hover:text-stone-900">
                           View external account
                         </a>
                       )}
                     </div>
                   )}
                   {(provider.review_provider || provider.review_username || provider.review_url) && (
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
-                      <p className="font-medium text-zinc-100">Review account</p>
-                      <p className="mt-1 text-zinc-400">{provider.review_provider || "External provider"}</p>
-                      {provider.review_username && <p className="mt-2 text-zinc-300">@{String(provider.review_username).replace(/^@/, "")}</p>}
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <p className="font-medium text-stone-900">Review account</p>
+                      <p className="mt-1 text-stone-600">{provider.review_provider || "External provider"}</p>
+                      {provider.review_username && <p className="mt-2 text-stone-800">@{String(provider.review_username).replace(/^@/, "")}</p>}
                       {provider.review_url && (
-                        <a href={provider.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                        <a href={provider.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-stone-700 transition-colors hover:text-stone-900">
                           View external account
                         </a>
                       )}
                     </div>
                   )}
-                  <p className="text-xs leading-6 text-zinc-500">
+                  <p className="text-xs leading-6 text-stone-500">
                     These links point to third-party services and are displayed for reference only. Availability, verification status, and review publication on those services are handled externally.
                   </p>
                 </CardContent>
@@ -482,9 +496,9 @@ export default function ViewProfile() {
 
             {/* Social Media */}
             {(provider.social_media?.instagram || provider.social_media?.twitter) && (
-              <Card className="bg-zinc-900 border-zinc-800">
+              <Card className="border-stone-200 bg-white shadow-[0_24px_80px_-36px_rgba(28,25,23,0.12)]">
                 <CardHeader>
-                  <CardTitle className="text-zinc-100">Social Media</CardTitle>
+                  <CardTitle className="text-stone-900">Social Media</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {provider.social_media.instagram && (
@@ -492,7 +506,7 @@ export default function ViewProfile() {
                       href={`https://instagram.com/${provider.social_media.instagram}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
+                      className="flex items-center gap-2 text-stone-600 transition-colors hover:text-stone-900"
                     >
                       <Instagram className="w-4 h-4" />
                       <span className="text-sm">@{provider.social_media.instagram}</span>
@@ -503,7 +517,7 @@ export default function ViewProfile() {
                       href={`https://twitter.com/${provider.social_media.twitter}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
+                      className="flex items-center gap-2 text-stone-600 transition-colors hover:text-stone-900"
                     >
                       <Twitter className="w-4 h-4" />
                       <span className="text-sm">@{provider.social_media.twitter}</span>
@@ -512,6 +526,8 @@ export default function ViewProfile() {
                 </CardContent>
               </Card>
             )}
+          </div>
+        </div>
           </div>
         </div>
       </div>

@@ -1,22 +1,123 @@
+const JUNK_SUBSTRINGS = [
+  "/api/r2-photo/",
+  "theeroticreview.com/library/",
+  "coop.theeroticreview.com/hit.php",
+  "eros-logo",
+  "loader.php",
+];
+
+const ALLOWED_HOST_PATTERNS = [
+  /ultragfe\.com\/images/i,
+  /photos\.skipsweb\.com/i,
+  /imagedelivery\.net/i,
+  /i\.eros\.com/i,
+];
+
 export function isValidProfilePhoto(url) {
   const value = String(url || "").trim();
   if (!value) return false;
   const lower = value.toLowerCase();
-  if (lower.includes("/api/r2-photo/")) return false;
-  if (lower.includes("theeroticreview.com/library/")) return false;
-  if (lower.includes("coop.theeroticreview.com/hit.php")) return false;
-  if (lower.includes("eros-logo")) return false;
+  if (JUNK_SUBSTRINGS.some((part) => lower.includes(part))) return false;
   if (lower.endsWith("lamp.png")) return false;
-  if (lower.includes("loader.php")) return false;
   if (lower.includes(".js")) return false;
   if (lower.includes(".html")) return false;
   return (
     /\.(jpg|jpeg|png|webp|avif|gif)(\?|$)/i.test(lower) ||
-    /ultragfe\.com\/images|photos\.skipsweb\.com|imagedelivery\.net|i\.eros\.com/.test(lower)
+    ALLOWED_HOST_PATTERNS.some((pattern) => pattern.test(lower))
   );
 }
 
-export function getProfilePhotos(photos) {
+function normalizeToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function extractNameTokens(displayName) {
+  return String(displayName || "")
+    .toLowerCase()
+    .split(/[\s,._-]+/)
+    .map(normalizeToken)
+    .filter((token) => token.length >= 3);
+}
+
+function extractVerificationSlugTokens(verificationUrl) {
+  const match = String(verificationUrl || "").match(/\/provider\/\d+-(.+)\.html/i);
+  if (!match) return [];
+  return match[1]
+    .split(/[-_]+/)
+    .map(normalizeToken)
+    .filter((token) => token.length >= 3);
+}
+
+function extractPhoneFromPhotoUrl(url) {
+  const match = String(url).match(/-(\d{10})-\d+\.[a-z0-9]+$/i);
+  return match ? match[1] : null;
+}
+
+function dedupeUrls(urls) {
+  const seen = new Set();
+  return urls.filter((url) => {
+    const key = String(url).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Ensures a photo URL belongs to the provider (phone + source slug + display name).
+ */
+export function photoMatchesProvider(url, provider) {
+  if (!isValidProfilePhoto(url)) return false;
+
+  const lower = String(url).toLowerCase();
+  const filename = lower.split("/").pop() || lower;
+  const pathBlob = lower.replace(/^https?:\/\/[^/]+\//, "").replace(/[^a-z0-9]/g, " ");
+
+  const providerPhone = String(provider?.phone || "").replace(/\D/g, "");
+  const urlPhone = extractPhoneFromPhotoUrl(url);
+
+  if (providerPhone && urlPhone) {
+    return urlPhone === providerPhone;
+  }
+
+  if (providerPhone && urlPhone && urlPhone !== providerPhone) {
+    return false;
+  }
+
+  const nameTokens = extractNameTokens(provider?.display_name);
+  const slugTokens = extractVerificationSlugTokens(provider?.verification_url);
+  const identityTokens = [...new Set([...slugTokens, ...nameTokens])];
+
+  if (identityTokens.length === 0) {
+    return !/^[a-f0-9]{16,}\.[a-z0-9]+$/i.test(filename);
+  }
+
+  const slugHits = slugTokens.filter((token) => pathBlob.includes(token)).length;
+  if (slugTokens.length > 0 && slugHits >= Math.min(2, slugTokens.length)) {
+    return true;
+  }
+
+  const nameHits = nameTokens.filter((token) => pathBlob.includes(token)).length;
+  if (nameTokens.length >= 2 && nameHits >= 2) return true;
+  if (nameTokens.length === 1 && nameHits >= 1) return true;
+
+  if (/^[a-f0-9]{16,}\.[a-z0-9]+$/i.test(filename)) {
+    return false;
+  }
+
+  return false;
+}
+
+export function getProfilePhotos(photos, provider) {
   if (!Array.isArray(photos)) return [];
-  return photos.filter(isValidProfilePhoto);
+  const valid = photos.filter(isValidProfilePhoto);
+  if (!provider) return dedupeUrls(valid);
+  return dedupeUrls(valid.filter((url) => photoMatchesProvider(url, provider)));
+}
+
+export function getPrimaryProfilePhoto(provider) {
+  const photos = getProfilePhotos(provider?.photos, provider);
+  return photos[0] || null;
 }

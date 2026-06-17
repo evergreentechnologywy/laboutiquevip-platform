@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
+import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { SEO } from "@/components/SEO";
 import { CityAutocomplete, NameAutocomplete } from "@/components/CityAutocomplete";
 
@@ -474,15 +475,17 @@ function StatCard({ label, value, helper }) {
 
 function ProviderCard({ provider }) {
   const ratingMeta = getProviderRatingMeta(provider);
+  const primaryPhoto = getPrimaryProfilePhoto(provider);
 
   return (
     <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
       <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
         <div className="relative aspect-[4/5] overflow-hidden bg-stone-100">
           <ProfileImage
-            src={provider.photos?.[0]}
+            src={primaryPhoto}
             alt={provider.display_name}
-            className="h-full w-full transition duration-500 group-hover:scale-105"
+            className="h-full w-full transition duration-500 group-hover:scale-[1.03]"
+            objectPosition="center 18%"
           />
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
             {/* Logic for "Just joined" - assuming is_new or based on created_date */}
