@@ -11,6 +11,8 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { getProfilePhotos } from "@/lib/profilePhotos";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
@@ -47,11 +49,12 @@ export default function Home() {
     queryFn: async () => {
       const data = await searchProviders({
         premium: true,
-        verified: true,
         limit: 12,
+        sort: "rating",
       });
-      // Filter out those without photos as per requirement "real photos"
-      return (data.items || []).filter(p => p.photos && p.photos.length > 0);
+      return (data.items || [])
+        .map((provider) => ({ ...provider, photos: getProfilePhotos(provider.photos) }))
+        .filter((provider) => provider.photos.length > 0);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
@@ -62,7 +65,7 @@ export default function Home() {
     const params = new URLSearchParams();
     if (searchQuery) params.append("q", searchQuery);
     if (locationQuery) params.append("location", locationQuery);
-    window.location.href = createPageUrl(`Browse?${params.toString()}`);
+    navigate(createPageUrl(`Browse?${params.toString()}`));
   };
 
   return (
@@ -102,14 +105,12 @@ export default function Home() {
                   />
                 </div>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
-                  <Input
-                    placeholder="City or location"
-                    aria-label="City or location"
+                  <MapPin className="absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                  <CityAutocomplete
                     value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    className="h-14 rounded-2xl border-stone-200 bg-stone-50/80 pl-12 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:ring-stone-300"
+                    onChange={setLocationQuery}
+                    onEnter={handleSearch}
+                    className="h-14 w-full rounded-2xl border border-stone-200 bg-stone-50/80 pl-12 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
                   />
                 </div>
                 <Button

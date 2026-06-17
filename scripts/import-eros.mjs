@@ -1,0 +1,422 @@
+#!/usr/bin/env node
+/**
+ * Eros full importer for laboutiquevip.net
+ *
+ * Uses r.jina.ai mirror pages to avoid direct anti-bot blocking when
+ * crawling eros.com/trans.eros.com/massage.eros.com listing + profile URLs.
+ */
+
+const MAX_PROVIDER_PHOTOS = 32;
+const JINA_PREFIX = "https://r.jina.ai/http://";
+
+const args = new Map(
+  process.argv.slice(2).map((arg) => {
+    const [k, v = "true"] = arg.replace(/^--/, "").split("=");
+    return [k, v];
+  }),
+);
+
+const options = {
+  dryRun: args.has("dry-run"),
+  delayMs: Number(args.get("delay-ms") ?? "600"),
+  maxPages: Number(args.get("max-pages") ?? "800"),
+  maxProfiles: Number(args.get("max-profiles") ?? "0"),
+  startUrl: args.get("start-url") ?? null,
+};
+
+const dynamicImport = new Function("modulePath", "return import(modulePath)");
+
+async function createPrismaClient() {
+  try {
+    const generated = await dynamicImport("../backend/generated/prisma-client/index.js");
+    if (generated?.PrismaClient) return new generated.PrismaClient();
+  } catch {
+    // fallback
+  }
+  const runtime = await dynamicImport("@prisma/client");
+  if (!runtime?.PrismaClient) throw new Error("PrismaClient not available. Run `npm run db:generate`.");
+  return new runtime.PrismaClient();
+}
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+const prisma = hasDatabaseUrl ? await createPrismaClient() : null;
+
+const stats = {
+  pagesFetched: 0,
+  listingPages: 0,
+  profilePages: 0,
+  profileLinksDiscovered: 0,
+  profilesParsed: 0,
+  created: 0,
+  updated: 0,
+  skipped: 0,
+  errors: 0,
+};
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toMirrorUrl(originalUrl) {
+  return `${JINA_PREFIX}${originalUrl.replace(/^https?:\/\//i, "")}`;
+}
+
+function normalizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function cleanText(input) {
+  return String(input ?? "")
+    .replace(/\*\*/g, "")
+    .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+function parseLocationFromTitle(titleLine) {
+  // Examples:
+  // "Bianca, Age:  25, blonde | Female Elite Escort Near You in Miami Florida, FL - Eros.com"
+  const inMatch = titleLine.match(/\bin\s+([A-Za-z\s'.-]+?)\s+([A-Za-z]{2})(?:\s|-|$)/i);
+  if (!inMatch) return { city: null, state: null };
+  return {
+    city: cleanText(inMatch[1]),
+    state: cleanText(inMatch[2]).toUpperCase(),
+  };
+}
+
+async function fetchMirrorText(url, timeoutMs = 30000, attempts = 5) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(toMirrorUrl(url), {
+        method: "GET",
+        signal: controller.signal,
+        headers: {
+          "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-eros-full-import/1.0)",
+        },
+      });
+
+      if (response.status === 429) {
+        const raw = await response.text();
+        let waitMs = 9000;
+        try {
+          const parsed = JSON.parse(raw);
+          const retrySec = Number(parsed?.retryAfter ?? 8);
+          if (Number.isFinite(retrySec) && retrySec > 0) waitMs = retrySec * 1000 + 500;
+        } catch {
+          // keep default wait
+        }
+        await sleep(waitMs);
+        continue;
+      }
+
+      if (!response.ok) return null;
+      return await response.text();
+    } catch {
+      // retry
+      await sleep(1200 * attempt);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
+function extractAllLinks(markdown) {
+  const links = [];
+
+  for (const m of markdown.matchAll(/\((https?:\/\/[^)\s]+)\)/gi)) {
+    links.push(m[1]);
+  }
+  for (const m of markdown.matchAll(/\bhttps?:\/\/[^\s)]+/gi)) {
+    links.push(m[0]);
+  }
+
+  return unique(
+    links
+      .map((x) => x.replace(/[),.;]+$/, ""))
+      .map((x) => normalizeUrl(x))
+      .filter(Boolean),
+  );
+}
+
+function isErosDomain(url) {
+  return /^https?:\/\/(?:www|trans|massage)\.eros\.com\//i.test(url);
+}
+
+function isProfileUrl(url) {
+  return /\/files\/\d+\.htm(?:\?|$)/i.test(url) && isErosDomain(url);
+}
+
+function isListingLikeUrl(url) {
+  return (
+    isErosDomain(url) &&
+    !isProfileUrl(url) &&
+    !/\/(privacy|terms|about|contact|disclaimer|report)/i.test(url)
+  );
+}
+
+function parseProfile(markdown, sourceUrl) {
+  const lines = markdown.split(/\r?\n/).map((line) => line.trim());
+  const titleLine =
+    lines.find((line) => /^#\s+.+Eros\.com/i.test(line))?.replace(/^#\s+/, "") ??
+    lines.find((line) => /Eros\.com/i.test(line)) ??
+    "";
+
+  let displayName =
+    lines.find((line) => /^#\s+/.test(line) && !/Eros\.com/i.test(line))?.replace(/^#\s+/, "") ??
+    lines.find((line) => /^####\s+/.test(line))?.replace(/^####\s+/, "") ??
+    null;
+
+  if (displayName) {
+    displayName = cleanText(displayName.replace(/^VIP\s+/i, ""));
+  }
+
+  const tagline =
+    lines.find((line) => /^###\s+/.test(line))?.replace(/^###\s+/, "").trim() ?? null;
+
+  const phoneRaw =
+    markdown.match(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/)?.[0] ?? null;
+  const phone = normalizePhone(phoneRaw);
+
+  const email = markdown.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() ?? null;
+
+  const cityStateLine =
+    lines.find((line) => /Escort in|Trans in|Massage in/i.test(line)) ?? "";
+  const cityFromLine = cityStateLine.match(/\b(?:Escort|Trans|Massage)\s+in\s+([A-Za-z\s'.-]+)/i)?.[1] ?? null;
+
+  const fromTitle = parseLocationFromTitle(titleLine);
+
+  const location_city = cleanText(cityFromLine ?? fromTitle.city ?? "") || null;
+  const location_state = fromTitle.state ?? null;
+
+  const ageRaw = markdown.match(/\bAge[:\s]+(\d{2})\b/i)?.[1] ?? markdown.match(/\nAge\s*\n\s*(\d{2})\b/i)?.[1];
+  const ageNum = ageRaw ? Number(ageRaw) : null;
+  const age = ageNum && ageNum >= 18 && ageNum <= 99 ? ageNum : null;
+
+  const imageCandidates = unique(
+    [...markdown.matchAll(/https?:\/\/i\.eros\.com\/[^\s)]+/gi)].map((m) => m[0]),
+  );
+  const photos = imageCandidates.slice(0, MAX_PROVIDER_PHOTOS);
+
+  const details = [];
+  for (const key of ["Ethnicity", "Hair Color", "Eye color", "Availability", "Available to"]) {
+    const rx = new RegExp(`\\b${key}\\s*\\n\\s*([^\\n]+)`, "i");
+    const val = markdown.match(rx)?.[1];
+    if (val) details.push(cleanText(`${key}: ${val}`));
+  }
+
+  const bioParts = [tagline, ...details].filter(Boolean);
+  const bio = bioParts.length ? bioParts.join(" | ") : null;
+
+  return {
+    sourceUrl,
+    display_name: displayName,
+    tagline: tagline ?? null,
+    bio,
+    location_city,
+    location_state,
+    age,
+    phone,
+    email,
+    photos,
+  };
+}
+
+async function findExistingByErosUrl(sourceUrl) {
+  if (!prisma) return null;
+  return prisma.provider.findFirst({
+    where: {
+      verification_provider: "eros",
+      verification_url: sourceUrl,
+    },
+  });
+}
+
+function buildProviderPayload(profile, existing = null) {
+  const mergedPhotos = unique([
+    ...(Array.isArray(existing?.photos) ? existing.photos : []),
+    ...(Array.isArray(profile.photos) ? profile.photos : []),
+  ]).slice(0, MAX_PROVIDER_PHOTOS);
+
+  const existingSocial = existing?.social_media && typeof existing.social_media === "object"
+    ? existing.social_media
+    : {};
+
+  return {
+    display_name: profile.display_name ?? existing?.display_name ?? "Unknown",
+    tagline: profile.tagline ?? existing?.tagline ?? null,
+    bio: profile.bio ?? existing?.bio ?? null,
+    location_city: profile.location_city ?? existing?.location_city ?? null,
+    location_state: profile.location_state ?? existing?.location_state ?? null,
+    age: profile.age ?? existing?.age ?? null,
+    phone: profile.phone ?? existing?.phone ?? null,
+    email: profile.email ?? existing?.email ?? null,
+    photos: mergedPhotos,
+    verification_provider: "eros",
+    verification_url: profile.sourceUrl,
+    social_media: {
+      ...existingSocial,
+      eros_profile: profile.sourceUrl,
+      eros_source: "r.jina.ai",
+    },
+    ad_headline: profile.tagline ?? existing?.ad_headline ?? profile.display_name ?? null,
+    ad_body: profile.bio ?? existing?.ad_body ?? null,
+    status: existing?.status ?? "active",
+    is_verified: existing?.is_verified ?? true,
+    is_profile_approved: existing?.is_profile_approved ?? true,
+  };
+}
+
+async function importProfile(profile) {
+  if (!profile.display_name || (!profile.phone && !profile.email)) {
+    stats.skipped += 1;
+    return;
+  }
+
+  if (!prisma && options.dryRun) {
+    stats.created += 1;
+    return;
+  }
+  if (!prisma) throw new Error("DATABASE_URL is required for live import.");
+
+  const existing = await findExistingByErosUrl(profile.sourceUrl);
+  if (existing) {
+    stats.updated += 1;
+    if (options.dryRun) return;
+    const data = buildProviderPayload(profile, existing);
+    await prisma.provider.update({ where: { id: existing.id }, data });
+    return;
+  }
+
+  stats.created += 1;
+  if (options.dryRun) return;
+  const data = buildProviderPayload(profile, null);
+  await prisma.provider.create({
+    data: {
+      ...data,
+      is_premium: false,
+    },
+  });
+}
+
+async function crawlProfileUrls() {
+  const queue = [];
+  const visited = new Set();
+  const profileUrls = new Set();
+
+  const seeds = options.startUrl
+    ? [options.startUrl]
+    : [
+      "https://www.eros.com/",
+      "https://trans.eros.com/",
+      "https://massage.eros.com/",
+    ];
+
+  for (const seed of seeds) {
+    const normalized = normalizeUrl(seed);
+    if (normalized) queue.push(normalized);
+  }
+
+  while (queue.length > 0 && visited.size < options.maxPages) {
+    const url = queue.shift();
+    if (!url || visited.has(url)) continue;
+    visited.add(url);
+
+    const text = await fetchMirrorText(url);
+    stats.pagesFetched += 1;
+    if (!text) {
+      stats.errors += 1;
+      continue;
+    }
+
+    const links = extractAllLinks(text);
+    for (const link of links) {
+      if (isProfileUrl(link)) {
+        if (!profileUrls.has(link)) {
+          profileUrls.add(link);
+          stats.profileLinksDiscovered += 1;
+        }
+        if (!visited.has(link)) {
+          queue.push(link);
+        }
+        continue;
+      }
+      if (isListingLikeUrl(link) && !visited.has(link)) {
+        queue.push(link);
+      }
+    }
+
+    if (isProfileUrl(url)) {
+      stats.profilePages += 1;
+    } else {
+      stats.listingPages += 1;
+    }
+
+    await sleep(options.delayMs);
+  }
+
+  return [...profileUrls];
+}
+
+async function run() {
+  const startedAt = Date.now();
+  console.log(
+    `[import-eros] start dryRun=${options.dryRun} maxPages=${options.maxPages} maxProfiles=${options.maxProfiles || "ALL"} db=${hasDatabaseUrl ? "on" : "off"}`,
+  );
+
+  if (!prisma && !options.dryRun) throw new Error("DATABASE_URL is required for live import mode.");
+
+  const profileUrls = await crawlProfileUrls();
+  let toProcess = profileUrls;
+  if (options.maxProfiles > 0) toProcess = toProcess.slice(0, options.maxProfiles);
+
+  console.log(`[import-eros] profile URLs discovered: ${profileUrls.length}; processing: ${toProcess.length}`);
+
+  for (const profileUrl of toProcess) {
+    try {
+      const markdown = await fetchMirrorText(profileUrl);
+      if (!markdown) {
+        stats.errors += 1;
+        continue;
+      }
+      stats.profilePages += 1;
+      const profile = parseProfile(markdown, profileUrl);
+      stats.profilesParsed += 1;
+      await importProfile(profile);
+    } catch (err) {
+      stats.errors += 1;
+      console.error(`[import-eros] error ${profileUrl}: ${String(err)}`);
+    }
+    await sleep(options.delayMs);
+  }
+
+  const elapsed = Math.round((Date.now() - startedAt) / 1000);
+  console.log("[import-eros] complete", { ...stats, elapsedSeconds: elapsed });
+}
+
+run()
+  .catch((err) => {
+    console.error("[import-eros] fatal", err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (prisma) await prisma.$disconnect();
+  });

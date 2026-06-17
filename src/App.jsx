@@ -17,6 +17,13 @@ const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : null;
 
+function resolvePageKey(pathname) {
+  const raw = pathname.replace(/^\//, "") || mainPageKey;
+  if (Pages[raw]) return raw;
+  const match = Object.keys(Pages).find((key) => key.toLowerCase() === raw.toLowerCase());
+  return match ?? raw;
+}
+
 setupIframeMessaging();
 
 const FullScreenSpinner = () => (
@@ -46,7 +53,7 @@ const AuthenticatedApp = () => {
     }
   }
 
-  const pathKey = location.pathname.replace(/^\//, '') || mainPageKey;
+  const pathKey = resolvePageKey(location.pathname);
   const currentPageName = Pages[pathKey] ? pathKey : mainPageKey;
 
   return (
@@ -55,7 +62,10 @@ const AuthenticatedApp = () => {
         <Routes>
           <Route path="/" element={MainPage ? <MainPage /> : null} />
           {Object.entries(Pages).map(([path, Page]) => (
-            <Route key={path} path={`/${path}`} element={<Page />} />
+            <React.Fragment key={path}>
+              <Route path={`/${path}`} element={<Page />} />
+              <Route path={`/${path.toLowerCase()}`} element={<Page />} />
+            </React.Fragment>
           ))}
           <Route path="*" element={<PageNotFound />} />
         </Routes>

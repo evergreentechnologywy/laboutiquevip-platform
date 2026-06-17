@@ -42,7 +42,7 @@ export function useCitySuggestions(query, debounceMs = 200) {
 /**
  * Renders a city autocomplete input with dropdown suggestions.
  */
-export function CityAutocomplete({ value, onChange, className = "" }) {
+export function CityAutocomplete({ value, onChange, onEnter, className = "" }) {
   const [inputValue, setInputValue] = React.useState(value || "");
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(-1);
@@ -75,6 +75,16 @@ export function CityAutocomplete({ value, onChange, className = "" }) {
   };
 
   const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      if (isOpen && suggestions.length > 0 && activeIndex >= 0 && activeIndex < suggestions.length) {
+        e.preventDefault();
+        selectCity(suggestions[activeIndex]);
+        return;
+      }
+      onEnter?.();
+      return;
+    }
+
     if (!isOpen || suggestions.length === 0) return;
 
     switch (e.key) {
@@ -85,12 +95,6 @@ export function CityAutocomplete({ value, onChange, className = "" }) {
       case "ArrowUp":
         e.preventDefault();
         setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (activeIndex >= 0 && activeIndex < suggestions.length) {
-          selectCity(suggestions[activeIndex]);
-        }
         break;
       case "Escape":
         setIsOpen(false);

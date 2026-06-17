@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -64,22 +64,75 @@ const ctaCards = [
   },
 ];
 
+function locationMatchesState(location, stateValue) {
+  if (!location || !stateValue) return false;
+  const needle = String(location).trim().toLowerCase();
+  const haystack = String(stateValue).trim().toLowerCase();
+  if (!needle || !haystack) return false;
+  if (needle === haystack) return true;
+  if (haystack.includes(needle) || needle.includes(haystack)) return true;
+
+  const stateMap = {
+    alabama: "al", alaska: "ak", arizona: "az", arkansas: "ar", california: "ca", colorado: "co",
+    connecticut: "ct", delaware: "de", florida: "fl", georgia: "ga", hawaii: "hi", idaho: "id",
+    illinois: "il", indiana: "in", iowa: "ia", kansas: "ks", kentucky: "ky", louisiana: "la",
+    maine: "me", maryland: "md", massachusetts: "ma", michigan: "mi", minnesota: "mn",
+    mississippi: "ms", missouri: "mo", montana: "mt", nebraska: "ne", nevada: "nv",
+    "new hampshire": "nh", "new jersey": "nj", "new mexico": "nm", "new york": "ny",
+    "north carolina": "nc", "north dakota": "nd", ohio: "oh", oklahoma: "ok", oregon: "or",
+    pennsylvania: "pa", "rhode island": "ri", "south carolina": "sc", "south dakota": "sd",
+    tennessee: "tn", texas: "tx", utah: "ut", vermont: "vt", virginia: "va", washington: "wa",
+    "west virginia": "wv", wisconsin: "wi", wyoming: "wy",
+  };
+
+  const abbrev = stateMap[needle] || (needle.length === 2 ? needle : null);
+  const fullName = Object.entries(stateMap).find(([, code]) => code === needle)?.[0];
+  return abbrev === haystack || fullName === haystack;
+}
+
 export default function Browse() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
-  const [location, setLocation] = React.useState(urlParams.get("location") || urlParams.get("loc") || "");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = React.useState(() => searchParams.get("q") || "");
+  const [location, setLocation] = React.useState(() => searchParams.get("location") || searchParams.get("loc") || "");
+  const [priceRange, setPriceRange] = React.useState(() => {
+    const minPrice = Number(searchParams.get("minPrice") || 0);
+    const maxPrice = Number(searchParams.get("maxPrice") || 2000);
+    return [Number.isFinite(minPrice) ? minPrice : 0, Number.isFinite(maxPrice) ? maxPrice : 2000];
+  });
+  const [sortBy, setSortBy] = React.useState(() => searchParams.get("sort") || "newest");
+  const [selectedFilters, setSelectedFilters] = React.useState(() => ({
+    verified: searchParams.get("verified") === "true",
+    premium: searchParams.get("premium") === "true",
+  }));
+  const [page, setPage] = React.useState(() => {
+    const nextPage = Number(searchParams.get("page") || 1);
+    return Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1;
+  });
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);
 
-  const [priceRange, setPriceRange] = React.useState([0, 2000]);
-  const [sortBy, setSortBy] = React.useState("newest");
-  const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
-  const [page, setPage] = React.useState(1);
-
   React.useEffect(() => {
     setPage(1);
   }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearchQuery) params.set("q", debouncedSearchQuery);
+    if (debouncedLocation) params.set("location", debouncedLocation);
+    if (sortBy !== "newest") params.set("sort", sortBy);
+    if (selectedFilters.verified) params.set("verified", "true");
+    if (selectedFilters.premium) params.set("premium", "true");
+    if (priceRange[0] > 0) params.set("minPrice", String(priceRange[0]));
+    if (priceRange[1] < 2000) params.set("maxPrice", String(priceRange[1]));
+    if (page > 1) params.set("page", String(page));
+
+    const next = params.toString();
+    const current = searchParams.toString();
+    if (next !== current) {
+      setSearchParams(params, { replace: true });
+    }
+  }, [debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange, page, searchParams, setSearchParams]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, priceRange, page],
@@ -101,7 +154,7 @@ export default function Browse() {
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
   const maxAllowedPrice = data?.maxRate || 2000;
-  const isStateSearch = !!location && providers.some((provider) => provider.location_state?.toLowerCase() === location.toLowerCase()) && new Set(providers.map((provider) => provider.location_city)).size > 1;
+  const isStateSearch = !!location && providers.some((provider) => locationMatchesState(location, provider.location_state)) && new Set(providers.map((provider) => provider.location_city)).size > 1;
   const groupedProviders = groupProvidersByCity(providers);
   const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
   const hasLowResults = !isLoading && providers.length > 0 && providers.length <= 3;

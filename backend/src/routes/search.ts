@@ -3,6 +3,7 @@ import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders } from "./providerVisibility.js";
+import { buildLocationFilter } from "../lib/locationMatch.js";
 
 interface SearchRouteContext {
   prisma: any;
@@ -56,19 +57,30 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
         SELECT city, city_slug FROM provider_tours
         UNION ALL
         SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true
+        UNION ALL
+        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true
+        UNION ALL
+        SELECT concat(location_city, ', ', location_state) as city, lower(regexp_replace(concat(location_city, '-', location_state), '[^a-zA-Z0-9]+', '-', 'g')) as city_slug
+          FROM "Provider"
+          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true
       ) city_pool
       WHERE lower(city) LIKE ${partial}
          OR lower(city_slug) LIKE ${prefix}
+         OR lower(city_slug) LIKE ${partial}
       ORDER BY city ASC
       LIMIT 25
     `;
 
     return json(200, {
       query: query.q,
-      items: (rows as Array<{ city: string; city_slug: string }>).map((row) => ({
-        slug: row.city_slug,
-        displayName: row.city,
-      })),
+      items: (rows as Array<{ city: string; city_slug: string }>)
+        .map((row) => ({
+          slug: row.city_slug,
+          displayName: String(row.city || "").replace(/,\s*$/g, "").trim(),
+        }))
+        .filter((row) => row.displayName.length > 1)
+        .filter((row, index, all) => all.findIndex((item) => item.displayName.toLowerCase() === row.displayName.toLowerCase()) === index)
+        .slice(0, 25),
     });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -110,17 +122,16 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     }
 
     if (query.location) {
-      andFilters.push({
-        OR: [
-          { location_city: { contains: query.location, mode: "insensitive" } },
-          { location_state: { contains: query.location, mode: "insensitive" } },
-          { location_country: { contains: query.location, mode: "insensitive" } },
-        ],
-      });
+      const locationFilter = buildLocationFilter(query.location);
+      if (locationFilter) andFilters.push(locationFilter);
     }
 
     if (query.verified) andFilters.push({ is_verified: true });
-    if (query.premium) andFilters.push({ is_premium: true });
+    if (query.premium) {
+      andFilters.push({
+        OR: [{ is_premium: true }, { ad_package: "elite" }],
+      });
+    }
     andFilters.push({ OR: [{ rate_hourly: null }, { rate_hourly: { gte: query.minPrice, lte: query.maxPrice } }] });
 
     const where = { AND: andFilters };
