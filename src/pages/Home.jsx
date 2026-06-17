@@ -11,7 +11,7 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
-import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { CityAutocomplete, NameAutocomplete } from "@/components/CityAutocomplete";
 import { getProfilePhotos } from "@/lib/profilePhotos";
 
 const trustItems = [
@@ -77,7 +77,7 @@ export default function Home() {
         ogDescription="Curated, Discreet Directory of Verified Profiles"
         ogUrl="https://www.laboutiquevip.net"
       />
-      <section className="relative overflow-hidden border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
+      <section className="relative overflow-visible border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-stone-300 to-transparent" />
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-4xl text-center">
@@ -94,18 +94,16 @@ export default function Home() {
             <div className="mx-auto mt-10 max-w-5xl rounded-[24px] border border-stone-200 bg-white/95 p-4 shadow-[0_24px_80px_-32px_rgba(28,25,23,0.28)] backdrop-blur">
               <div className="grid gap-3 md:grid-cols-[1.35fr_1fr_auto]">
                 <div className="relative">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
-                  <Input
-                    placeholder="Search by name or service"
-                    aria-label="Search by name or service"
+                  <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                  <NameAutocomplete
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    className="h-14 rounded-2xl border-stone-200 bg-stone-50/80 pl-12 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:ring-stone-300"
+                    onChange={setSearchQuery}
+                    onEnter={handleSearch}
+                    className="h-14 w-full rounded-2xl border border-stone-200 bg-stone-50/80 pl-12 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300"
                   />
                 </div>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                  <MapPin className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                   <CityAutocomplete
                     value={locationQuery}
                     onChange={setLocationQuery}

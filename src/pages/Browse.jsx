@@ -14,7 +14,7 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
-import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { CityAutocomplete, NameAutocomplete } from "@/components/CityAutocomplete";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -202,17 +202,15 @@ export default function Browse() {
           <div className="mt-10 rounded-[28px] border border-stone-200 bg-white/95 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)] backdrop-blur sm:p-6">
             <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
-                <Input
-                  placeholder="Search by name or service"
-                  aria-label="Search by name or service"
+                <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                <NameAutocomplete
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-12 rounded-2xl border-stone-200 bg-stone-50 pl-11 text-stone-900 placeholder:text-stone-400"
+                  onChange={setSearchQuery}
+                  className="h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 pl-11 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
                 />
               </div>
               <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                <MapPin className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
                 <CityAutocomplete
                   value={location}
                   onChange={setLocation}
