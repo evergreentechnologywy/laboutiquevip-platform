@@ -3,7 +3,7 @@ import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders } from "./providerVisibility.js";
-import { buildLocationFilter } from "../lib/locationMatch.js";
+import { buildLocationFilter, suggestLocationQueries } from "../lib/locationMatch.js";
 
 interface SearchRouteContext {
   prisma: any;
@@ -71,13 +71,15 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
       LIMIT 25
     `;
 
+    const staticSuggestions = suggestLocationQueries(query.q);
+    const merged = [...staticSuggestions, ...(rows as Array<{ city: string; city_slug: string }>).map((row) => ({
+      slug: row.city_slug,
+      displayName: String(row.city || "").replace(/,\s*$/g, "").trim(),
+    }))];
+
     return json(200, {
       query: query.q,
-      items: (rows as Array<{ city: string; city_slug: string }>)
-        .map((row) => ({
-          slug: row.city_slug,
-          displayName: String(row.city || "").replace(/,\s*$/g, "").trim(),
-        }))
+      items: merged
         .filter((row) => row.displayName.length > 1)
         .filter((row, index, all) => all.findIndex((item) => item.displayName.toLowerCase() === row.displayName.toLowerCase()) === index)
         .slice(0, 25),

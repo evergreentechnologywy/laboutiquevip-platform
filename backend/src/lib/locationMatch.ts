@@ -183,6 +183,26 @@ export function parseErosLocationFromUrl(url: string): { city: string | null; st
   }
 }
 
+export function suggestLocationQueries(raw: string): Array<{ slug: string; displayName: string }> {
+  const term = String(raw || "").trim().toLowerCase();
+  if (!term) return [];
+
+  const suggestions: Array<{ slug: string; displayName: string }> = [];
+  for (const [abbrev, names] of Object.entries(STATE_ALIASES)) {
+    const fullName = names[0] ?? "";
+    const displayName = titleCaseWords(fullName);
+    const candidates = [abbrev.toLowerCase(), fullName, displayName.toLowerCase()];
+    if (candidates.some((value) => value.startsWith(term) || value.includes(term))) {
+      suggestions.push({ slug: slugify(fullName), displayName });
+      if (abbrev.toLowerCase().startsWith(term) || term.length <= 2) {
+        suggestions.push({ slug: abbrev.toLowerCase(), displayName: abbrev });
+      }
+    }
+  }
+
+  return suggestions;
+}
+
 export function normalizeProviderLocation(input: {
   location_city?: string | null;
   location_state?: string | null;
