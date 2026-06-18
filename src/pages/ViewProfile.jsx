@@ -1,5 +1,7 @@
 // @ts-nocheck
 import React from "react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,10 +94,13 @@ export default function ViewProfile() {
 
   if (!provider) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
+        <div className="text-center max-w-md">
           <h2 className="text-2xl font-serif text-zinc-300 mb-2">Profile not found</h2>
-          <p className="text-zinc-500 font-light">This provider profile doesn't exist or has been removed.</p>
+          <p className="text-zinc-500 font-light mb-6">This provider profile doesn't exist or has been removed.</p>
+          <Link to={createPageUrl("Browse")} className="inline-flex rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-6 py-3 text-sm font-semibold text-white hover:opacity-95">
+            Back to browse
+          </Link>
         </div>
       </div>
     );
@@ -103,6 +108,21 @@ export default function ViewProfile() {
 
   const maskedPhone = provider.phone ? provider.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2") : "";
   const maskedEmail = provider.email ? provider.email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
+
+  const profileUrl = `https://www.laboutiquevip.net/viewprofile?id=${provider.id}`;
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    name: provider.display_name,
+    description: provider.tagline || provider.bio || undefined,
+    url: profileUrl,
+    image: provider.photos?.[0] || undefined,
+    mainEntity: {
+      "@type": "Person",
+      name: provider.display_name,
+      ...(provider.location_city ? { address: { "@type": "PostalAddress", addressLocality: provider.location_city, addressRegion: provider.location_state || undefined } } : {}),
+    },
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
@@ -112,7 +132,8 @@ export default function ViewProfile() {
         ogTitle={`${provider.display_name} | La Boutique VIP`}
         ogDescription={provider.tagline}
         ogImage={provider.photos?.[0]}
-        noindex={true}
+        ogUrl={profileUrl}
+        jsonLd={profileJsonLd}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         

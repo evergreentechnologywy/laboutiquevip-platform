@@ -1,6 +1,6 @@
 import React from "react";
 
-export function SEO({ title, description, ogTitle, ogDescription, ogImage, ogUrl, noindex = false }) {
+export function SEO({ title, description, ogTitle, ogDescription, ogImage, ogUrl, noindex = false, jsonLd }) {
   React.useEffect(() => {
     if (title) document.title = title;
     
@@ -20,17 +20,32 @@ export function SEO({ title, description, ogTitle, ogDescription, ogImage, ogUrl
     updateMeta('og:description', ogDescription || description, 'property');
     updateMeta('og:image', ogImage, 'property');
     updateMeta('og:url', ogUrl || window.location.href, 'property');
+    updateMeta('og:type', 'website', 'property');
     
     if (noindex) {
       updateMeta('robots', 'noindex, nofollow');
     } else {
-      // Optionally remove it or set to index if it was previously set
-      const el = document.querySelector('meta[name="robots"]');
-      if (el && el.getAttribute('content') === 'noindex, nofollow') {
-        el.setAttribute('content', 'index, follow');
-      }
+      updateMeta('robots', 'index, follow');
     }
-  }, [title, description, ogTitle, ogDescription, ogImage, ogUrl, noindex]);
+
+    let jsonLdEl = document.getElementById('lbv-json-ld');
+    if (jsonLd) {
+      if (!jsonLdEl) {
+        jsonLdEl = document.createElement('script');
+        jsonLdEl.id = 'lbv-json-ld';
+        jsonLdEl.type = 'application/ld+json';
+        document.head.appendChild(jsonLdEl);
+      }
+      jsonLdEl.textContent = JSON.stringify(jsonLd);
+    } else if (jsonLdEl) {
+      jsonLdEl.remove();
+    }
+
+    return () => {
+      const el = document.getElementById('lbv-json-ld');
+      if (el) el.remove();
+    };
+  }, [title, description, ogTitle, ogDescription, ogImage, ogUrl, noindex, jsonLd]);
 
   return null;
 }
