@@ -127,6 +127,11 @@ export default function ProviderDashboard() {
 
   React.useEffect(() => {
     const loadData = async () => {
+      if (!base44.auth.hasToken()) {
+        // Not signed in — kick to login with return path
+        window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
+        return;
+      }
       try {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
@@ -144,6 +149,10 @@ export default function ProviderDashboard() {
           setSaveStatus({ type: "", message: "" });
         }
       } catch (err) {
+        if (err?.status === 401 || /unauthor/i.test(err?.message || "")) {
+          window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
+          return;
+        }
         setError("Unable to load your dashboard right now.");
       }
     };

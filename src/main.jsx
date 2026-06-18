@@ -16,6 +16,28 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     afterSignOutUrl="/"
     signInUrl="/login"
     signUpUrl="/register"
+    localization={{
+      signIn: {
+        start: {
+          title: "Sign in to La Boutique VIP",
+          subtitle: "Welcome back. Sign in to manage your listings.",
+        },
+      },
+      signUp: {
+        start: {
+          title: "Create your La Boutique VIP account",
+          subtitle: "Join the directory to publish or manage listings.",
+        },
+        emailCode: {
+          title: "Verify your email",
+          subtitle: "Enter the 6-digit code we sent to your inbox.",
+        },
+      },
+      userButton: {
+        action__manageAccount: "Manage account",
+        action__signOut: "Sign out",
+      },
+    }}
   >
     <App />
   </ClerkProvider>
