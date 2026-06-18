@@ -126,23 +126,6 @@ export default function ProviderDashboard() {
   }, [tab]);
 
   React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentState = params.get("payment");
-    if (paymentState === "success") {
-      setCheckoutStatus({
-        type: "success",
-        message: "Payment callback received. We are confirming your package activation now.",
-      });
-      refetchOrders();
-    } else if (paymentState === "cancelled") {
-      setCheckoutStatus({
-        type: "error",
-        message: "Payment was cancelled. You can restart checkout whenever you're ready.",
-      });
-    }
-  }, [refetchOrders]);
-
-  React.useEffect(() => {
     const loadData = async () => {
       try {
         const currentUser = await base44.auth.me();
@@ -179,6 +162,23 @@ export default function ProviderDashboard() {
     queryFn: () => base44.orders.list(),
     enabled: !!user,
   });
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentState = params.get("payment");
+    if (paymentState === "success") {
+      setCheckoutStatus({
+        type: "success",
+        message: "Payment callback received. We are confirming your package activation now.",
+      });
+      refetchOrders();
+    } else if (paymentState === "cancelled") {
+      setCheckoutStatus({
+        type: "error",
+        message: "Payment was cancelled. You can restart checkout whenever you're ready.",
+      });
+    }
+  }, [refetchOrders]);
 
   const syncProviderState = React.useCallback((savedProvider) => {
     setProvider(savedProvider);
