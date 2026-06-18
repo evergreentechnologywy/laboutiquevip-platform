@@ -99,11 +99,11 @@ export default function Layout({ children, currentPageName }) {
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
         {!isProviderPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
-            <DialogContent className="border-stone-200 bg-white text-stone-900 [&>button]:hidden p-4 sm:p-6">
+            <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 [&>button]:hidden p-4 sm:p-6 max-w-md">
               <DialogHeader>
-                <DialogTitle>Adults only</DialogTitle>
+                <DialogTitle className="text-zinc-100 font-serif">Adults only</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 text-sm leading-6 text-stone-600">
+              <div className="space-y-4 text-sm leading-6 text-zinc-400">
                 <p>
                   This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
                 </p>
@@ -111,22 +111,22 @@ export default function Layout({ children, currentPageName }) {
                   <input
                     type="checkbox"
                     id="age-agree"
-                    className="mt-1 h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+                    className="mt-1 h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-rose-500 focus:ring-rose-500/30"
                     onChange={(e) => setAgreementAccepted(e.target.checked)}
                   />
-                  <Label htmlFor="age-agree" className="text-xs leading-5 text-stone-500 cursor-pointer">
-                    I agree to the <Link to={createPageUrl("Terms")} className="text-stone-900 underline underline-offset-4">Terms of Service</Link> and confirm I am 18+ years of age.
+                  <Label htmlFor="age-agree" className="text-xs leading-5 text-zinc-400 cursor-pointer">
+                    I agree to the <Link to={createPageUrl("Terms")} className="text-amber-400 underline underline-offset-4 hover:text-amber-300">Terms of Service</Link> and confirm I am 18+ years of age.
                   </Label>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <Button 
                     onClick={acceptAgeGate} 
                     disabled={!agreementAccepted}
-                    className="flex-1 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 disabled:opacity-50"
+                    className="flex-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold hover:opacity-95 disabled:opacity-50 border-0"
                   >
                     Enter site
                   </Button>
-                  <Button variant="outline" className="flex-1 rounded-full border-stone-300 text-stone-700" onClick={() => window.location.href = 'https://www.google.com'}>
+                  <Button variant="outline" className="flex-1 rounded-full border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800" onClick={() => window.location.href = 'https://www.google.com'}>
                     Leave site
                   </Button>
                 </div>
@@ -225,18 +225,18 @@ export default function Layout({ children, currentPageName }) {
 
         <main className="flex-1 flex flex-col">
           {!isProviderPage && (
-            <nav className="border-b border-stone-200 bg-white/95 backdrop-blur">
+            <nav className="border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur sticky top-0 z-30">
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex h-20 items-center justify-between">
+                <div className="flex h-16 sm:h-20 items-center justify-between">
                   <Link to={createPageUrl("Home")} className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-900 text-stone-50">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white">
                       <Crown className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-sm sm:text-base font-semibold tracking-tight text-stone-900">
+                      <span className="text-sm sm:text-base font-semibold tracking-tight text-zinc-100">
                         La Boutique VIP<span className="hidden sm:inline"> International</span>
                       </span>
-                      <span className="hidden sm:block text-xs text-stone-500">Curated, discreet discovery</span>
+                      <span className="hidden sm:block text-xs text-zinc-500">Curated, discreet discovery</span>
                     </div>
                   </Link>
 
@@ -245,7 +245,7 @@ export default function Layout({ children, currentPageName }) {
                       <Link
                         key={item.title}
                         to={item.url}
-                        className={`text-xs sm:text-sm font-medium transition-colors ${location.pathname === item.url ? "text-stone-900" : "text-stone-500 hover:text-stone-900"} ${item.title === "Home" || item.title === "Trust" ? "hidden sm:block" : ""}`}
+                        className={`text-xs sm:text-sm font-medium transition-colors ${location.pathname === item.url ? "text-amber-400" : "text-zinc-400 hover:text-zinc-100"} ${item.title === "Home" || item.title === "Trust" ? "hidden sm:block" : ""}`}
                       >
                         {item.title}
                       </Link>
@@ -253,17 +253,17 @@ export default function Layout({ children, currentPageName }) {
 
                     {user ? (
                       <>
-                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-stone-900 transition-colors hover:text-stone-700">
+                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-zinc-200 transition-colors hover:text-amber-400">
                           Dashboard
                         </Link>
-                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-stone-500 transition-colors hover:text-stone-900">
+                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-200">
                           Logout
                         </button>
                       </>
                     ) : (
                       <button
                         onClick={() => base44.auth.redirectToLogin()}
-                        className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50"
+                        className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
                       >
                         Sign In
                       </button>
@@ -296,7 +296,7 @@ export default function Layout({ children, currentPageName }) {
               <Button
                 type="button"
                 onClick={() => setCopilotOpen(true)}
-                className="fixed bottom-5 right-5 z-40 rounded-full bg-stone-900 px-5 text-stone-50 shadow-lg hover:bg-stone-800"
+                className="fixed bottom-5 right-5 z-40 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-5 text-white shadow-lg hover:opacity-95 border-0"
               >
                 <Sparkles className="h-4 w-4" />
                 AI ad copilot

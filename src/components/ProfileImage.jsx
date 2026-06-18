@@ -27,7 +27,7 @@ export function ProfileImage({
 
   if (!src || error) {
     return (
-      <div className={`flex items-center justify-center bg-gradient-to-br from-stone-200 to-stone-300 text-stone-600 ${className}`}>
+      <div className={`flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-zinc-400 ${className}`}>
         {initials ? (
           <span className="text-2xl font-semibold tracking-wide">{initials}</span>
         ) : (
@@ -38,8 +38,8 @@ export function ProfileImage({
   }
 
   return (
-    <div className={`relative overflow-hidden bg-stone-100 ${className}`}>
-      {loading ? <div className="absolute inset-0 animate-pulse bg-stone-200" /> : null}
+    <div className={`relative overflow-hidden bg-zinc-900 ${className}`}>
+      {loading ? <div className="absolute inset-0 animate-pulse bg-zinc-800" /> : null}
       <img
         src={src}
         alt={alt || ""}
