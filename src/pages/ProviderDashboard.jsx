@@ -33,6 +33,7 @@ import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 import { SEO } from "@/components/SEO";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
+import { useAuth } from "@/lib/AuthContext";
 
 const emptyProfile = {
   display_name: "",
@@ -125,15 +126,17 @@ export default function ProviderDashboard() {
     setTabInUrl(tab);
   }, [tab]);
 
+  const { user: authUser, isAuthenticated, isLoadingAuth } = useAuth();
+
   React.useEffect(() => {
+    if (isLoadingAuth) return;
+    if (!isAuthenticated) {
+      window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
+      return;
+    }
     const loadData = async () => {
-      if (!base44.auth.hasToken()) {
-        // Not signed in — kick to login with return path
-        window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
-        return;
-      }
       try {
-        const currentUser = await base44.auth.me();
+        const currentUser = authUser || (await base44.auth.me());
         setUser(currentUser);
 
         const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
@@ -158,7 +161,7 @@ export default function ProviderDashboard() {
     };
 
     loadData();
-  }, []);
+  }, [isAuthenticated, isLoadingAuth, authUser]);
 
   const { data: reviews = [] } = useQuery({
     queryKey: ["reviews", provider?.id],
