@@ -102,11 +102,11 @@ export default function Layout({ children, currentPageName }) {
             <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 [&>button]:hidden p-4 sm:p-6 max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-zinc-100 font-serif">Adults only</DialogTitle>
+                <DialogDescription className="text-zinc-400 text-sm leading-6">
+                  This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 text-sm leading-6 text-zinc-400">
-                <p>
-                  This site is intended only for adults 18+. By continuing, you confirm you are of legal age in your jurisdiction and agree to use the platform lawfully and respectfully.
-                </p>
                 <div className="flex items-start space-x-3 pt-2">
                   <input
                     type="checkbox"
