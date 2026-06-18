@@ -156,3 +156,30 @@ button:focus-visible {
     @apply bg-background text-foreground overflow-x-hidden;
   }
 }
+
+@layer utilities {
+  .glow-gold {
+    box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.15), 0 0 15px -5px rgba(245, 158, 11, 0.1);
+  }
+  .glow-rose {
+    box-shadow: 0 0 25px -5px rgba(244, 63, 94, 0.15), 0 0 15px -5px rgba(244, 63, 94, 0.1);
+  }
+  .glass-panel {
+    @apply bg-zinc-900/40 border-zinc-800/80 backdrop-blur-md;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(240, 10%, 4%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(240, 5%, 20%);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(345, 85%, 55%);
+}

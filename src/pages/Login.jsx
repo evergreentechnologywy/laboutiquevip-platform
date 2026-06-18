@@ -19,33 +19,58 @@ export default function Login() {
   const signUpUrl = `/register${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 px-4 py-12 selection:bg-rose-500/35 selection:text-white">
       <SEO 
         title="Sign In | La Boutique VIP International"
         description="Sign in to your La Boutique VIP account to manage your provider profile or browse verified listings."
         ogTitle="Sign In | La Boutique VIP"
       />
-      <Link to={createPageUrl("Home")} className="mb-10 flex items-center gap-3 transition hover:opacity-80">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-stone-900 text-stone-50">
+      
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(244,63,94,0.08),_transparent_45%)] pointer-events-none" />
+
+      <Link to={createPageUrl("Home")} className="mb-10 flex items-center gap-3 transition hover:opacity-80 relative z-10">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-lg glow-rose">
           <Crown className="h-5 w-5" />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="text-base font-semibold tracking-tight text-stone-900">La Boutique VIP</span>
-          <span className="text-xs text-stone-500 italic">International</span>
+          <span className="text-base font-semibold tracking-tight text-zinc-100 font-serif">La Boutique VIP</span>
+          <span className="text-xs text-zinc-400 italic font-light">International</span>
         </div>
       </Link>
 
-      <SignIn
-        routing="path"
-        path="/login"
-        signUpUrl={signUpUrl}
-        forceRedirectUrl={next}
-        signUpForceRedirectUrl={next}
-      />
+      <div className="relative z-10 w-full max-w-md">
+        <SignIn
+          routing="path"
+          path="/login"
+          signUpUrl={signUpUrl}
+          forceRedirectUrl={next}
+          signUpForceRedirectUrl={next}
+          appearance={{
+            elements: {
+              card: "bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] rounded-[32px] backdrop-blur-md",
+              headerTitle: "text-zinc-100 font-serif text-2xl tracking-tight",
+              headerSubtitle: "text-zinc-400 font-light text-sm",
+              socialButtonsBlockButton: "bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700/80 transition-colors rounded-xl",
+              socialButtonsBlockButtonText: "text-zinc-200 font-medium",
+              dividerLine: "bg-zinc-850",
+              dividerText: "text-zinc-500 text-xs uppercase tracking-wider",
+              formFieldLabel: "text-zinc-350 text-xs font-semibold uppercase tracking-wider",
+              formFieldInput: "bg-zinc-800/50 border-zinc-700 text-zinc-100 rounded-xl focus:border-rose-500/50 focus:ring-rose-500/20 transition-all",
+              formButtonPrimary: "bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-white font-semibold h-11 border-0 shadow-md rounded-full transition-all",
+              footerActionText: "text-zinc-450 text-sm font-light",
+              footerActionLink: "text-rose-450 hover:text-rose-350 font-medium transition-colors",
+              identityPreviewText: "text-zinc-300",
+              identityPreviewEditButton: "text-rose-450 hover:text-rose-350",
+              formFieldSuccessText: "text-emerald-450",
+              formFieldErrorText: "text-rose-450",
+            }
+          }}
+        />
+      </div>
 
       <button 
         onClick={() => navigate('/')} 
-        className="mt-8 flex items-center gap-2 mx-auto text-sm font-medium text-stone-500 hover:text-stone-900 transition-colors"
+        className="mt-8 flex items-center gap-2 mx-auto text-sm font-medium text-zinc-450 hover:text-zinc-100 transition-colors relative z-10"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to home

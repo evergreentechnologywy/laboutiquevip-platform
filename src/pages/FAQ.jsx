@@ -23,22 +23,22 @@ const faqs = [
 
 export default function FAQ() {
   return (
-    <div className="min-h-screen bg-stone-50 py-20 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white py-20 px-4 sm:px-6 lg:px-8">
       <SEO
         title="Frequently Asked Questions | La Boutique VIP International"
         description="Find answers about verification, listings, reviews, privacy, and how La Boutique VIP works."
       />
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-semibold tracking-tight text-stone-900 mb-12 text-center">Frequently Asked Questions</h1>
+        <h1 className="text-4xl font-serif font-bold tracking-tight text-zinc-100 mb-12 text-center">Frequently Asked Questions</h1>
         
-        <div className="rounded-[28px] border border-stone-200 bg-white p-8 shadow-sm">
+        <div className="rounded-[32px] border border-zinc-900 bg-zinc-900/20 p-8 shadow-2xl backdrop-blur-md">
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
-              <AccordionItem key={index} value={`item-${index}`} className="border-stone-100 last:border-0">
-                <AccordionTrigger className="text-left text-lg font-medium text-stone-900 hover:text-stone-700 hover:no-underline py-6">
+              <AccordionItem key={index} value={`item-${index}`} className="border-zinc-850 last:border-0">
+                <AccordionTrigger className="text-left text-lg font-medium text-zinc-200 hover:text-amber-450 hover:no-underline py-6">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-base text-stone-600 leading-7 pb-6">
+                <AccordionContent className="text-base text-zinc-400 font-light leading-7 pb-6">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

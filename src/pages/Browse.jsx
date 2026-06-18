@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
-import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { SEO } from "@/components/SEO";
-import { CityAutocomplete, NameAutocomplete } from "@/components/CityAutocomplete";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -65,75 +64,22 @@ const ctaCards = [
   },
 ];
 
-function locationMatchesState(location, stateValue) {
-  if (!location || !stateValue) return false;
-  const needle = String(location).trim().toLowerCase();
-  const haystack = String(stateValue).trim().toLowerCase();
-  if (!needle || !haystack) return false;
-  if (needle === haystack) return true;
-  if (haystack.includes(needle) || needle.includes(haystack)) return true;
-
-  const stateMap = {
-    alabama: "al", alaska: "ak", arizona: "az", arkansas: "ar", california: "ca", colorado: "co",
-    connecticut: "ct", delaware: "de", florida: "fl", georgia: "ga", hawaii: "hi", idaho: "id",
-    illinois: "il", indiana: "in", iowa: "ia", kansas: "ks", kentucky: "ky", louisiana: "la",
-    maine: "me", maryland: "md", massachusetts: "ma", michigan: "mi", minnesota: "mn",
-    mississippi: "ms", missouri: "mo", montana: "mt", nebraska: "ne", nevada: "nv",
-    "new hampshire": "nh", "new jersey": "nj", "new mexico": "nm", "new york": "ny",
-    "north carolina": "nc", "north dakota": "nd", ohio: "oh", oklahoma: "ok", oregon: "or",
-    pennsylvania: "pa", "rhode island": "ri", "south carolina": "sc", "south dakota": "sd",
-    tennessee: "tn", texas: "tx", utah: "ut", vermont: "vt", virginia: "va", washington: "wa",
-    "west virginia": "wv", wisconsin: "wi", wyoming: "wy",
-  };
-
-  const abbrev = stateMap[needle] || (needle.length === 2 ? needle : null);
-  const fullName = Object.entries(stateMap).find(([, code]) => code === needle)?.[0];
-  return abbrev === haystack || fullName === haystack;
-}
-
 export default function Browse() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = React.useState(() => searchParams.get("q") || "");
-  const [location, setLocation] = React.useState(() => searchParams.get("location") || searchParams.get("loc") || "");
-  const [priceRange, setPriceRange] = React.useState(() => {
-    const minPrice = Number(searchParams.get("minPrice") || 0);
-    const maxPrice = Number(searchParams.get("maxPrice") || 2000);
-    return [Number.isFinite(minPrice) ? minPrice : 0, Number.isFinite(maxPrice) ? maxPrice : 2000];
-  });
-  const [sortBy, setSortBy] = React.useState(() => searchParams.get("sort") || "newest");
-  const [selectedFilters, setSelectedFilters] = React.useState(() => ({
-    verified: searchParams.get("verified") === "true",
-    premium: searchParams.get("premium") === "true",
-  }));
-  const [page, setPage] = React.useState(() => {
-    const nextPage = Number(searchParams.get("page") || 1);
-    return Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1;
-  });
+  const urlParams = new URLSearchParams(window.location.search);
+  const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
+  const [location, setLocation] = React.useState(urlParams.get("location") || urlParams.get("loc") || "");
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);
 
+  const [priceRange, setPriceRange] = React.useState([0, 2000]);
+  const [sortBy, setSortBy] = React.useState("newest");
+  const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
+  const [page, setPage] = React.useState(1);
+
   React.useEffect(() => {
     setPage(1);
   }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
-
-  React.useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearchQuery) params.set("q", debouncedSearchQuery);
-    if (debouncedLocation) params.set("location", debouncedLocation);
-    if (sortBy !== "newest") params.set("sort", sortBy);
-    if (selectedFilters.verified) params.set("verified", "true");
-    if (selectedFilters.premium) params.set("premium", "true");
-    if (priceRange[0] > 0) params.set("minPrice", String(priceRange[0]));
-    if (priceRange[1] < 2000) params.set("maxPrice", String(priceRange[1]));
-    if (page > 1) params.set("page", String(page));
-
-    const next = params.toString();
-    const current = searchParams.toString();
-    if (next !== current) {
-      setSearchParams(params, { replace: true });
-    }
-  }, [debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange, page, searchParams, setSearchParams]);
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, priceRange, page],
@@ -155,7 +101,7 @@ export default function Browse() {
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
   const maxAllowedPrice = data?.maxRate || 2000;
-  const isStateSearch = !!location && providers.some((provider) => locationMatchesState(location, provider.location_state)) && new Set(providers.map((provider) => provider.location_city)).size > 1;
+  const isStateSearch = !!location && providers.some((provider) => provider.location_state?.toLowerCase() === location.toLowerCase()) && new Set(providers.map((provider) => provider.location_city)).size > 1;
   const groupedProviders = groupProvidersByCity(providers);
   const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
   const hasLowResults = !isLoading && providers.length > 0 && providers.length <= 3;
@@ -175,54 +121,58 @@ export default function Browse() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
       <SEO
         title="Browse Verified Profiles & Listings | La Boutique VIP International"
         description="Explore verified profiles and listings with transparent rates, moderated reviews, and discreet discovery. Filter by verification status and premium features."
         ogTitle="Browse Verified Profiles | La Boutique VIP"
         ogDescription="Discreet directory of verified listings and premium profiles."
       />
-      <section className="border-b border-stone-200/80 bg-[radial-gradient(circle_at_top,_rgba(120,113,108,0.08),_transparent_45%),linear-gradient(180deg,#fafaf9_0%,#f7f4ef_100%)]">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+      <section className="relative overflow-hidden border-b border-zinc-900/80 bg-[radial-gradient(circle_at_top,_rgba(244,63,94,0.12),_transparent_40%),linear-gradient(180deg,#09090b_0%,#121215_100%)]">
+        <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] lg:items-end">
             <div className="max-w-3xl">
-              <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">Browse the directory</p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">Refined discovery with stronger trust and clearer next steps</h1>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
+              <p className="text-xs font-semibold tracking-[0.22em] text-rose-400 uppercase">Browse the directory</p>
+              <h1 className="mt-4 text-4xl font-serif font-bold tracking-tight text-zinc-100 sm:text-5xl leading-tight">
+                Refined discovery with stronger trust & clearer paths
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-400 font-light sm:text-lg">
                 Explore live listings with transparent rate ranges, moderated reviews, and a calmer path to finding the right match.
               </p>
             </div>
 
-            <div className="grid gap-3 rounded-[28px] border border-stone-200 bg-white/90 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.22)] backdrop-blur sm:grid-cols-3">
-              <StatCard label="Live listings" value={isLoading ? <span aria-hidden="true">...</span> : `${total}`} helper="Approved and currently searchable" />
-              <StatCard label="Trust layer" value="Checked" helper="Verification + moderation disclosures" />
-              <StatCard label="Best use" value="Browse wide" helper="Then narrow once you see supply" />
+            <div className="grid gap-3 rounded-[32px] border border-zinc-800/80 bg-zinc-900/40 p-5 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] backdrop-blur sm:grid-cols-3">
+              <StatCard label="Live listings" value={isLoading ? <span aria-hidden="true">...</span> : `${total}`} helper="Approved and active" />
+              <StatCard label="Trust layer" value="Checked" helper="Verification disclosure" />
+              <StatCard label="Best use" value="Browse wide" helper="Then narrow by criteria" />
             </div>
           </div>
 
-          <div className="mt-10 rounded-[28px] border border-stone-200 bg-white/95 p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.28)] backdrop-blur sm:p-6">
+          <div className="mt-10 rounded-[32px] border border-zinc-800 bg-zinc-900/60 p-5 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] backdrop-blur sm:p-6 glow-gold">
             <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
-                <NameAutocomplete
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+                <Input
+                  placeholder="Search by name or service"
+                  aria-label="Search by name or service"
                   value={searchQuery}
-                  onChange={setSearchQuery}
-                  className="h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 pl-11 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 pl-11 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
               <div className="relative">
-                <MapPin className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-stone-400" aria-hidden="true" />
+                <MapPin className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
                 <CityAutocomplete
                   value={location}
                   onChange={setLocation}
-                  className="h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 pl-11 pr-4 text-stone-900 placeholder:text-stone-400 focus:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
+                  className="h-12 w-full rounded-2xl border border-zinc-850 bg-zinc-950/70 pl-11 pr-4 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-12 rounded-2xl border-stone-200 bg-stone-50 text-stone-900" aria-label="Sort results by">
+                <SelectTrigger className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20" aria-label="Sort results by">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
                   <SelectItem value="newest">Newest</SelectItem>
                   <SelectItem value="rating">Highest rated</SelectItem>
                   <SelectItem value="price_low">Price: low to high</SelectItem>
@@ -231,9 +181,9 @@ export default function Browse() {
               </Select>
             </div>
 
-            <div className="mt-5 flex flex-col gap-4 border-t border-stone-200 pt-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="mt-5 flex flex-col gap-4 border-t border-zinc-800 pt-5 xl:flex-row xl:items-end xl:justify-between">
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 text-sm text-stone-500">
+                <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Filter className="h-4 w-4" />
                   <span>Filters</span>
                 </div>
@@ -242,7 +192,9 @@ export default function Browse() {
                   size="sm" 
                   onClick={() => toggleFilter("verified")} 
                   aria-pressed={selectedFilters.verified}
-                  className={selectedFilters.verified ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}
+                  className={selectedFilters.verified 
+                    ? "rounded-full border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 shadow-sm" 
+                    : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}
                 >
                   <Shield className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   Verified only
@@ -252,30 +204,38 @@ export default function Browse() {
                   size="sm" 
                   onClick={() => toggleFilter("premium")} 
                   aria-pressed={selectedFilters.premium}
-                  className={selectedFilters.premium ? "rounded-full border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800" : "rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50"}
+                  className={selectedFilters.premium 
+                    ? "rounded-full border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 shadow-sm" 
+                    : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}
                 >
                   <Crown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   Premium only
                 </Button>
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-stone-500 hover:bg-stone-100 hover:text-stone-900">
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200">
                   <X className="mr-1 h-3.5 w-3.5" />
                   Clear all
                 </Button>
               </div>
 
               <div className="w-full max-w-sm">
-                <div className="mb-2 flex items-center justify-between text-sm text-stone-500">
+                <div className="mb-2 flex items-center justify-between text-xs text-zinc-450 uppercase tracking-wider">
                   <span>Hourly rate</span>
-                  <span className="font-medium text-stone-700">${priceRange[0]} - ${priceRange[1]}</span>
+                  <span className="font-semibold text-amber-400">${priceRange[0]} - ${priceRange[1]}</span>
                 </div>
-                <Slider value={priceRange} onValueChange={setPriceRange} max={maxAllowedPrice} step={50} className="[&_[role=slider]]:border-stone-700 [&_[role=slider]]:bg-stone-900" />
+                <Slider 
+                  value={priceRange} 
+                  onValueChange={setPriceRange} 
+                  max={maxAllowedPrice} 
+                  step={50} 
+                  className="[&_[role=slider]]:border-zinc-700 [&_[role=slider]]:bg-zinc-800 [&_.relative_div]:bg-amber-500" 
+                />
               </div>
             </div>
           </div>
 
           <div className="mt-6 grid gap-3 lg:grid-cols-3">
             {trustNotes.map((note) => (
-              <div key={note} className="rounded-2xl border border-stone-200 bg-white/80 px-4 py-4 text-sm leading-6 text-stone-600">
+              <div key={note} className="rounded-2xl border border-zinc-900 bg-zinc-900/20 px-4 py-4 text-xs leading-5 text-zinc-400 font-light">
                 {note}
               </div>
             ))}
@@ -283,17 +243,17 @@ export default function Browse() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-stone-500">Results</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">Browse live advertiser profiles</h2>
-            <p className="mt-3 text-sm leading-6 text-stone-500">
-              {isLoading ? "Loading results..." : `${total} listing${total === 1 ? "" : "s"} found`}{isFetching && !isLoading ? " · refreshing" : ""}
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-450">Results</p>
+            <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight text-zinc-100">Live directory listings</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-500">
+              {isLoading ? "Loading results..." : `${total} listing${total === 1 ? "" : "s"} found`}{isFetching && !isLoading ? "   refreshing" : ""}
             </p>
             {hasActiveFilters && !isLoading && (
-              <p className="mt-2 text-sm leading-6 text-stone-500">
-                Showing {total} results. Try widening your search for more.
+              <p className="mt-2 text-sm leading-6 text-zinc-500 font-light">
+                Showing {total} results. Try widening your criteria to discover more.
               </p>
             )}
           </div>
@@ -301,7 +261,7 @@ export default function Browse() {
           {isStateSearch && cityGroups.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {cityGroups.map((group) => (
-                <Badge key={`${group.city}-${group.state}`} className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-stone-600 shadow-none">
+                <Badge key={`${group.city}-${group.state}`} className="rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-zinc-400 shadow-none">
                   {group.city} ({group.count})
                 </Badge>
               ))}
@@ -310,28 +270,28 @@ export default function Browse() {
         </div>
 
         {touringProviders.length > 0 && (
-          <div className="mb-10 rounded-[28px] border border-rose-100 bg-rose-50/70 p-5 shadow-[0_24px_80px_-40px_rgba(190,18,60,0.24)]">
+          <div className="mb-10 rounded-[32px] border border-rose-950/30 bg-rose-950/10 p-5 shadow-[0_24px_80px_-40px_rgba(244,63,94,0.3)]">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.18em] text-rose-600">Touring soon</p>
-                <h3 className="mt-2 text-2xl font-semibold text-stone-900">Advertisers with scheduled city dates</h3>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-400">Touring soon</p>
+                <h3 className="mt-2 text-2xl font-serif font-bold text-zinc-100">Advertisers with scheduled city dates</h3>
               </div>
-              <p className="max-w-xl text-sm leading-6 text-stone-600">Tour Pro profiles can show upcoming city stops so clients can plan ahead.</p>
+              <p className="max-w-xl text-sm leading-6 text-zinc-400 font-light">Touring profiles can show upcoming city stops so clients can plan ahead.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {touringProviders.map((provider) => {
                 const nextStop = provider.tour_plan.cities[0];
                 return (
-                  <Link key={`tour-${provider.id}`} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="rounded-2xl border border-rose-100 bg-white p-4 transition hover:border-rose-200 hover:shadow-sm">
+                  <Link key={`tour-${provider.id}`} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 transition hover:border-rose-500/30 hover:shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-stone-900">{provider.display_name}</p>
-                        <p className="mt-1 text-sm text-stone-500">{nextStop.city}{nextStop.region ? `, ${nextStop.region}` : ""}</p>
+                        <p className="font-semibold text-zinc-100 group-hover:text-amber-400">{provider.display_name}</p>
+                        <p className="mt-1 text-sm text-zinc-500">{nextStop.city}{nextStop.region ? `, ${nextStop.region}` : ""}</p>
                       </div>
-                      <Badge className="rounded-full bg-rose-100 text-rose-700 shadow-none">Touring</Badge>
+                      <Badge className="rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">Touring</Badge>
                     </div>
-                    <p className="mt-3 text-sm font-medium text-stone-700">{nextStop.startsAt} to {nextStop.endsAt}</p>
-                    {provider.ad_headline ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">{provider.ad_headline}</p> : null}
+                    <p className="mt-3 text-sm font-semibold text-amber-400">{nextStop.startsAt} to {nextStop.endsAt}</p>
+                    {provider.ad_headline ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-zinc-400 font-light">{provider.ad_headline}</p> : null}
                   </Link>
                 );
               })}
@@ -340,28 +300,28 @@ export default function Browse() {
         )}
 
         {hasLowResults && (
-          <div className="mb-8 grid gap-4 rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)] lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-center">
+          <div className="mb-8 grid gap-4 rounded-[32px] border border-zinc-800 bg-zinc-900/20 p-5 shadow-2xl lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-center">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-stone-600">
-                <CheckCircle2 className="h-3.5 w-3.5" />
+              <div className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400 border border-zinc-800">
+                <CheckCircle2 className="h-3.5 w-3.5 text-rose-400" />
                 Limited but qualified results
               </div>
-              <h3 className="mt-4 text-2xl font-semibold text-stone-900">A narrower result set can still be useful</h3>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600">
+              <h3 className="mt-4 text-2xl font-serif font-bold text-zinc-100">A narrower result set can still be useful</h3>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400 font-light">
                 You are seeing a smaller pool for this search. That usually means the active inventory is concentrated, not broken. Broaden city/state filters to compare more profiles, or review trust standards before deciding.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Link to={createPageUrl("Trust")}>
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-stone-300 hover:bg-white">
-                  <p className="text-sm font-medium text-stone-900">Verification standards</p>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">Understand badges, moderation, and where claims may still vary.</p>
+                <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 transition hover:border-zinc-800">
+                  <p className="text-sm font-semibold text-zinc-100">Verification standards</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400 font-light">Understand badges, moderation, and verification processes.</p>
                 </div>
               </Link>
               <Link to={createPageUrl("Pricing")}>
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 transition hover:border-stone-300 hover:bg-white">
-                  <p className="text-sm font-medium text-stone-900">Provider placement</p>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">Looking to appear here? Review advertising and premium visibility options.</p>
+                <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 transition hover:border-zinc-800">
+                  <p className="text-sm font-semibold text-zinc-100">Provider placement</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-450 font-light">Looking to appear here? Review advertising and premium packages.</p>
                 </div>
               </Link>
             </div>
@@ -371,7 +331,7 @@ export default function Browse() {
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="overflow-hidden rounded-[24px] border border-stone-200 bg-white">
+              <div key={index} className="overflow-hidden rounded-[28px] border border-zinc-900 bg-zinc-900/20">
                 <Skeleton className="aspect-[4/5] w-full" />
                 <div className="space-y-3 p-6">
                   <Skeleton className="h-6 w-2/3" />
@@ -382,25 +342,25 @@ export default function Browse() {
             ))}
           </div>
         ) : providers.length === 0 ? (
-          <div className="rounded-[28px] border border-stone-200 bg-white px-6 py-14 text-center shadow-[0_24px_80px_-36px_rgba(28,25,23,0.18)]">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-stone-100 text-stone-500">
-              <Sparkles className="h-7 w-7" />
+          <div className="rounded-[32px] border border-zinc-900 bg-zinc-900/20 px-6 py-14 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-500 border border-zinc-800">
+              <Sparkles className="h-7 w-7 text-amber-400" />
             </div>
-            <h3 className="mt-6 text-2xl font-semibold text-stone-900">No matching listings yet</h3>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">
-              Try broadening your search or explore how verified placement works. New approved listings and reviews appear on a rolling basis as external provider checks and moderation complete.
+            <h3 className="mt-6 text-2xl font-serif font-bold text-zinc-100">No matching listings yet</h3>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-zinc-400 font-light">
+              Try broadening your search or explore how verified placement works. New approved listings and reviews appear on a rolling basis.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button onClick={clearFilters} className="rounded-full bg-stone-900 px-6 text-stone-50 hover:bg-stone-800">
+              <Button onClick={clearFilters} className="rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold hover:opacity-95 px-8 h-12 shadow-lg border-0 glow-rose">
                 Reset filters
               </Button>
               <Link to={createPageUrl("Trust")}>
-                <Button variant="outline" className="rounded-full border-stone-300 bg-white px-6 text-stone-700 hover:bg-stone-50">
+                <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 px-6 h-12 text-zinc-300 hover:bg-zinc-900 hover:text-white">
                   How verification works
                 </Button>
               </Link>
               <Link to={createPageUrl("Pricing")}>
-                <Button variant="outline" className="rounded-full border-stone-300 bg-white px-6 text-stone-700 hover:bg-stone-50">
+                <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 px-6 h-12 text-zinc-300 hover:bg-zinc-900 hover:text-white">
                   Advertise on La Boutique VIP
                 </Button>
               </Link>
@@ -411,8 +371,8 @@ export default function Browse() {
             {Object.entries(groupedProviders).map(([cityLabel, cityProviders]) => (
               <div key={cityLabel}>
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <h3 className="text-2xl font-semibold text-stone-900">{cityLabel}</h3>
-                  <Badge className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-stone-600 shadow-none">
+                  <h3 className="text-2xl font-serif font-bold text-zinc-100">{cityLabel}</h3>
+                  <Badge className="rounded-full border border-zinc-800 bg-zinc-900/40 px-3 py-1 text-zinc-400 shadow-none">
                     {cityProviders.length} listing{cityProviders.length === 1 ? "" : "s"}
                   </Badge>
                 </div>
@@ -432,15 +392,15 @@ export default function Browse() {
           {ctaCards.map((card) => {
             const Icon = card.icon;
             return (
-              <Link key={card.title} to={card.href} className="group rounded-[24px] border border-stone-200 bg-white p-5 shadow-[0_18px_40px_-32px_rgba(28,25,23,0.18)] transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-[0_24px_50px_-30px_rgba(28,25,23,0.24)]">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-stone-100 text-stone-700">
-                  <Icon className="h-5 w-5" />
+              <Link key={card.title} to={card.href} className="group rounded-[28px] border border-zinc-900 bg-zinc-900/20 p-5 shadow-xl transition hover:-translate-y-0.5 hover:border-zinc-800 hover:shadow-2xl">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400">
+                  <Icon className="h-5 w-5 text-rose-450" />
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-stone-900">{card.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-stone-600">{card.description}</p>
-                <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-stone-900">
+                <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-amber-400">{card.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-zinc-400 font-light">{card.description}</p>
+                <div className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-zinc-350 group-hover:text-amber-400 transition-colors">
                   {card.label}
-                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </div>
               </Link>
             );
@@ -449,11 +409,11 @@ export default function Browse() {
 
         {totalPages > 1 && (
           <div className="mt-10 flex items-center justify-center gap-3">
-            <Button variant="outline" className="rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-350 hover:bg-zinc-900 hover:text-white" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
               Previous
             </Button>
-            <span className="text-sm text-stone-500">Page {page} of {totalPages}</span>
-            <Button variant="outline" className="rounded-full border-stone-300 bg-white text-stone-700 hover:bg-stone-50" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <span className="text-sm text-zinc-500">Page {page} of {totalPages}</span>
+            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-350 hover:bg-zinc-900 hover:text-white" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
               Next
             </Button>
           </div>
@@ -465,49 +425,47 @@ export default function Browse() {
 
 function StatCard({ label, value, helper }) {
   return (
-    <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4">
-      <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-stone-500">{helper}</p>
+    <div className="rounded-2xl border border-zinc-900 bg-zinc-950/50 px-4 py-4">
+      <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-500">{label}</p>
+      <p className="mt-2 text-2xl font-serif font-bold tracking-tight text-zinc-100">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500">{helper}</p>
     </div>
   );
 }
 
 function ProviderCard({ provider }) {
   const ratingMeta = getProviderRatingMeta(provider);
-  const primaryPhoto = getPrimaryProfilePhoto(provider);
 
   return (
     <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
-      <article className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-[0_18px_45px_-28px_rgba(28,25,23,0.24)] transition duration-300 hover:-translate-y-1 hover:border-stone-300 hover:shadow-[0_24px_55px_-28px_rgba(28,25,23,0.34)]">
-        <div className="relative aspect-[4/5] overflow-hidden bg-stone-100">
+      <article className="overflow-hidden rounded-[28px] border border-zinc-900 bg-zinc-900/20 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.8)] transition duration-300 hover:-translate-y-1 hover:border-rose-500/30 hover:shadow-[0_24px_50px_-20px_rgba(244,63,94,0.15)]">
+        <div className="relative aspect-[4/5] overflow-hidden bg-zinc-950">
           <ProfileImage
-            src={primaryPhoto}
+            src={provider.photos?.[0]}
             alt={provider.display_name}
-            className="h-full w-full transition duration-500 group-hover:scale-[1.03]"
-            objectPosition="center 18%"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
-          <div className="absolute left-4 top-4 flex flex-wrap gap-2">
-            {/* Logic for "Just joined" - assuming is_new or based on created_date */}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-80" />
+          <div className="absolute left-4 top-4 flex flex-wrap gap-2 z-10">
             {(provider.is_new || (new Date() - new Date(provider.created_date) < 7 * 24 * 60 * 60 * 1000)) && (
-              <Badge className="rounded-full bg-blue-50 px-3 py-1 text-blue-600 shadow-none border border-blue-100">
+              <Badge className="rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold shadow-sm">
                 Just joined
               </Badge>
             )}
             {provider.is_verified && (
-              <Badge className="rounded-full bg-stone-900 px-3 py-1 text-stone-50 shadow-none">
+              <Badge className="rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-semibold shadow-sm">
                 <Shield className="mr-1 h-3 w-3" />
                 Verified
               </Badge>
             )}
             {provider.is_premium && (
-              <Badge className="rounded-full bg-amber-100 px-3 py-1 text-amber-900 shadow-none">
+              <Badge className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold shadow-sm">
                 <Crown className="mr-1 h-3 w-3" />
                 Premium
               </Badge>
             )}
             {provider.tour_plan?.cities?.length > 0 && (
-              <Badge className="rounded-full bg-rose-50 px-3 py-1 text-rose-700 shadow-none border border-rose-100">
+              <Badge className="rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-400 text-[10px] font-semibold shadow-sm">
                 <MapPin className="mr-1 h-3 w-3" />
                 Touring
               </Badge>
@@ -518,39 +476,39 @@ function ProviderCard({ provider }) {
         <div className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="text-xl font-semibold text-stone-900 transition group-hover:text-stone-700">
+              <h3 className="text-xl font-semibold text-zinc-100 transition group-hover:text-amber-400">
                 {provider.display_name}
               </h3>
-              <p className="mt-1 text-sm text-stone-500">
+              <p className="mt-1 text-sm text-zinc-550">
                 {provider.location_city}, {provider.location_state}
               </p>
             </div>
             {provider.rate_hourly && (
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-sm font-medium text-stone-900">
+              <span className="rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1 text-sm font-medium text-zinc-200">
                 ${provider.rate_hourly}/hr
               </span>
             )}
           </div>
 
           {provider.tagline && (
-            <p className="mt-4 line-clamp-2 text-sm leading-6 text-stone-600">{provider.ad_headline || provider.tagline}</p>
+            <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-400 font-light">{provider.ad_headline || provider.tagline}</p>
           )}
 
           {provider.tour_plan?.cities?.length > 0 && (
-            <p className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-rose-600">
-              Next: {provider.tour_plan.cities[0].city} · {provider.tour_plan.cities[0].startsAt}
+            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-rose-450">
+              Next: {provider.tour_plan.cities[0].city}   {provider.tour_plan.cities[0].startsAt}
             </p>
           )}
 
-          <div className="mt-6 flex items-center justify-between gap-4 text-sm">
-            <div className="flex items-center gap-2 text-stone-600">
-              <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-stone-300"}`} />
-              <span className="font-medium text-stone-700">{ratingMeta.value}</span>
-              <span className="text-stone-400">{ratingMeta.detail}</span>
+          <div className="mt-6 flex items-center justify-between gap-4 text-xs uppercase tracking-wider font-semibold border-t border-zinc-900 pt-4">
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-zinc-700"}`} />
+              <span className="font-semibold text-zinc-300">{ratingMeta.value}</span>
+              <span className="text-zinc-500 font-normal">{ratingMeta.detail}</span>
             </div>
-            <span className="inline-flex items-center gap-2 font-medium text-stone-900">
+            <span className="inline-flex items-center gap-2 text-zinc-300 group-hover:text-amber-400 transition-colors">
               View profile
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>
