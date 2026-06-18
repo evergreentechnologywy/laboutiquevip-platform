@@ -19,8 +19,11 @@ const MainPage = mainPageKey ? Pages[mainPageKey] : null;
 
 function resolvePageKey(pathname) {
   const raw = pathname.replace(/^\//, "") || mainPageKey;
+  const lower = raw.toLowerCase();
+  if (lower === "login" || lower.startsWith("login/")) return "Login";
+  if (lower === "register" || lower.startsWith("register/")) return "Register";
   if (Pages[raw]) return raw;
-  const match = Object.keys(Pages).find((key) => key.toLowerCase() === raw.toLowerCase());
+  const match = Object.keys(Pages).find((key) => key.toLowerCase() === lower);
   return match ?? raw;
 }
 
@@ -61,6 +64,9 @@ const AuthenticatedApp = () => {
       <Suspense fallback={<FullScreenSpinner />}>
         <Routes>
           <Route path="/" element={MainPage ? <MainPage /> : null} />
+          {/* Clerk path routing needs wildcards for verify-email, SSO callback, etc. */}
+          <Route path="/login/*" element={Pages.Login ? <Pages.Login /> : null} />
+          <Route path="/register/*" element={Pages.Register ? <Pages.Register /> : null} />
           {Object.entries(Pages).map(([path, Page]) => (
             <React.Fragment key={path}>
               <Route path={`/${path}`} element={<Page />} />
