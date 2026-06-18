@@ -17,11 +17,17 @@ function resolveVerificationStatusFromQuery() {
   return "pending";
 }
 
+function resolveVerificationIdFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("verificationId") || params.get("verification_id") || null;
+}
+
 export default function DiditVerification({ onVerificationComplete, onVerificationStatusChange }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [verificationStatus, setVerificationStatus] = useState(() => resolveVerificationStatusFromQuery() || "pending"); // pending, in_progress, approved, rejected
+  const [verificationIdHint] = useState(() => resolveVerificationIdFromQuery());
 
   useEffect(() => {
     const statusFromQuery = resolveVerificationStatusFromQuery();
@@ -30,14 +36,15 @@ export default function DiditVerification({ onVerificationComplete, onVerificati
     onVerificationStatusChange?.(statusFromQuery);
   }, [onVerificationStatusChange]);
 
-  // Poll for verification status if session exists
+  // Poll verification status from either active session or callback query.
   useEffect(() => {
-    if (!session?.verificationId) return;
+    const verificationId = session?.verificationId || verificationIdHint;
+    if (!verificationId) return;
 
     const checkStatus = async () => {
       try {
         const verifications = await base44.entities.Verification.filter({
-          id: session.verificationId,
+          id: verificationId,
         });
         
         if (verifications.length > 0) {
@@ -57,26 +64,27 @@ export default function DiditVerification({ onVerificationComplete, onVerificati
       }
     };
 
-    // Check immediately and then every 5 seconds
+    // Check immediately and then every 5 seconds.
     checkStatus();
     const interval = setInterval(checkStatus, 5000);
 
     return () => clearInterval(interval);
-  }, [session, onVerificationComplete, onVerificationStatusChange]);
+  }, [session?.verificationId, verificationIdHint, onVerificationComplete, onVerificationStatusChange]);
 
   const createSession = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/v1/verifications/didit/session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          returnUrl: window.location.href,
+          returnUrl: window.location.origin + window.location.pathname,
         }),
       });
 
@@ -95,7 +103,8 @@ export default function DiditVerification({ onVerificationComplete, onVerificati
 
       const popup = window.open(data.launchUrl, "didit-verification", "width=600,height=800");
       if (!popup) {
-        setError("Verification window was blocked by the browser. Please allow popups and try again.");
+        // Fall back to top-level navigation when popup blockers are enabled.
+        window.location.href = data.launchUrl;
       }
     } catch (err) {
       setError(err.message || "Failed to start verification");

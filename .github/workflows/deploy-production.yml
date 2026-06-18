@@ -1,0 +1,57 @@
+name: Deploy LaboutiqueVIP Production
+
+on:
+  push:
+    branches:
+      - master
+      - cursor/lbv-prod-readiness-cac0
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:backend
+      - run: npm run build:backend
+      - run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/cursor/lbv-prod-readiness-cac0'
+    steps:
+      - name: Deploy to liquidweb-evergreen
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.LIQUIDWEB_DEPLOY_SSH_KEY }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key root@67.225.163.73 \
+            "DEPLOY_BRANCH='$DEPLOY_BRANCH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /srv/apps/trystlike/repo
+          git fetch origin
+          git checkout "$DEPLOY_BRANCH" 2>/dev/null || git checkout master
+          git pull origin "$DEPLOY_BRANCH" 2>/dev/null || git pull origin master
+          set -a && source .env && set +a
+          export NODE_ENV=production
+          npm ci --include=dev
+          npm run build:backend
+          npm run test:backend
+          npm run build
+          npx -y prisma@6.16.0 generate --schema backend/prisma/schema.prisma
+          npx -y prisma@6.16.0 migrate deploy --schema backend/prisma/schema.prisma
+          systemctl restart laboutiquevip-backend
+          sleep 3
+          curl -sf http://127.0.0.1:8787/api/health
+          echo "Deploy OK"
+          REMOTE

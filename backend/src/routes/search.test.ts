@@ -48,10 +48,11 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
   assert.equal(seenFindManyArgs.where.AND.length, 4);
   assert.equal(seenFindManyArgs.where.AND[0].status, "active");
   assert.equal(seenFindManyArgs.where.AND[0].is_profile_approved, true);
-  assert.ok(Array.isArray(seenFindManyArgs.where.AND[0].NOT));
+  assert.ok(seenFindManyArgs.where.AND[0].NOT);
+  assert.ok(Array.isArray(seenFindManyArgs.where.AND[0].NOT.OR));
   assert.deepEqual(seenFindManyArgs.where.AND.slice(1), [
     { is_verified: true },
-    { is_premium: true },
+    { OR: [{ is_premium: true }, { ad_package: "elite" }] },
     { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
   ]);
   assert.deepEqual(seenCountArgs.where, seenFindManyArgs.where);

@@ -15,6 +15,13 @@ import { enforceRbac } from "./middleware/rbac.js";
 import { applyRateLimit } from "./middleware/rateLimit.js";
 import { corsHeaders, securityHeaders } from "./middleware/security.js";
 import {
+  createAgencyProfileHandler,
+  deleteAgencyProfileHandler,
+  getAgencyProfileHandler,
+  listAgencyProfilesHandler,
+  updateAgencyProfileHandler,
+} from "./routes/agency.js";
+import {
   adminBillingReconciliationHandler,
   adminReportsQueueHandler,
   adminReviewVerificationHandler,
@@ -169,6 +176,11 @@ function matchOrderIdPath(pathname: string): string | null {
   return matched?.[1] ?? null;
 }
 
+function matchAgencyProfileIdPath(pathname: string): string | null {
+  const matched = pathname.match(/^\/api\/v1\/agency\/profiles\/([^/]+)$/);
+  return matched?.[1] ?? null;
+}
+
 function resolveRequestIp(req: http.IncomingMessage): string | null {
   const forwarded = req.headers["x-forwarded-for"];
   const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
@@ -301,6 +313,27 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/orders" && request.method === "GET") {
     return listUserOrdersHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/agency/profiles" && request.method === "GET") {
+    return listAgencyProfilesHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/agency/profiles" && request.method === "POST") {
+    return createAgencyProfileHandler(request, context);
+  }
+
+  const agencyProfileId = matchAgencyProfileIdPath(request.pathname);
+  if (agencyProfileId && request.method === "GET") {
+    return getAgencyProfileHandler(request, agencyProfileId, context);
+  }
+
+  if (agencyProfileId && request.method === "PATCH") {
+    return updateAgencyProfileHandler(request, agencyProfileId, context);
+  }
+
+  if (agencyProfileId && request.method === "DELETE") {
+    return deleteAgencyProfileHandler(request, agencyProfileId, context);
   }
 
   const orderId = matchOrderIdPath(request.pathname);

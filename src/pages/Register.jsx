@@ -5,10 +5,17 @@ import { Crown, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { SEO } from '@/components/SEO';
 
+function sanitizeNextUrl(rawNext) {
+  if (!rawNext || typeof rawNext !== "string") return "/";
+  if (!rawNext.startsWith("/")) return "/";
+  if (rawNext.startsWith("//")) return "/";
+  return rawNext;
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const next = new URLSearchParams(location.search).get('next') || '/';
+  const next = sanitizeNextUrl(new URLSearchParams(location.search).get('next'));
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 py-12">

@@ -74,9 +74,13 @@ async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
   try {
     const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
     const claims = verified as any;
+    const normalizedRole =
+      typeof claims.role === "string" && ["member", "provider", "agency", "admin", "service"].includes(claims.role)
+        ? claims.role
+        : "member";
     return {
       sub: claims.sub,
-      role: claims.role || "member",
+      role: normalizedRole,
       exp: claims.exp,
       iat: claims.iat ?? 0,
     };
@@ -359,50 +363,61 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
   const token = getBearerToken(req);
   if (!token) return { statusCode: 401, body: { error: "unauthorized" } };
 
-  const payload = await verifyClerkJwt(token);
-  if (!payload?.sub) return { statusCode: 401, body: { error: "unauthorized" } };
+  // Support both Clerk JWT (UI path) and legacy local JWT (API path).
+  const clerkPayload = await verifyClerkJwt(token);
+  let user = null;
 
-  let user = await prisma.user.findFirst({ where: { clerk_id: payload.sub } });
+  if (clerkPayload?.sub) {
+    user = await prisma.user.findFirst({ where: { clerk_id: clerkPayload.sub } });
 
-  if (user) {
-    // Sync role from Clerk on each call (picks up elevation changes)
-    try {
-      const clerkUser = await clerkClient.users.getUser(payload.sub);
-      const clerkRole = (clerkUser.publicMetadata as any)?.role;
-      if (clerkRole && clerkRole !== user.role) {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { role: clerkRole }
-        });
-      }
-    } catch (_) {}
-  } else {
-    // Sync new user from Clerk
-    try {
-      const clerkUser = await clerkClient.users.getUser(payload.sub);
-      const email = clerkUser.emailAddresses[0]?.emailAddress;
-      const clerkRole = (clerkUser.publicMetadata as any)?.role || "member";
-      if (email) {
-        user = await prisma.user.findUnique({ where: { email } });
-        if (user) {
+    if (user) {
+      // Sync role from Clerk on each call (picks up elevation changes)
+      try {
+        const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
+        const metadataRole = (clerkUser.publicMetadata as any)?.role;
+        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "service"].includes(metadataRole)
+          ? metadataRole
+          : null;
+        if (clerkRole && clerkRole !== user.role) {
           user = await prisma.user.update({
             where: { id: user.id },
-            data: { clerk_id: payload.sub }
-          });
-        } else {
-          user = await prisma.user.create({
-            data: {
-              clerk_id: payload.sub,
-              email: email,
-              role: clerkRole,
-              full_name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null
-            }
+            data: { role: clerkRole }
           });
         }
+      } catch (_) {}
+    } else {
+      // Sync new user from Clerk
+      try {
+        const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
+        const email = clerkUser.emailAddresses[0]?.emailAddress;
+        const metadataRole = (clerkUser.publicMetadata as any)?.role;
+        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "service"].includes(metadataRole)
+          ? metadataRole
+          : "member";
+        if (email) {
+          user = await prisma.user.findUnique({ where: { email } });
+          if (user) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: { clerk_id: clerkPayload.sub }
+            });
+          } else {
+            user = await prisma.user.create({
+              data: {
+                clerk_id: clerkPayload.sub,
+                email: email,
+                role: clerkRole,
+                full_name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : null
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Clerk sync error:", e);
       }
-    } catch (e) {
-      console.error("Clerk sync error:", e);
     }
+  } else if (req.auth?.userId) {
+    user = await prisma.user.findUnique({ where: { id: req.auth.userId } });
   }
 
   if (!user) return { statusCode: 401, body: { error: "unauthorized" } };

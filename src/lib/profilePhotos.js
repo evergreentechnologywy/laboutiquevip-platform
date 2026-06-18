@@ -77,9 +77,16 @@ export function photoMatchesProvider(url, provider) {
 
   const providerPhone = String(provider?.phone || "").replace(/\D/g, "");
   const urlPhone = extractPhoneFromPhotoUrl(url);
+  const slugTokens = extractVerificationSlugTokens(provider?.verification_url);
+  const slugHits = slugTokens.filter((token) => pathBlob.includes(token)).length;
 
+  // Phone alone is not enough: URL path must also match verification slug when present.
   if (providerPhone && urlPhone) {
-    return urlPhone === providerPhone;
+    if (urlPhone !== providerPhone) return false;
+    if (slugTokens.length > 0) {
+      return slugHits >= Math.min(2, slugTokens.length);
+    }
+    return true;
   }
 
   if (providerPhone && urlPhone && urlPhone !== providerPhone) {
@@ -87,14 +94,12 @@ export function photoMatchesProvider(url, provider) {
   }
 
   const nameTokens = extractNameTokens(provider?.display_name);
-  const slugTokens = extractVerificationSlugTokens(provider?.verification_url);
   const identityTokens = [...new Set([...slugTokens, ...nameTokens])];
 
   if (identityTokens.length === 0) {
     return !/^[a-f0-9]{16,}\.[a-z0-9]+$/i.test(filename);
   }
 
-  const slugHits = slugTokens.filter((token) => pathBlob.includes(token)).length;
   if (slugTokens.length > 0 && slugHits >= Math.min(2, slugTokens.length)) {
     return true;
   }

@@ -217,6 +217,7 @@ export async function createOrderHandler(
   // If NOWPayments is configured, create a hosted payment session
   const hasNowpayments = Boolean(process.env.NOWPAYMENTS_API_KEY);
   let paymentUrl = null;
+  let paymentError: string | null = null;
 
   if (hasNowpayments) {
     try {
@@ -248,6 +249,12 @@ export async function createOrderHandler(
             status: "issued",
           },
         });
+        if (!paymentUrl) {
+          paymentError = "Payment provider returned an invoice without a hosted payment URL.";
+        }
+      } else {
+        const nowpaymentsBody = await nowpaymentsResponse.json().catch(() => ({}));
+        paymentError = nowpaymentsBody?.message || "Payment provider could not create a checkout session.";
       }
     } catch (err) {
       captureBackendException(err, {
@@ -256,6 +263,7 @@ export async function createOrderHandler(
         invoiceId: invoice.id,
       });
       console.error("NOWPayments invoice creation failed:", err);
+      paymentError = "Payment provider request failed. Please try again in a moment.";
     }
   }
 
@@ -288,6 +296,7 @@ export async function createOrderHandler(
       amountCents,
       hasNowpayments,
       paymentUrl: paymentUrl ? "created" : "failed",
+      paymentError: paymentError ? "present" : "none",
     },
   });
 
@@ -300,6 +309,7 @@ export async function createOrderHandler(
       currency: order.currency,
     },
     paymentUrl,
+    paymentError,
     mode: hasNowpayments ? "live" : "test_mode",
   });
 }

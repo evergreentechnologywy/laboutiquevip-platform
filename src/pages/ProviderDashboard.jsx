@@ -55,6 +55,14 @@ const emptyProfile = {
   ad_package: "none",
 };
 
+const DEFAULT_MAX_PROVIDER_PHOTOS = 8;
+const ELITE_MAX_PROVIDER_PHOTOS = 32;
+
+function getProviderPhotoLimit(provider) {
+  const pkg = String(provider?.ad_package || "").toLowerCase();
+  return pkg === "elite" ? ELITE_MAX_PROVIDER_PHOTOS : DEFAULT_MAX_PROVIDER_PHOTOS;
+}
+
 function normalizeOptionalString(value) {
   if (typeof value !== "string") return value ?? null;
   const trimmed = value.trim();
@@ -111,9 +119,28 @@ export default function ProviderDashboard() {
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
   const [checkoutStatus, setCheckoutStatus] = React.useState({ type: "", message: "" });
 
+  const maxProviderPhotos = React.useMemo(() => getProviderPhotoLimit(provider), [provider?.ad_package]);
+
   React.useEffect(() => {
     setTabInUrl(tab);
   }, [tab]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentState = params.get("payment");
+    if (paymentState === "success") {
+      setCheckoutStatus({
+        type: "success",
+        message: "Payment callback received. We are confirming your package activation now.",
+      });
+      refetchOrders();
+    } else if (paymentState === "cancelled") {
+      setCheckoutStatus({
+        type: "error",
+        message: "Payment was cancelled. You can restart checkout whenever you're ready.",
+      });
+    }
+  }, [refetchOrders]);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -232,6 +259,13 @@ export default function ProviderDashboard() {
         window.location.href = order.paymentUrl;
         return;
       }
+      if (order?.paymentError) {
+        setCheckoutStatus({
+          type: "error",
+          message: order.paymentError,
+        });
+        return;
+      }
       setCheckoutStatus({
         type: "error",
         message: "Payment link could not be generated. Please try again or contact support.",
@@ -276,6 +310,10 @@ export default function ProviderDashboard() {
       review_url: normalizeOptionalUrl(formData.review_url),
       video_url: normalizeOptionalUrl(formData.video_url),
       rate_hourly: normalizeOptionalNumber(formData.rate_hourly),
+      photos: Array.isArray(formData.photos) ? formData.photos.filter(Boolean).slice(0, maxProviderPhotos) : [],
+      pending_photos: Array.isArray(formData.pending_photos)
+        ? formData.pending_photos.filter(Boolean).slice(0, maxProviderPhotos)
+        : [],
     };
 
     setError("");
@@ -303,25 +341,43 @@ export default function ProviderDashboard() {
 
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
+    const approvedCount = Array.isArray(provider.photos) ? provider.photos.length : 0;
+    const pendingCount = Array.isArray(provider.pending_photos) ? provider.pending_photos.length : 0;
+    const currentTotalPhotos = approvedCount + pendingCount;
+    const remainingSlots = maxProviderPhotos - currentTotalPhotos;
+    if (remainingSlots <= 0) {
+      setError(`You can keep up to ${maxProviderPhotos} total photos on your profile.`);
+      event.target.value = "";
+      return;
+    }
 
     setUploading(true);
     setError("");
 
     try {
+      const filesToUpload = files.slice(0, remainingSlots);
       const uploadedUrls = [];
-      for (const file of files) {
+      for (const file of filesToUpload) {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         uploadedUrls.push(file_url);
       }
 
-      const nextPendingPhotos = [...(provider.pending_photos || []), ...uploadedUrls];
+      const nextPendingPhotos = [...(provider.pending_photos || []), ...uploadedUrls]
+        .filter(Boolean)
+        .slice(0, Math.max(0, maxProviderPhotos - approvedCount));
       const updated = await base44.entities.Provider.update(provider.id, {
         pending_photos: nextPendingPhotos,
         status: provider.is_profile_approved ? provider.status : "pending_verification",
       });
       setProvider(updated);
       setFormData((prev) => ({ ...prev, pending_photos: updated.pending_photos || [] }));
-      setSaveStatus({ type: "success", message: "Photos uploaded and queued for review." });
+      setSaveStatus({
+        type: "success",
+        message:
+          filesToUpload.length < files.length
+            ? `Uploaded ${filesToUpload.length} photo(s). Max ${maxProviderPhotos} photos are allowed.`
+            : "Photos uploaded and queued for review.",
+      });
     } catch (err) {
       setError(err?.data?.message || err?.message || "Photo upload failed.");
     } finally {
@@ -679,17 +735,30 @@ export default function ProviderDashboard() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-medium text-zinc-100">Photo moderation queue</h3>
-                      <p className="text-sm text-zinc-400">Your listing can go live after ID verification, but newly uploaded photos stay here until they are manually approved.</p>
+                      <p className="text-sm text-zinc-400">Your listing can go live after ID verification, but newly uploaded photos stay here until they are manually approved. Up to 32 photos are supported on Elite plans (8 on other tiers).</p>
                     </div>
                     <div>
                       <input id="provider-photo-upload" type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
                       <label htmlFor="provider-photo-upload">
-                        <Button type="button" variant="outline" className="border-zinc-700 text-zinc-300" disabled={uploading || !provider} asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-zinc-700 text-zinc-300"
+                          disabled={
+                            uploading ||
+                            !provider ||
+                            ((provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0) >= maxProviderPhotos)
+                          }
+                          asChild
+                        >
                           <span>{uploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-2" />}Upload photos</span>
                         </Button>
                       </label>
                     </div>
                   </div>
+                  <p className="text-xs text-zinc-500">
+                    Current total: {(provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0)}/{maxProviderPhotos}.
+                  </p>
 
                   <div className="grid md:grid-cols-2 gap-6">
                     <MediaGrid title="Approved photos" items={provider?.photos || []} emptyText="No approved photos yet." />

@@ -19,7 +19,9 @@
     "typecheck": "node ./node_modules/typescript/bin/tsc -p ./jsconfig.json",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "deploy": "npm run build:backend && npm run db:generate && ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'",
-    "deploy:pull": "ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'"
+    "deploy:pull": "ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'",
+    "import:eros": "node ./scripts/import-eros.mjs",
+    "import:eros:dry": "node ./scripts/import-eros.mjs --dry-run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1020.0",

@@ -1,12 +1,22 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SignIn } from '@clerk/react';
 import { Crown, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { SEO } from '@/components/SEO';
 
+function sanitizeNextUrl(rawNext) {
+  if (!rawNext || typeof rawNext !== "string") return "/";
+  if (!rawNext.startsWith("/")) return "/";
+  if (rawNext.startsWith("//")) return "/";
+  return rawNext;
+}
+
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const next = sanitizeNextUrl(new URLSearchParams(location.search).get("next"));
+  const signUpUrl = `/register${next ? `?next=${encodeURIComponent(next)}` : ""}`;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-4 py-12">
@@ -25,7 +35,13 @@ export default function Login() {
         </div>
       </Link>
 
-      <SignIn routing="path" path="/login" signUpUrl="/register" />
+      <SignIn
+        routing="path"
+        path="/login"
+        signUpUrl={signUpUrl}
+        forceRedirectUrl={next}
+        signUpForceRedirectUrl={next}
+      />
 
       <button 
         onClick={() => navigate('/')} 

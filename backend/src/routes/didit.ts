@@ -49,9 +49,16 @@ function mapDiditStatus(status: string): string {
   return "pending";
 }
 
+function getFrontendBaseUrl(): string {
+  return process.env.FRONTEND_URL?.trim() || process.env.PUBLIC_BASE_URL?.trim() || "https://www.laboutiquevip.net";
+}
+
 function normalizeCallbackUrl(input: string): string {
-  const base = process.env.FRONTEND_URL?.trim() || process.env.PUBLIC_BASE_URL?.trim() || "https://www.laboutiquevip.net";
+  const base = new URL(getFrontendBaseUrl());
   const url = new URL(input, base);
+  if (url.origin !== base.origin) {
+    throw new Error("returnUrl must be on the configured frontend origin");
+  }
   return url.toString();
 }
 
@@ -125,7 +132,15 @@ export async function createDiditSessionHandler(
   }
 
   const providerSessionId = crypto.randomUUID();
-  const callbackUrl = normalizeCallbackUrl(payload.returnUrl);
+  let callbackUrl: string;
+  try {
+    callbackUrl = normalizeCallbackUrl(payload.returnUrl);
+  } catch {
+    return json(400, {
+      error: "validation_error",
+      message: "returnUrl must use the configured frontend origin",
+    });
+  }
   const verificationWebhookUrl = `${process.env.API_BASE_URL?.trim() || process.env.PUBLIC_BASE_URL?.trim() || "https://www.laboutiquevip.net"}/api/v1/webhooks/didit`;
 
   try {

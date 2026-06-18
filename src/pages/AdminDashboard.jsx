@@ -23,12 +23,17 @@ export default function AdminDashboard() {
 
   React.useEffect(() => {
     const loadUser = async () => {
-      const currentUser = await base44.auth.me();
-      if (currentUser.role !== 'admin') {
-        window.location.href = '/';
-        return;
+      try {
+        const currentUser = await base44.auth.me();
+        if (currentUser.role !== 'admin') {
+          window.location.href = '/';
+          return;
+        }
+        setUser(currentUser);
+      } catch {
+        // Ensure unauthorized sessions are redirected consistently.
+        window.location.href = '/login?next=/admindashboard';
       }
-      setUser(currentUser);
     };
     loadUser();
   }, []);
