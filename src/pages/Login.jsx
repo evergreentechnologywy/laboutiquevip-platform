@@ -4,6 +4,7 @@ import { SignIn } from '@clerk/react';
 import { Crown, ArrowLeft } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { SEO } from '@/components/SEO';
+import { clerkAppearance } from '@/lib/clerkAppearance';
 
 function sanitizeNextUrl(rawNext) {
   if (!rawNext || typeof rawNext !== "string") return "/";
@@ -45,26 +46,7 @@ export default function Login() {
           signUpUrl={signUpUrl}
           forceRedirectUrl={next}
           signUpForceRedirectUrl={next}
-          appearance={{
-            elements: {
-              card: "bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] rounded-[32px] backdrop-blur-md",
-              headerTitle: "text-zinc-100 font-serif text-2xl tracking-tight",
-              headerSubtitle: "text-zinc-400 font-light text-sm",
-              socialButtonsBlockButton: "bg-zinc-800 border-zinc-700 text-zinc-100 hover:bg-zinc-700/80 transition-colors rounded-xl",
-              socialButtonsBlockButtonText: "text-zinc-200 font-medium",
-              dividerLine: "bg-zinc-850",
-              dividerText: "text-zinc-500 text-xs uppercase tracking-wider",
-              formFieldLabel: "text-zinc-350 text-xs font-semibold uppercase tracking-wider",
-              formFieldInput: "bg-zinc-800/50 border-zinc-700 text-zinc-100 rounded-xl focus:border-rose-500/50 focus:ring-rose-500/20 transition-all",
-              formButtonPrimary: "bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-white font-semibold h-11 border-0 shadow-md rounded-full transition-all",
-              footerActionText: "text-zinc-450 text-sm font-light",
-              footerActionLink: "text-rose-450 hover:text-rose-350 font-medium transition-colors",
-              identityPreviewText: "text-zinc-300",
-              identityPreviewEditButton: "text-rose-450 hover:text-rose-350",
-              formFieldSuccessText: "text-emerald-450",
-              formFieldErrorText: "text-rose-450",
-            }
-          }}
+          appearance={clerkAppearance}
         />
       </div>
 

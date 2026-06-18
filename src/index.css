@@ -183,3 +183,28 @@ button:focus-visible {
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(345, 85%, 55%);
 }
+
+/* Clerk email verification OTP — readable contrast on dark auth screens */
+.cl-otpCodeFieldInput,
+.cl-otpCodeFieldInputs input,
+[data-localization-key="formFieldInput__emailCode"] input {
+  background-color: #09090b !important;
+  border: 2px solid #71717a !important;
+  color: #fafafa !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  caret-color: #fbbf24 !important;
+}
+
+.cl-otpCodeFieldInput:focus,
+.cl-otpCodeFieldInputs input:focus {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3) !important;
+  outline: none !important;
+}
+
+.cl-formFieldInfoText,
+.cl-alertText,
+.cl-headerSubtitle {
+  color: #d4d4d8 !important;
+}
