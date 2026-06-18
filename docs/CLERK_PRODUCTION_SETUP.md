@@ -11,7 +11,7 @@
 | Instance type | ✗ `development` |
 | Publishable key | ✗ `pk_test_*` |
 | Production domain | ✗ Not in Clerk domains API |
-| Agency owner `evergreentechnology.wy@gmail.com` | ✓ DB: `role=agency`, `status=active`, `clerk_id=null` |
+| Agency owner `admin@evergreentechnology.app` | ✓ DB: `role=agency`, `status=active`, `clerk_id=null` |
 
 ## Required steps (Clerk Dashboard)
 
@@ -24,7 +24,7 @@
    ```bash
    cd /srv/apps/trystlike/repo && npm run build && systemctl restart laboutiquevip-backend
    ```
-5. Agency owner: visit `https://www.laboutiquevip.net/login` and sign in with `evergreentechnology.wy@gmail.com` (links `clerk_id` on first auth).
+5. Agency owner: visit `https://www.laboutiquevip.net/login` and sign in with `admin@evergreentechnology.app` (links `clerk_id` on first auth).
 
 ## Verify
 

@@ -43,7 +43,7 @@ fi
 agency=$(node -e "
 const { PrismaClient } = require('./backend/generated/prisma-client');
 const p = new PrismaClient();
-p.user.findFirst({ where: { email: 'evergreentechnology.wy@gmail.com' }, select: { status: true, role: true, clerk_id: true } })
+p.user.findFirst({ where: { email: 'admin@evergreentechnology.app' }, select: { status: true, role: true, clerk_id: true } })
   .then(u => { if (!u) { console.log('missing'); process.exit(1); } console.log(u.clerk_id ? 'linked' : 'unlinked'); p.\$disconnect(); })
   .catch(() => { console.log('error'); process.exit(1); });
 " 2>/dev/null || echo error)
