@@ -161,7 +161,7 @@ export default function ProviderDashboard() {
     };
 
     loadData();
-  }, [isAuthenticated, isLoadingAuth, authUser]);
+  }, [isAuthenticated, isLoadingAuth]);
 
   const { data: reviews = [] } = useQuery({
     queryKey: ["reviews", provider?.id],
