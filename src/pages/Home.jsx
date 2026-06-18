@@ -10,6 +10,7 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
+import { CityAutocomplete } from "@/components/CityAutocomplete";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
@@ -102,14 +103,12 @@ export default function Home() {
                   />
                 </div>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
-                  <Input
-                    placeholder="City or location"
-                    aria-label="City or location"
+                  <MapPin className="absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+                  <CityAutocomplete
                     value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                    className="h-14 rounded-2xl border-zinc-850 bg-zinc-950/70 pl-12 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20"
+                    onChange={setLocationQuery}
+                    onEnter={handleSearch}
+                    className="h-14 w-full rounded-2xl border border-zinc-850 bg-zinc-950/70 pl-12 pr-4 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                   />
                 </div>
                 <Button

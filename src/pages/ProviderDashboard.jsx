@@ -33,6 +33,7 @@ import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 import { SEO } from "@/components/SEO";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
+import { useAuth } from "@/lib/AuthContext";
 
 const emptyProfile = {
   display_name: "",
@@ -125,6 +126,55 @@ export default function ProviderDashboard() {
     setTabInUrl(tab);
   }, [tab]);
 
+  const { user: authUser, isAuthenticated, isLoadingAuth } = useAuth();
+
+  React.useEffect(() => {
+    if (isLoadingAuth) return;
+    if (!isAuthenticated) {
+      window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
+      return;
+    }
+    const loadData = async () => {
+      try {
+        const currentUser = authUser || (await base44.auth.me());
+        setUser(currentUser);
+
+        const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
+        if (providers.length > 0) {
+          const currentProvider = providers[0];
+          setProvider(currentProvider);
+          setFormData({
+            ...emptyProfile,
+            ...currentProvider,
+            age: currentProvider.age ?? "",
+            rate_hourly: currentProvider.rate_hourly ?? "",
+          });
+          setSaveStatus({ type: "", message: "" });
+        }
+      } catch (err) {
+        if (err?.status === 401 || /unauthor/i.test(err?.message || "")) {
+          window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
+          return;
+        }
+        setError("Unable to load your dashboard right now.");
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated, isLoadingAuth, authUser]);
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews", provider?.id],
+    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id }, "-created_date", 20),
+    enabled: !!provider,
+  });
+
+  const { data: orders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ["orders", user?.id],
+    queryFn: () => base44.orders.list(),
+    enabled: !!user,
+  });
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentState = params.get("payment");
@@ -141,44 +191,6 @@ export default function ProviderDashboard() {
       });
     }
   }, [refetchOrders]);
-
-  React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-
-        const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
-        if (providers.length > 0) {
-          const currentProvider = providers[0];
-          setProvider(currentProvider);
-          setFormData({
-            ...emptyProfile,
-            ...currentProvider,
-            age: currentProvider.age ?? "",
-            rate_hourly: currentProvider.rate_hourly ?? "",
-          });
-          setSaveStatus({ type: "", message: "" });
-        }
-      } catch (err) {
-        setError("Unable to load your dashboard right now.");
-      }
-    };
-
-    loadData();
-  }, []);
-
-  const { data: reviews = [] } = useQuery({
-    queryKey: ["reviews", provider?.id],
-    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id }, "-created_date", 20),
-    enabled: !!provider,
-  });
-
-  const { data: orders = [], refetch: refetchOrders } = useQuery({
-    queryKey: ["orders", user?.id],
-    queryFn: () => base44.orders.list(),
-    enabled: !!user,
-  });
 
   const syncProviderState = React.useCallback((savedProvider) => {
     setProvider(savedProvider);
