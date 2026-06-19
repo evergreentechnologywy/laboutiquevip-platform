@@ -445,6 +445,18 @@ export default function ProviderDashboard() {
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
       <SEO title="Provider Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto space-y-8">
+        {checkoutStatus.message && (
+          <div
+            role="status"
+            className={`rounded-xl px-4 py-3 border ${
+              checkoutStatus.type === "success"
+                ? "bg-emerald-500/10 border-emerald-600/40 text-emerald-200"
+                : "bg-red-500/10 border-red-600/40 text-red-200"
+            }`}
+          >
+            {checkoutStatus.message}
+          </div>
+        )}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-zinc-100 mb-2">Provider dashboard</h1>
