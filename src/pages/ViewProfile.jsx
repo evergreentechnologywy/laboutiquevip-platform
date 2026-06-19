@@ -18,43 +18,62 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
-function extractIdFromSlug(slug) {
-  if (!slug) return null;
-  // SEO slug format: name-city-uuidPrefix (last 8 chars are uuid prefix)
-  // For best-effort lookup, return the full slug; backend can match against id prefix or slug.
-  return slug;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function extractUserIdPrefixFromSlug(slug) {
+  if (!slug || UUID_RE.test(slug)) return null;
+  const prefix = slug.split("-").filter(Boolean).pop();
+  return prefix && /^[0-9a-f]{8}$/i.test(prefix) ? prefix : null;
+}
+
+async function fetchProviderByIdentifier(identifier) {
+  if (!identifier) return null;
+
+  if (UUID_RE.test(identifier)) {
+    const providers = await base44.entities.Provider.filter({ id: identifier });
+    return providers[0] ?? null;
+  }
+
+  const userIdPrefix = extractUserIdPrefixFromSlug(identifier);
+  if (userIdPrefix) {
+    const providers = await base44.entities.Provider.filter({ user_id: { startsWith: userIdPrefix } });
+    if (providers.length > 0) return providers[0];
+  }
+
+  return null;
 }
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const { profileSlug } = useParams();
-  const providerId = urlParams.get('id') || extractIdFromSlug(profileSlug);
+  const providerLookupKey = urlParams.get('id') || profileSlug || null;
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
   const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
   const [sending, setSending] = React.useState(false);
   const [sent, setSent] = React.useState(false);
 
   const { data: provider, isLoading } = useQuery({
-    queryKey: ['provider', providerId],
+    queryKey: ['provider', providerLookupKey],
     queryFn: async () => {
-      const providers = await base44.entities.Provider.filter({ id: providerId });
-      if (providers.length === 0) return null;
+      const currentProvider = await fetchProviderByIdentifier(providerLookupKey);
+      if (!currentProvider) return null;
 
-      const currentProvider = providers[0];
       const viewCount = (currentProvider.views_count || 0) + 1;
 
       // Public viewers may not be authenticated, so a failed analytics update
       // must not block rendering the actual profile.
       try {
-        await base44.entities.Provider.update(providerId, { views_count: viewCount });
+        await base44.entities.Provider.update(currentProvider.id, { views_count: viewCount });
       } catch {
         return currentProvider;
       }
 
       return { ...currentProvider, views_count: viewCount };
     },
-    enabled: !!providerId,
+    enabled: !!providerLookupKey,
   });
+
+  const providerId = provider?.id;
 
   const { data: reviews = [] } = useQuery({
     queryKey: ['reviews', providerId],

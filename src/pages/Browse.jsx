@@ -83,6 +83,11 @@ export default function Browse() {
   const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
   const [location, setLocation] = React.useState(initialLocation);
 
+  React.useEffect(() => {
+    if (!citySlug) return;
+    setLocation(citySlugToReadable(citySlug));
+  }, [citySlug]);
+
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);
 
