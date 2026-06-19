@@ -26,12 +26,19 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 export async function r2PhotoProxyHandler(request: ApiRequest): Promise<ApiResponse> {
+  // URL layout (two flavours both supported for backwards compatibility):
+  //   /api/r2-photo/<uuid>/<filename>                  ← legacy: keyed by provider UUID
+  //   /api/r2-photo/laboutiquevip/providers/<obj.png>  ← new uploads: full key passed through
   const pathParts = request.pathname.split("/").filter(Boolean);
   if (pathParts.length < 4) return { statusCode: 400, body: { error: "bad_request" } };
 
-  const providerId = pathParts[2];
-  const filename = pathParts.slice(3).join("/");
-  const key = `laboutiquevip/providers/${providerId}/${filename}`;
+  const afterPrefix = pathParts.slice(2); // strip "api" "r2-photo"
+  const looksLikeLegacy = afterPrefix.length === 2
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(afterPrefix[0]);
+
+  const key = looksLikeLegacy
+    ? `laboutiquevip/providers/${afterPrefix[0]}/${afterPrefix[1]}`
+    : afterPrefix.join("/");
 
   try {
     const client = getS3Client();
