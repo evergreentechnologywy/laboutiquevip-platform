@@ -40,13 +40,14 @@ else
   fail=$((fail + 1))
 fi
 
+AGENCY_EMAIL="${LBV_AGENCY_OWNER_EMAIL:-admin@evergreentechnology.app}"
 agency=$(node -e "
 const { PrismaClient } = require('./backend/generated/prisma-client');
 const p = new PrismaClient();
-p.user.findFirst({ where: { email: 'evergreentechnology.wy@gmail.com' }, select: { status: true, role: true, clerk_id: true } })
-  .then(u => { if (!u) { console.log('missing'); process.exit(1); } console.log(u.clerk_id ? 'linked' : 'unlinked'); p.\$disconnect(); })
+p.user.findFirst({ where: { email: '$AGENCY_EMAIL' }, select: { status: true, role: true, clerk_id: true } })
+  .then(u => { if (!u) { console.log('missing'); process.exit(1); } console.log(u.clerk_id ? 'linked' : 'unlinked'); return p.\$disconnect(); })
   .catch(() => { console.log('error'); process.exit(1); });
-" 2>/dev/null || echo error)
+" 2>/dev/null | tail -n 1 || echo error)
 
 if [[ "$agency" == "linked" ]]; then
   echo "✓ Agency owner Clerk account linked"
