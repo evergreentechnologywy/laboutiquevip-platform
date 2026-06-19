@@ -18,48 +18,58 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
-function extractIdFromSlug(slug) {
-  if (!slug) return null;
-  // SEO slug format: name-city-uuidPrefix (last 8 chars are uuid prefix)
-  // For best-effort lookup, return the full slug; backend can match against id prefix or slug.
-  return slug;
+async function fetchProviderByLookupKey(lookupKey, isSeoSlugRoute) {
+  if (!lookupKey) return null;
+
+  if (isSeoSlugRoute) {
+    const res = await fetch(`/api/v1/seo/profile/${encodeURIComponent(lookupKey)}`, {
+      credentials: "same-origin",
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data.provider ?? null;
+  }
+
+  const providers = await base44.entities.Provider.filter({ id: lookupKey });
+  return providers[0] ?? null;
 }
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const { profileSlug } = useParams();
-  const providerId = urlParams.get('id') || extractIdFromSlug(profileSlug);
+  const legacyProviderId = urlParams.get('id');
+  const lookupKey = legacyProviderId || profileSlug;
+  const isSeoSlugRoute = !legacyProviderId && !!profileSlug;
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
   const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
   const [sending, setSending] = React.useState(false);
   const [sent, setSent] = React.useState(false);
 
   const { data: provider, isLoading } = useQuery({
-    queryKey: ['provider', providerId],
+    queryKey: ['provider', lookupKey, isSeoSlugRoute],
     queryFn: async () => {
-      const providers = await base44.entities.Provider.filter({ id: providerId });
-      if (providers.length === 0) return null;
+      const currentProvider = await fetchProviderByLookupKey(lookupKey, isSeoSlugRoute);
+      if (!currentProvider) return null;
 
-      const currentProvider = providers[0];
       const viewCount = (currentProvider.views_count || 0) + 1;
 
       // Public viewers may not be authenticated, so a failed analytics update
       // must not block rendering the actual profile.
       try {
-        await base44.entities.Provider.update(providerId, { views_count: viewCount });
+        await base44.entities.Provider.update(currentProvider.id, { views_count: viewCount });
       } catch {
         return currentProvider;
       }
 
       return { ...currentProvider, views_count: viewCount };
     },
-    enabled: !!providerId,
+    enabled: !!lookupKey,
   });
 
   const { data: reviews = [] } = useQuery({
-    queryKey: ['reviews', providerId],
-    queryFn: () => base44.entities.Review.filter({ provider_id: providerId, status: 'approved' }, '-created_date'),
-    enabled: !!providerId,
+    queryKey: ['reviews', provider?.id],
+    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id, status: 'approved' }, '-created_date'),
+    enabled: !!provider?.id,
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
@@ -69,7 +79,7 @@ export default function ViewProfile() {
     setSending(true);
     try {
       await base44.entities.Message.create({
-        provider_id: providerId,
+        provider_id: provider.id,
         sender_name: messageForm.name,
         sender_email: messageForm.email,
         message: messageForm.message,

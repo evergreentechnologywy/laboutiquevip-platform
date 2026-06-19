@@ -54,7 +54,7 @@ import {
   putCalendarHandler,
   registerModelHandler,
 } from "./routes/models.js";
-import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
+import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, seoProfileBySlugHandler, robotsHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
 import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
@@ -379,6 +379,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/seo/profiles" && request.method === "GET") {
     return seoProfilesHandler(request, context);
+  }
+
+  if (request.pathname.startsWith("/api/v1/seo/profile/") && request.method === "GET") {
+    return seoProfileBySlugHandler(request, context);
   }
 
   if ((request.pathname === "/api/v1/seo/sitemap.xml" || request.pathname === "/sitemap.xml") && request.method === "GET") {

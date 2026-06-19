@@ -193,16 +193,16 @@ export default function AdminDashboard() {
         <Tabs defaultValue="pending" className="space-y-6">
           <TabsList className="bg-zinc-900 border border-zinc-800">
             <TabsTrigger value="pending" className="data-[state=active]:bg-zinc-800">
-              Pending ({pendingProviders.length})
+              Pending ({stats?.providers?.pending ?? pendingProviders.length})
             </TabsTrigger>
             <TabsTrigger value="active" className="data-[state=active]:bg-zinc-800">
-              Active ({activeProviders.length})
+              Active ({stats?.providers?.active ?? activeProviders.length})
             </TabsTrigger>
             <TabsTrigger value="suspended" className="data-[state=active]:bg-zinc-800">
-              Suspended ({suspendedProviders.length})
+              Suspended ({stats?.providers?.suspended ?? suspendedProviders.length})
             </TabsTrigger>
             <TabsTrigger value="all" className="data-[state=active]:bg-zinc-800">
-              All Providers ({allProviders.length})
+              All Providers ({stats?.providers?.total ?? allProviders.length})
             </TabsTrigger>
           </TabsList>
 

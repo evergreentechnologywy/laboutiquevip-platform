@@ -4,6 +4,40 @@ import {
   generateProfileRoutes,
   generateSitemapXml,
 } from "../services/seo.js";
+import { publicProviderVisibilityWhere } from "./providerVisibility.js";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function mapProviderProfileToLegacyProvider(profile: Record<string, unknown>): Record<string, unknown> {
+  const rates = (profile.rates ?? {}) as Record<string, unknown>;
+  const contact = (profile.contactPreferences ?? {}) as Record<string, unknown>;
+  const services = Array.isArray(profile.services) ? profile.services : [];
+
+  return {
+    id: profile.id,
+    user_id: profile.userId,
+    display_name: profile.displayName,
+    tagline: null,
+    bio: profile.bio,
+    location_city: profile.city,
+    location_state: null,
+    location_country: null,
+    phone: contact.phone ?? null,
+    email: contact.email ?? null,
+    photos: [],
+    services_offered: services,
+    is_premium: false,
+    is_verified: profile.isVerified,
+    views_count: 0,
+    rating_average: 0,
+    reviews_count: 0,
+    rate_hourly: rates.hourly ?? null,
+    rate_two_hours: rates.twoHours ?? rates.two_hours ?? null,
+    rate_overnight: rates.overnight ?? null,
+    created_date: profile.createdAt,
+    updated_date: profile.updatedAt,
+  };
+}
 
 interface SeoContext {
   prisma: any;
@@ -127,6 +161,48 @@ export async function seoProfilesHandler(request: ApiRequest, context: SeoContex
   ].slice(0, limit);
 
   return json(200, { items: profileRoutes });
+}
+
+export async function seoProfileBySlugHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
+  const matched = request.pathname.match(/^\/api\/v1\/seo\/profile\/([^/]+)$/);
+  const slug = matched?.[1] ? decodeURIComponent(matched[1]) : "";
+  if (!slug) {
+    return json(404, { error: "not_found" });
+  }
+
+  const visibilityWhere = publicProviderVisibilityWhere();
+
+  if (UUID_REGEX.test(slug)) {
+    const legacyById = await context.prisma.provider.findFirst({
+      where: { id: slug, ...visibilityWhere },
+    });
+    if (legacyById) {
+      return json(200, { provider: legacyById });
+    }
+  }
+
+  const profile = await context.prisma.providerProfile.findFirst({
+    where: { slug, isPublished: true },
+  });
+
+  if (profile) {
+    const linked = await context.prisma.provider.findFirst({
+      where: { user_id: profile.userId, ...visibilityWhere },
+    });
+    if (linked) {
+      return json(200, { provider: linked });
+    }
+    return json(200, { provider: mapProviderProfileToLegacyProvider(profile) });
+  }
+
+  const legacy = await context.prisma.provider.findFirst({
+    where: { id: slug, ...visibilityWhere },
+  });
+  if (legacy) {
+    return json(200, { provider: legacy });
+  }
+
+  return json(404, { error: "not_found" });
 }
 
 export async function sitemapHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
