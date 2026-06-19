@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -18,9 +18,17 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
+function extractIdFromSlug(slug) {
+  if (!slug) return null;
+  // SEO slug format: name-city-uuidPrefix (last 8 chars are uuid prefix)
+  // For best-effort lookup, return the full slug; backend can match against id prefix or slug.
+  return slug;
+}
+
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
-  const providerId = urlParams.get('id');
+  const { profileSlug } = useParams();
+  const providerId = urlParams.get('id') || extractIdFromSlug(profileSlug);
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
   const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
   const [sending, setSending] = React.useState(false);

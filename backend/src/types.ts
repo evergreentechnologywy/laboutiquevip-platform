@@ -25,4 +25,6 @@ export interface ApiResponse {
   headers?: Record<string, string>;
   body?: unknown;
   rawBody?: string;
+  /** Binary response body (preferred for images, video, file downloads). */
+  rawBuffer?: Buffer;
 }
