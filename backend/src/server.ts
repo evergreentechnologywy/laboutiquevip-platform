@@ -513,6 +513,8 @@ const server = http.createServer(async (req, res) => {
           }
         } catch (e) {
           console.error("Failed to resolve clerk_id → internal user.id:", e);
+          clerkAuth.clerkId = clerkAuth.userId;
+          clerkAuth.userId = null;
         }
         request.auth = clerkAuth;
       }
