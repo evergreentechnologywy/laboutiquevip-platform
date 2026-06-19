@@ -26,6 +26,7 @@ import {
   adminReportsQueueHandler,
   adminReviewVerificationHandler,
 } from "./routes/admin.js";
+import { adminStatsHandler } from "./routes/adminStats.js";
 import { aiAssistantHandler, applyAiTourDraftHandler } from "./routes/aiAssistant.js";
 import {
   createDiditSessionHandler,
@@ -357,6 +358,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/admin/reports" && request.method === "GET") {
     return adminReportsQueueHandler(request, context);
+  }
+
+  if (request.pathname === "/api/admin/stats" && request.method === "GET") {
+    return adminStatsHandler(request, context);
   }
 
   const verificationId = matchAdminVerificationReviewPath(request.pathname);
