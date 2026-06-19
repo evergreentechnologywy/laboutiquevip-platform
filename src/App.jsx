@@ -67,6 +67,9 @@ const AuthenticatedApp = () => {
           {/* Clerk path routing needs wildcards for verify-email, SSO callback, etc. */}
           <Route path="/login/*" element={Pages.Login ? <Pages.Login /> : null} />
           <Route path="/register/*" element={Pages.Register ? <Pages.Register /> : null} />
+          {/* SEO routes: sitemap & external links use /city/:slug and /profile/:slug */}
+          <Route path="/city/:citySlug" element={Pages.Browse ? <Pages.Browse /> : null} />
+          <Route path="/profile/:profileSlug" element={Pages.ViewProfile ? <Pages.ViewProfile /> : null} />
           {Object.entries(Pages).map(([path, Page]) => (
             <React.Fragment key={path}>
               <Route path={`/${path}`} element={<Page />} />

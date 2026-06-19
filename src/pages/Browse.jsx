@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -64,10 +64,24 @@ const ctaCards = [
   },
 ];
 
+function citySlugToReadable(slug) {
+  if (!slug) return "";
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function Browse() {
   const urlParams = new URLSearchParams(window.location.search);
+  const { citySlug } = useParams();
+  const initialLocation =
+    urlParams.get("location") ||
+    urlParams.get("loc") ||
+    (citySlug ? citySlugToReadable(citySlug) : "");
   const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
-  const [location, setLocation] = React.useState(urlParams.get("location") || urlParams.get("loc") || "");
+  const [location, setLocation] = React.useState(initialLocation);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);

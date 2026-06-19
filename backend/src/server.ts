@@ -94,6 +94,12 @@ function sendResponse(res: http.ServerResponse, payload: ApiResponse): void {
     return;
   }
 
+  if (payload.rawBuffer && Buffer.isBuffer(payload.rawBuffer)) {
+    res.writeHead(statusCode, headers);
+    res.end(payload.rawBuffer);
+    return;
+  }
+
   if (typeof payload.rawBody === "string") {
     res.writeHead(statusCode, headers);
     res.end(payload.rawBody);
