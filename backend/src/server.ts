@@ -490,18 +490,29 @@ const server = http.createServer(async (req, res) => {
   try {
     const auditLogger = new ImmutableAuditLogger(prisma);
 
-    // Enrich auth with Clerk JWT if legacy auth returned no userId
+    // Enrich auth with Clerk JWT if legacy auth returned no userId.
+    // CRITICAL: handlers downstream expect `auth.userId` to be the internal
+    // User.id UUID. Clerk's `sub` claim is the Clerk user id like
+    // `user_xxx` which Prisma rejects when used in UUID columns.
     if (!request.auth?.userId) {
       const clerkAuth = await authFromClerkJwt(request.headers);
       if (clerkAuth) {
-        // Resolve role from DB if JWT didn't include it (no custom template yet)
-        if (clerkAuth.roles.length === 0 || clerkAuth.roles[0] === "member") {
-          try {
-            const dbUser = await prisma.user.findFirst({ where: { clerk_id: clerkAuth.userId } });
-            if (dbUser?.role) {
-              clerkAuth.roles = [dbUser.role];
+        try {
+          const dbUser = await prisma.user.findFirst({ where: { clerk_id: clerkAuth.userId } });
+          if (dbUser) {
+            clerkAuth.clerkId = clerkAuth.userId;
+            clerkAuth.userId = dbUser.id;
+            if (clerkAuth.roles.length === 0 || clerkAuth.roles[0] === "member") {
+              if (dbUser.role) clerkAuth.roles = [dbUser.role];
             }
-          } catch (_) {}
+          } else {
+            // No internal user yet — keep Clerk id but flag for handlers
+            // that need to auto-provision (meHandler does this on /api/auth/me).
+            clerkAuth.clerkId = clerkAuth.userId;
+            clerkAuth.userId = null;
+          }
+        } catch (e) {
+          console.error("Failed to resolve clerk_id → internal user.id:", e);
         }
         request.auth = clerkAuth;
       }
