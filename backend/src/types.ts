@@ -1,7 +1,10 @@
 export type Role = "admin" | "provider" | "agency" | "member" | "service";
 
 export interface AuthContext {
+  /** Internal User.id (UUID). Use this for any Prisma query against UUID columns. */
   userId: string | null;
+  /** Clerk user id (e.g. `user_xxx`). Set when authenticated via Clerk JWT. */
+  clerkId?: string | null;
   roles: Role[];
 }
 
