@@ -48,6 +48,18 @@ export default function AdminDashboard() {
     enabled: !!user,
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/stats', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}` },
+      });
+      if (!res.ok) throw new Error('stats fetch failed');
+      return res.json();
+    },
+    enabled: !!user && user.role === 'admin',
+  });
+
   const approveMutation = useMutation({
     /** @param {{ id: string, notes: string }} variables */
     mutationFn: ({ id, notes }) => base44.entities.Provider.update(id, {
@@ -131,10 +143,10 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <Clock className="w-8 h-8 text-yellow-400" />
-                <span className="text-3xl font-bold text-zinc-100">{pendingProviders.length}</span>
+                <span className="text-3xl font-bold text-zinc-100">{stats?.providers?.pending ?? pendingProviders.length}</span>
               </div>
               <p className="text-sm text-zinc-400">Pending Approvals</p>
-              {pendingProviders.length > 0 && (
+              {(stats?.providers?.pending ?? pendingProviders.length) > 0 && (
                 <Badge className="mt-2 bg-yellow-500/20 text-yellow-400 border-0">Needs Action</Badge>
               )}
             </CardContent>
@@ -144,7 +156,7 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <UserCheck className="w-8 h-8 text-green-400" />
-                <span className="text-3xl font-bold text-zinc-100">{activeProviders.length}</span>
+                <span className="text-3xl font-bold text-zinc-100">{stats?.providers?.active ?? activeProviders.length}</span>
               </div>
               <p className="text-sm text-zinc-400">Active Providers</p>
               <div className="mt-2 flex items-center gap-1 text-xs text-green-400">
@@ -158,7 +170,7 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <Shield className="w-8 h-8 text-blue-400" />
-                <span className="text-3xl font-bold text-zinc-100">{allProviders.filter(p => p.is_verified).length}</span>
+                <span className="text-3xl font-bold text-zinc-100">{stats?.providers?.verified ?? allProviders.filter(p => p.is_verified).length}</span>
               </div>
               <p className="text-sm text-zinc-400">Verified Providers</p>
               <p className="text-xs text-zinc-600 mt-2">Approved and verified listings</p>
@@ -169,7 +181,7 @@ export default function AdminDashboard() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <Star className="w-8 h-8 text-amber-400" />
-                <span className="text-3xl font-bold text-zinc-100">{pendingReviews.length}</span>
+                <span className="text-3xl font-bold text-zinc-100">{stats?.reviews?.pending ?? pendingReviews.length}</span>
               </div>
               <p className="text-sm text-zinc-400">Pending Reviews</p>
               <p className="text-xs text-zinc-600 mt-2">Need moderation</p>
