@@ -18,25 +18,29 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
-function extractIdFromSlug(slug) {
-  if (!slug) return null;
-  // SEO slug format: name-city-uuidPrefix (last 8 chars are uuid prefix)
-  // For best-effort lookup, return the full slug; backend can match against id prefix or slug.
-  return slug;
+async function resolveProviderId(slugOrId) {
+  if (!slugOrId) return null;
+  const res = await fetch(`/api/v1/seo/profile/${encodeURIComponent(slugOrId)}`);
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => ({}));
+  return data.providerId ?? null;
 }
 
 export default function ViewProfile() {
   const urlParams = new URLSearchParams(window.location.search);
   const { profileSlug } = useParams();
-  const providerId = urlParams.get('id') || extractIdFromSlug(profileSlug);
+  const profileKey = urlParams.get('id') || profileSlug;
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
   const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
   const [sending, setSending] = React.useState(false);
   const [sent, setSent] = React.useState(false);
 
   const { data: provider, isLoading } = useQuery({
-    queryKey: ['provider', providerId],
+    queryKey: ['provider', profileKey],
     queryFn: async () => {
+      const providerId = await resolveProviderId(profileKey);
+      if (!providerId) return null;
+
       const providers = await base44.entities.Provider.filter({ id: providerId });
       if (providers.length === 0) return null;
 
@@ -53,8 +57,10 @@ export default function ViewProfile() {
 
       return { ...currentProvider, views_count: viewCount };
     },
-    enabled: !!providerId,
+    enabled: !!profileKey,
   });
+
+  const providerId = provider?.id ?? null;
 
   const { data: reviews = [] } = useQuery({
     queryKey: ['reviews', providerId],

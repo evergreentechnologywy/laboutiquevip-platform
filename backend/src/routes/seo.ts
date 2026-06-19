@@ -4,6 +4,9 @@ import {
   generateProfileRoutes,
   generateSitemapXml,
 } from "../services/seo.js";
+import { publicProviderVisibilityWhere } from "./providerVisibility.js";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface SeoContext {
   prisma: any;
@@ -61,6 +64,37 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
   );
 
   return json(200, { items: routes });
+}
+
+export async function seoProfileBySlugHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
+  const matched = request.pathname.match(/^\/api\/v1\/seo\/profile\/([^/]+)$/);
+  const slug = decodeURIComponent(matched?.[1] ?? "").trim();
+  if (!slug) return json(404, { error: "not_found" });
+
+  const visibility = publicProviderVisibilityWhere();
+
+  if (UUID_RE.test(slug)) {
+    const provider = await context.prisma.provider.findFirst({
+      where: { id: slug, AND: [visibility] },
+      select: { id: true },
+    });
+    if (provider) return json(200, { providerId: provider.id });
+  }
+
+  const profile = await context.prisma.providerProfile.findUnique({
+    where: { slug },
+    select: { userId: true, isPublished: true },
+  });
+
+  if (profile?.isPublished) {
+    const provider = await context.prisma.provider.findFirst({
+      where: { user_id: profile.userId, AND: [visibility] },
+      select: { id: true },
+    });
+    if (provider) return json(200, { providerId: provider.id });
+  }
+
+  return json(404, { error: "not_found" });
 }
 
 export async function seoProfilesHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {

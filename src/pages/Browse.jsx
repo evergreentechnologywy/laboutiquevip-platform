@@ -64,24 +64,46 @@ const ctaCards = [
   },
 ];
 
-function citySlugToReadable(slug) {
-  if (!slug) return "";
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+async function resolveCityFromSlug(slug) {
+  try {
+    const res = await fetch(`/api/v1/search/cities?q=${encodeURIComponent(slug)}`);
+    if (!res.ok) return "";
+    const data = await res.json();
+    const items = data.items || [];
+    return items.find((item) => item.slug === slug)?.displayName ?? items[0]?.displayName ?? "";
+  } catch {
+    return "";
+  }
 }
 
 export default function Browse() {
   const urlParams = new URLSearchParams(window.location.search);
   const { citySlug } = useParams();
-  const initialLocation =
-    urlParams.get("location") ||
-    urlParams.get("loc") ||
-    (citySlug ? citySlugToReadable(citySlug) : "");
   const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
-  const [location, setLocation] = React.useState(initialLocation);
+  const [location, setLocation] = React.useState(
+    urlParams.get("location") || urlParams.get("loc") || ""
+  );
+
+  React.useEffect(() => {
+    const urlLocation = urlParams.get("location") || urlParams.get("loc");
+    if (urlLocation) {
+      setLocation(urlLocation);
+      return;
+    }
+
+    if (!citySlug) {
+      setLocation("");
+      return;
+    }
+
+    let cancelled = false;
+    resolveCityFromSlug(citySlug).then((cityName) => {
+      if (!cancelled) setLocation(cityName);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [citySlug]);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);
