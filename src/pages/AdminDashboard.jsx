@@ -13,8 +13,10 @@ import { Users, UserCheck, UserX, Clock, TrendingUp, Eye, Star, Shield, AlertCir
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function AdminDashboard() {
+  const { user: authUser, isAuthenticated, isLoadingAuth } = useAuth();
   const [user, setUser] = React.useState(null);
   const [selectedProvider, setSelectedProvider] = React.useState(null);
   const [rejectionReason, setRejectionReason] = React.useState("");
@@ -22,21 +24,17 @@ export default function AdminDashboard() {
   const queryClient = useQueryClient();
 
   React.useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        if (currentUser.role !== 'admin') {
-          window.location.href = '/';
-          return;
-        }
-        setUser(currentUser);
-      } catch {
-        // Ensure unauthorized sessions are redirected consistently.
-        window.location.href = '/login?next=/admindashboard';
-      }
-    };
-    loadUser();
-  }, []);
+    if (isLoadingAuth) return;
+    if (!isAuthenticated) {
+      window.location.href = "/login?next=/admindashboard";
+      return;
+    }
+    if (authUser && authUser.role !== "admin") {
+      window.location.href = "/";
+      return;
+    }
+    setUser(authUser);
+  }, [isLoadingAuth, isAuthenticated, authUser]);
 
   const { data: allProviders = [], isLoading } = useQuery({
     queryKey: ['all-providers'],

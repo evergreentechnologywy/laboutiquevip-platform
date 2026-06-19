@@ -17,6 +17,7 @@ import DiditVerification from "@/components/DiditVerification";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 import { buildProviderSignupPayload } from "@/lib/providerPayload";
 import { SEO } from "@/components/SEO";
+import { useAuth } from "@/lib/AuthContext";
 
 const initialFormData = {
   display_name: "",
@@ -59,25 +60,22 @@ export default function ProviderSignup() {
 
   const availableCities = React.useMemo(() => cityOptionsForState(formData.location_state), [formData.location_state]);
 
+  const { user: authUser, isAuthenticated, isLoadingAuth } = useAuth();
+
   React.useEffect(() => {
-    const loadUser = async () => {
-      if (!base44.auth.hasToken()) {
-        setUser(null);
-        setIsLoadingUser(false);
-        return;
-      }
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-        setFormData(prev => ({ ...prev, email: currentUser.email }));
-      } catch {
-        setUser(null);
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-    loadUser();
-  }, []);
+    if (isLoadingAuth) {
+      setIsLoadingUser(true);
+      return;
+    }
+    if (!isAuthenticated || !authUser) {
+      setUser(null);
+      setIsLoadingUser(false);
+      return;
+    }
+    setUser(authUser);
+    setFormData((prev) => ({ ...prev, email: authUser.email || prev.email }));
+    setIsLoadingUser(false);
+  }, [authUser, isAuthenticated, isLoadingAuth]);
 
   const createProviderMutation = useMutation({
     mutationFn: async (data) => {
