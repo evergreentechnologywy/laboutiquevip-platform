@@ -103,10 +103,29 @@ async function requireUser(req: ApiRequest, prisma: any): Promise<any | null> {
   return user;
 }
 
-function parseSort(sort?: string | null): any {
-  if (!sort) return { created_date: "desc" };
+const ENTITY_DEFAULT_SORT_COLUMNS: Record<string, string> = {
+  Provider: "created_date",
+  Booking: "created_date",
+  Message: "created_date",
+  Review: "created_date",
+  Verification: "createdAt",
+};
+
+function parseSort(sort?: string | null, entity?: string): any {
+  if (!sort) {
+    const column = (entity && ENTITY_DEFAULT_SORT_COLUMNS[entity]) ?? "created_date";
+    return { [column]: "desc" };
+  }
   const desc = sort.startsWith("-");
-  const key = desc ? sort.slice(1) : sort;
+  const requested = desc ? sort.slice(1) : sort;
+  // Translate legacy "created_date" / "updated_date" to camelCase columns
+  // for tables that don't define them.
+  const camelMap: Record<string, string> = {
+    created_date: "createdAt",
+    updated_date: "updatedAt",
+  };
+  const useCamel = entity === "Verification" && camelMap[requested];
+  const key = useCamel ? camelMap[requested] : requested;
   return { [key]: desc ? "desc" : "asc" };
 }
 
@@ -444,7 +463,7 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
   const rows = await prisma[model.toLowerCase()].findMany({
     where: combineWhere(scoped.where, requestedWhere),
     select: scoped.select,
-    orderBy: parseSort(sort),
+    orderBy: parseSort(sort, entity),
     take: Number.isFinite(limit) ? Math.min(limit, 1000) : 100,
   });
   return { statusCode: 200, body: rows.map((r: any) => normalizeDates(r)) };
