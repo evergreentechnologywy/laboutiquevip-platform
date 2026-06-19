@@ -54,7 +54,7 @@ export async function r2PhotoProxyHandler(request: ApiRequest): Promise<ApiRespo
     }
     const buffer = Buffer.concat(chunks);
 
-    const ext = "." + (filename.split(".").pop() || "jpg").toLowerCase();
+    const ext = "." + (key.split(".").pop() || "jpg").toLowerCase();
     const contentType = response.ContentType || MIME_TYPES[ext] || "image/jpeg";
 
     return {
