@@ -553,7 +553,8 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
   return { statusCode: 200, body: normalizeDates(created) };
 }
 
-export async function updateProviderHandler(req: ApiRequest, id: string, { prisma }: Ctx): Promise<ApiResponse> {
+export async function updateProviderHandler(req: ApiRequest, id: string, ctx: Ctx): Promise<ApiResponse> {
+  const { prisma } = ctx;
   if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
 
   const existing = await prisma.provider.findUnique({ where: { id } });
@@ -569,6 +570,46 @@ export async function updateProviderHandler(req: ApiRequest, id: string, { prism
 
   const data = deriveProviderState(parsed.data, existing, { isAdmin });
   const updated = await prisma.provider.update({ where: { id }, data });
+
+  // Audit admin moderation actions on Provider (state changes, package
+  // assignments, photo approvals). Owner self-edits skip the audit log
+  // to keep volume manageable.
+  if (isAdmin && (ctx as any).auditLogger) {
+    try {
+      const diff: Record<string, unknown> = {};
+      const fields = [
+        "status",
+        "is_verified",
+        "is_profile_approved",
+        "ad_package",
+        "ad_package_expiry",
+        "admin_notes",
+        "rejection_reason",
+      ];
+      for (const f of fields) {
+        if ((parsed.data as any)[f] !== undefined && (existing as any)[f] !== (parsed.data as any)[f]) {
+          diff[f] = { from: (existing as any)[f] ?? null, to: (parsed.data as any)[f] };
+        }
+      }
+      const beforePhotos = Array.isArray(existing.photos) ? existing.photos.length : 0;
+      const afterPhotos = Array.isArray(updated.photos) ? updated.photos.length : 0;
+      if (beforePhotos !== afterPhotos) {
+        diff.photos_count = { from: beforePhotos, to: afterPhotos };
+      }
+      if (Object.keys(diff).length > 0) {
+        await (ctx as any).auditLogger.append({
+          actorId: req.auth.userId,
+          action: "admin.provider.update",
+          resourceType: "provider",
+          resourceId: id,
+          metadata: { diff },
+        });
+      }
+    } catch {
+      // Audit logging errors must never block the write path.
+    }
+  }
+
   return { statusCode: 200, body: normalizeDates(updated) };
 }
 
