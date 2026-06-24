@@ -212,7 +212,7 @@ function parseProfile(markdown, sourceUrl) {
   const age = ageNum && ageNum >= 18 && ageNum <= 99 ? ageNum : null;
 
   const imageCandidates = unique(
-    [...markdown.matchAll(/https?:\/\/i\.eros\.com\/[^\s)]+/gi)].map((m) => m[0]),
+    [...markdown.matchAll(/https?:\/\/(?:i|[a-z0-9-]+)\.eros\.com\/(?:i|profile)\/[^\s)]+/gi)].map((m) => m[0]),
   );
   const photos = imageCandidates.slice(0, MAX_PROVIDER_PHOTOS);
 
