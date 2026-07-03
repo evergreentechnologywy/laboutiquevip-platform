@@ -28,12 +28,12 @@ import {
   User,
 } from "lucide-react";
 import { stateOptions, cityOptionsForState, OTHER_CITY_OPTION } from "@/lib/locationOptions";
+import { knownHostAffiliateUrl, stripeAffiliateUrl } from "@/lib/affiliateLinks";
 import { adPackages, getAdPackageById, formatPackagePrice, getPackageProductSku } from "@/lib/adPackages";
 import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 import { SEO } from "@/components/SEO";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
-import { useAuth } from "@/lib/AuthContext";
 
 const emptyProfile = {
   display_name: "",
@@ -56,13 +56,7 @@ const emptyProfile = {
   ad_package: "none",
 };
 
-const DEFAULT_MAX_PROVIDER_PHOTOS = 8;
-const ELITE_MAX_PROVIDER_PHOTOS = 32;
-
-function getProviderPhotoLimit(provider) {
-  const pkg = String(provider?.ad_package || "").toLowerCase();
-  return pkg === "elite" ? ELITE_MAX_PROVIDER_PHOTOS : DEFAULT_MAX_PROVIDER_PHOTOS;
-}
+const MAX_PROVIDER_PHOTOS = 8;
 
 function normalizeOptionalString(value) {
   if (typeof value !== "string") return value ?? null;
@@ -119,61 +113,40 @@ export default function ProviderDashboard() {
   const [saveStatus, setSaveStatus] = React.useState({ type: "", message: "" });
   const [billingPeriod, setBillingPeriod] = React.useState("weekly");
   const [checkoutStatus, setCheckoutStatus] = React.useState({ type: "", message: "" });
-
-  const maxProviderPhotos = React.useMemo(() => getProviderPhotoLimit(provider), [provider?.ad_package]);
+  const advertiserToolLinks = React.useMemo(
+    () =>
+      [
+        {
+          key: "stripe",
+          href: stripeAffiliateUrl(),
+          title: "Accept card payments",
+          description: "Stripe — fast setup, global reach",
+          iconClassName: "bg-indigo-500/20 text-indigo-400",
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
+        },
+        {
+          key: "knownhost",
+          href: knownHostAffiliateUrl(),
+          title: "Host your own site",
+          description: "KnownHost — adult-friendly, fast, reliable",
+          iconClassName: "bg-emerald-500/20 text-emerald-400",
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+            </svg>
+          ),
+        },
+      ].filter((link) => Boolean(link.href)),
+    [],
+  );
 
   React.useEffect(() => {
     setTabInUrl(tab);
   }, [tab]);
-
-  const { user: authUser, isAuthenticated, isLoadingAuth } = useAuth();
-
-  React.useEffect(() => {
-    if (isLoadingAuth) return;
-    if (!isAuthenticated) {
-      window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
-      return;
-    }
-    const loadData = async () => {
-      try {
-        const currentUser = authUser || (await base44.auth.me());
-        setUser(currentUser);
-
-        const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
-        if (providers.length > 0) {
-          const currentProvider = providers[0];
-          setProvider(currentProvider);
-          setFormData({
-            ...emptyProfile,
-            ...currentProvider,
-            age: currentProvider.age ?? "",
-            rate_hourly: currentProvider.rate_hourly ?? "",
-          });
-          setSaveStatus({ type: "", message: "" });
-        }
-      } catch (err) {
-        if (err?.status === 401 || /unauthor/i.test(err?.message || "")) {
-          window.location.href = `/login?next=${encodeURIComponent("/providerdashboard")}`;
-          return;
-        }
-        setError("Unable to load your dashboard right now.");
-      }
-    };
-
-    loadData();
-  }, [isAuthenticated, isLoadingAuth, authUser]);
-
-  const { data: reviews = [] } = useQuery({
-    queryKey: ["reviews", provider?.id],
-    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id }, "-created_date", 20),
-    enabled: !!provider,
-  });
-
-  const { data: orders = [], refetch: refetchOrders } = useQuery({
-    queryKey: ["orders", user?.id],
-    queryFn: () => base44.orders.list(),
-    enabled: !!user,
-  });
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -191,6 +164,44 @@ export default function ProviderDashboard() {
       });
     }
   }, [refetchOrders]);
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+
+        const providers = await base44.entities.Provider.filter({ user_id: currentUser.id });
+        if (providers.length > 0) {
+          const currentProvider = providers[0];
+          setProvider(currentProvider);
+          setFormData({
+            ...emptyProfile,
+            ...currentProvider,
+            age: currentProvider.age ?? "",
+            rate_hourly: currentProvider.rate_hourly ?? "",
+          });
+          setSaveStatus({ type: "", message: "" });
+        }
+      } catch (err) {
+        setError("Unable to load your dashboard right now.");
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews", provider?.id],
+    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id }, "-created_date", 20),
+    enabled: !!provider,
+  });
+
+  const { data: orders = [], refetch: refetchOrders } = useQuery({
+    queryKey: ["orders", user?.id],
+    queryFn: () => base44.orders.list(),
+    enabled: !!user,
+  });
 
   const syncProviderState = React.useCallback((savedProvider) => {
     setProvider(savedProvider);
@@ -322,9 +333,9 @@ export default function ProviderDashboard() {
       review_url: normalizeOptionalUrl(formData.review_url),
       video_url: normalizeOptionalUrl(formData.video_url),
       rate_hourly: normalizeOptionalNumber(formData.rate_hourly),
-      photos: Array.isArray(formData.photos) ? formData.photos.filter(Boolean).slice(0, maxProviderPhotos) : [],
+      photos: Array.isArray(formData.photos) ? formData.photos.filter(Boolean).slice(0, MAX_PROVIDER_PHOTOS) : [],
       pending_photos: Array.isArray(formData.pending_photos)
-        ? formData.pending_photos.filter(Boolean).slice(0, maxProviderPhotos)
+        ? formData.pending_photos.filter(Boolean).slice(0, MAX_PROVIDER_PHOTOS)
         : [],
     };
 
@@ -356,9 +367,9 @@ export default function ProviderDashboard() {
     const approvedCount = Array.isArray(provider.photos) ? provider.photos.length : 0;
     const pendingCount = Array.isArray(provider.pending_photos) ? provider.pending_photos.length : 0;
     const currentTotalPhotos = approvedCount + pendingCount;
-    const remainingSlots = maxProviderPhotos - currentTotalPhotos;
+    const remainingSlots = MAX_PROVIDER_PHOTOS - currentTotalPhotos;
     if (remainingSlots <= 0) {
-      setError(`You can keep up to ${maxProviderPhotos} total photos on your profile.`);
+      setError(`You can keep up to ${MAX_PROVIDER_PHOTOS} total photos on your profile.`);
       event.target.value = "";
       return;
     }
@@ -376,7 +387,7 @@ export default function ProviderDashboard() {
 
       const nextPendingPhotos = [...(provider.pending_photos || []), ...uploadedUrls]
         .filter(Boolean)
-        .slice(0, Math.max(0, maxProviderPhotos - approvedCount));
+        .slice(0, Math.max(0, MAX_PROVIDER_PHOTOS - approvedCount));
       const updated = await base44.entities.Provider.update(provider.id, {
         pending_photos: nextPendingPhotos,
         status: provider.is_profile_approved ? provider.status : "pending_verification",
@@ -387,7 +398,7 @@ export default function ProviderDashboard() {
         type: "success",
         message:
           filesToUpload.length < files.length
-            ? `Uploaded ${filesToUpload.length} photo(s). Max ${maxProviderPhotos} photos are allowed.`
+            ? `Uploaded ${filesToUpload.length} photo(s). Max ${MAX_PROVIDER_PHOTOS} photos are allowed.`
             : "Photos uploaded and queued for review.",
       });
     } catch (err) {
@@ -445,18 +456,6 @@ export default function ProviderDashboard() {
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
       <SEO title="Provider Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto space-y-8">
-        {checkoutStatus.message && (
-          <div
-            role="status"
-            className={`rounded-xl px-4 py-3 border ${
-              checkoutStatus.type === "success"
-                ? "bg-emerald-500/10 border-emerald-600/40 text-emerald-200"
-                : "bg-red-500/10 border-red-600/40 text-red-200"
-            }`}
-          >
-            {checkoutStatus.message}
-          </div>
-        )}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-zinc-100 mb-2">Provider dashboard</h1>
@@ -603,6 +602,7 @@ export default function ProviderDashboard() {
           </TabsContent>
 
           {/* Advertiser tools — affiliate section with payment processing + hosting */}
+          {advertiserToolLinks.length > 0 && (
           <Card className="bg-zinc-900 border-zinc-800 mb-6">
             <CardHeader>
               <CardTitle className="text-zinc-100 text-base">Tools &amp; services for your business</CardTitle>
@@ -610,37 +610,27 @@ export default function ProviderDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 gap-4">
-                <a
-                  href="https://stripe.com/referral/AFFILIATE_ID"
-                  target="_blank"
-                  rel="nofollow sponsored"
-                  className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-800"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-100">Accept card payments</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">Stripe — fast setup, global reach</p>
-                  </div>
-                </a>
-                <a
-                  href="https://www.knownhost.com/aff.php?aff=AFFILIATE_ID"
-                  target="_blank"
-                  rel="nofollow sponsored"
-                  className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-800"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-100">Host your own site</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">KnownHost — adult-friendly, fast, reliable</p>
-                  </div>
-                </a>
+                {advertiserToolLinks.map(({ key, href, title, description, iconClassName, icon }) => (
+                  <a
+                    key={key}
+                    href={href}
+                    target="_blank"
+                    rel="nofollow sponsored"
+                    className="flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-800/50 p-4 transition hover:border-zinc-600 hover:bg-zinc-800"
+                  >
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconClassName}`}>
+                      {icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-100">{title}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
+                    </div>
+                  </a>
+                ))}
               </div>
             </CardContent>
           </Card>
+          )}
 
           <TabsContent value="profile">
             <Card className="bg-zinc-900 border-zinc-800">
@@ -759,7 +749,7 @@ export default function ProviderDashboard() {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-medium text-zinc-100">Photo moderation queue</h3>
-                      <p className="text-sm text-zinc-400">Your listing can go live after ID verification, but newly uploaded photos stay here until they are manually approved. Up to 32 photos are supported on Elite plans (8 on other tiers).</p>
+                      <p className="text-sm text-zinc-400">Your listing can go live after ID verification, but newly uploaded photos stay here until they are manually approved. Up to 8 total photos are supported.</p>
                     </div>
                     <div>
                       <input id="provider-photo-upload" type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} disabled={uploading} />
@@ -771,7 +761,7 @@ export default function ProviderDashboard() {
                           disabled={
                             uploading ||
                             !provider ||
-                            ((provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0) >= maxProviderPhotos)
+                            ((provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0) >= MAX_PROVIDER_PHOTOS)
                           }
                           asChild
                         >
@@ -781,7 +771,7 @@ export default function ProviderDashboard() {
                     </div>
                   </div>
                   <p className="text-xs text-zinc-500">
-                    Current total: {(provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0)}/{maxProviderPhotos}.
+                    Current total: {(provider?.photos?.length || 0) + (provider?.pending_photos?.length || 0)}/{MAX_PROVIDER_PHOTOS}.
                   </p>
 
                   <div className="grid md:grid-cols-2 gap-6">

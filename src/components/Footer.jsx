@@ -2,9 +2,36 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Crown, ShieldCheck, MapPin, Smartphone } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import {
+  bookingAffiliateUrl,
+  knownHostAffiliateUrl,
+  nordVpnAffiliateUrl,
+  stripeAffiliateUrl,
+  textVerifiedAffiliateUrl,
+} from "@/lib/affiliateLinks";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const recommendedLinks = [
+    {
+      key: "nordvpn",
+      href: nordVpnAffiliateUrl(),
+      icon: ShieldCheck,
+      label: "NordVPN — browse securely",
+    },
+    {
+      key: "booking",
+      href: bookingAffiliateUrl(),
+      icon: MapPin,
+      label: "Hotels nearby — Booking.com",
+    },
+    {
+      key: "textverified",
+      href: textVerifiedAffiliateUrl(),
+      icon: Smartphone,
+      label: "Second phone number",
+    },
+  ].filter((link) => Boolean(link.href));
 
   return (
     <footer className="border-t border-stone-200 bg-white text-stone-600 py-16">
@@ -48,42 +75,23 @@ export function Footer() {
           </div>
 
           {/* Col 4: Affiliate recommendations — non-invasive, footer-only */}
+          {recommendedLinks.length > 0 && (
           <div className="space-y-6">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-900">Recommended</h3>
             <ul className="space-y-4">
-              <li>
-                <a
-                  href="https://go.nordvpn.net/aff_c?offer_id=15&aff_id=AFFILIATE_ID"
-                  target="_blank"
-                  rel="nofollow sponsored"
-                  className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
-                >
-                  <ShieldCheck className="h-4 w-4 text-stone-400 shrink-0" />
-                  <span>NordVPN — browse securely</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://www.booking.com/index.html?aid=AFFILIATE_ID"
-                  target="_blank"
-                  rel="nofollow sponsored"
-                  className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
-                >
-                  <MapPin className="h-4 w-4 text-stone-400 shrink-0" />
-                  <span>Hotels nearby — Booking.com</span>
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://www.textverified.com/?ref=AFFILIATE_ID"
-                  target="_blank"
-                  rel="nofollow sponsored"
-                  className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
-                >
-                  <Smartphone className="h-4 w-4 text-stone-400 shrink-0" />
-                  <span>Second phone number</span>
-                </a>
-              </li>
+              {recommendedLinks.map(({ key, href, icon: Icon, label }) => (
+                <li key={key}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="nofollow sponsored"
+                    className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
+                  >
+                    <Icon className="h-4 w-4 text-stone-400 shrink-0" />
+                    <span>{label}</span>
+                  </a>
+                </li>
+              ))}
             </ul>
             <div className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-stone-700">
               18+ Adults Only
@@ -92,6 +100,7 @@ export function Footer() {
               &copy; {currentYear} La Boutique VIP International. All rights reserved. Some links are affiliate links &mdash; we may earn a commission at no extra cost to you.
             </p>
           </div>
+          )}
         </div>
       </div>
     </footer>
