@@ -54,6 +54,14 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { ad_package_expiry: { gte: new Date().toISOString() } },
         ],
       },
+      // Eros-only scraped catalog: imported listings must be eros or evergreen.
+      // Advertiser-owned profiles (user_id set) remain eligible when approved.
+      {
+        OR: [
+          { user_id: { not: null } },
+          { verification_provider: { in: ["eros", "evergreen"] } },
+        ],
+      },
     ],
     NOT: {
       OR: exclusionBranches,

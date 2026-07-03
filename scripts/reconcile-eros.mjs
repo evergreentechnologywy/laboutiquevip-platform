@@ -25,6 +25,10 @@ const EXT_BY_TYPE = {
   "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
 };
 
+const limitCities = Number(process.argv.find((a) => a.startsWith("--limit-cities="))?.split("=")[1] ?? 0);
+const cityOffset = Number(process.argv.find((a) => a.startsWith("--city-offset="))?.split("=")[1] ?? 0);
+const dryRun = process.argv.includes("--dry-run");
+
 // Load env from workspace
 function loadEnv(envPath) {
   if (!fs.existsSync(envPath)) return;
@@ -54,6 +58,21 @@ async function createPrismaClient() {
 }
 
 const prisma = await createPrismaClient();
+
+function canonicalErosProfileUrl(url) {
+  return String(url ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\?.*$/, "");
+}
+
+function erosCityKeyFromUrl(url) {
+  const match = String(url ?? "").match(
+    /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)\//i,
+  );
+  if (!match) return null;
+  return `${match[1].toLowerCase()}/${match[2].toLowerCase()}`;
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -242,26 +261,67 @@ async function uploadPhotos(s3, bucket, providerId, sourceUrls) {
   return stored;
 }
 
+function parseCityHubFromErosUrl(url) {
+  const match = String(url).match(
+    /https?:\/\/www\.eros\.com\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\/eros\.htm/i,
+  );
+  if (!match) return null;
+  const state = match[1].toLowerCase();
+  const city = (match[2] ?? match[1]).toLowerCase();
+  return { state, city };
+}
+
 async function fetchCities() {
   console.log("[reconcile] Fetching city list from sitemap-cities.xml...");
   const text = await fetchMirrorText("https://www.eros.com/sitemap-cities.xml");
   if (!text) throw new Error("Failed to fetch sitemap-cities.xml");
-  const matches = [...text.matchAll(/https?:\/\/www\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/eros\.htm/gi)].map(m => ({
-    state: m[1],
-    city: m[2],
-  }));
-  
-  // Deduplicate
+
   const seen = new Set();
   const uniqueCities = [];
-  for (const m of matches) {
-    const key = `${m.state}/${m.city}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueCities.push(m);
+  const addHub = (hub) => {
+    if (!hub) return;
+    const key = `${hub.state}/${hub.city}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    uniqueCities.push(hub);
+  };
+
+  for (const m of text.matchAll(/https?:\/\/www\.eros\.com\/[^\s)\]]+\/eros\.htm/gi)) {
+    addHub(parseCityHubFromErosUrl(m[0]));
+  }
+
+  // Fallback: crawl homepages for hub links if sitemap is thin
+  if (uniqueCities.length < 30) {
+    console.warn("[reconcile] Sitemap thin — supplementing from Eros homepages...");
+    for (const seed of [
+      "https://www.eros.com/",
+      "https://trans.eros.com/",
+      "https://massage.eros.com/",
+    ]) {
+      const page = await fetchMirrorText(seed);
+      if (!page) continue;
+      for (const m of page.matchAll(/https?:\/\/(?:www|trans|massage)\.eros\.com\/[^\s)\]]+\/eros\.htm/gi)) {
+        const normalized = m[0].replace(/^https?:\/\/(?:trans|massage)\./i, "https://www.");
+        addHub(parseCityHubFromErosUrl(normalized));
+      }
+      await sleep(500);
     }
   }
+
   return uniqueCities;
+}
+
+function listingUrlsForHub(c) {
+  const hosts = ["www.eros.com", "trans.eros.com", "massage.eros.com"];
+  const urls = [];
+  for (const host of hosts) {
+    if (c.state === c.city) {
+      urls.push(`https://${host}/${c.state}/${c.state}_escorts.htm`);
+    } else {
+      urls.push(`https://${host}/${c.state}/${c.city}/${c.city}_escorts.htm`);
+    }
+  }
+  return urls;
 }
 
 async function run() {
@@ -272,15 +332,20 @@ async function run() {
   console.log(`[reconcile] Start Weekly Eros Reconciliation.`);
 
   // 1. Fetch all cities
-  const cities = await fetchCities();
-  console.log(`[reconcile] Discovered ${cities.length} unique cities.`);
+  const allCities = await fetchCities();
+  const cities =
+    limitCities > 0
+      ? allCities.slice(cityOffset, cityOffset + limitCities)
+      : allCities;
+  console.log(
+    `[reconcile] Discovered ${allCities.length} unique cities. Processing ${cities.length} cities ` +
+      `(offset=${cityOffset}, limit=${limitCities || "all"}, dryRun=${dryRun}).`,
+  );
 
   // 2. Generate listing URLs (www, trans, massage)
   const listingUrls = [];
   for (const c of cities) {
-    listingUrls.push(`https://www.eros.com/${c.state}/${c.city}/${c.city}_escorts.htm`);
-    listingUrls.push(`https://trans.eros.com/${c.state}/${c.city}/${c.city}_escorts.htm`);
-    listingUrls.push(`https://massage.eros.com/${c.state}/${c.city}/${c.city}_escorts.htm`);
+    listingUrls.push(...listingUrlsForHub(c));
   }
   console.log(`[reconcile] Generated ${listingUrls.length} city-section listing URLs to scan.`);
 
@@ -310,7 +375,7 @@ async function run() {
       // Extract all profile URLs
       const matches = [...text.matchAll(/https?:\/\/(?:www|trans|massage)\.eros\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/files\/\d+\.htm/gi)].map(m => m[0]);
       for (const m of matches) {
-        profileUrls.add(m.toLowerCase());
+        profileUrls.add(canonicalErosProfileUrl(m));
       }
     }
   }
@@ -323,7 +388,6 @@ async function run() {
   console.log(`[reconcile] Scanned ${crawledSuccessCount}/${totalAttempted} listing pages. Success ratio: ${(successRatio * 100).toFixed(1)}%`);
   console.log(`[reconcile] Extracted ${profileUrls.size} unique active profile URLs.`);
 
-  // Safety Gate: If success ratio is extremely low (e.g. < 40%), abort deactivation to protect database
   if (successRatio < 0.40) {
     console.error(`[FATAL] Success ratio is below 40% (${(successRatio * 100).toFixed(1)}%). Aborting reconciliation to protect DB.`);
     process.exit(1);
@@ -343,20 +407,47 @@ async function run() {
   });
   console.log(`[reconcile] Database active Eros providers: ${dbProviders.length}`);
 
-  // 5. Deactivate inactive profiles
+  const minDeactivationSuccessRatio = 0.85;
+  const allowDeactivation =
+    successRatio >= minDeactivationSuccessRatio &&
+    profileUrls.size >= Math.max(50, Math.floor(dbProviders.length * 0.4));
+
+  if (!allowDeactivation) {
+    console.warn(
+      `[reconcile] Skipping deactivation (successRatio=${(successRatio * 100).toFixed(1)}%, ` +
+        `profileUrls=${profileUrls.size}, dbActive=${dbProviders.length}). ` +
+        `Need >=${minDeactivationSuccessRatio * 100}% listing success.`,
+    );
+  }
+
+  const scannedCityKeys = new Set(cities.map((c) => `${c.state}/${c.city}`));
+  const isFullScan = limitCities === 0 || cities.length >= allCities.length;
+
+  // 5. Deactivate inactive profiles (scoped to cities scanned this run)
   let deactivatedCount = 0;
+  if (allowDeactivation) {
   for (const provider of dbProviders) {
-    const canonicalUrl = String(provider.verification_url || "").trim().toLowerCase();
-    if (canonicalUrl && !profileUrls.has(canonicalUrl)) {
-      console.log(`[reconcile] Deactivating provider (no longer on Eros): ${provider.display_name} (${provider.id}) - URL: ${provider.verification_url}`);
-      await prisma.provider.update({
-        where: { id: provider.id },
-        data: { status: "inactive", updated_date: new Date() },
-      });
+    const canonicalUrl = canonicalErosProfileUrl(provider.verification_url);
+    if (!canonicalUrl) continue;
+
+    const cityKey = erosCityKeyFromUrl(provider.verification_url);
+    if (!isFullScan && (!cityKey || !scannedCityKeys.has(cityKey))) {
+      continue;
+    }
+
+    if (!profileUrls.has(canonicalUrl)) {
+      console.log(`[reconcile] ${dryRun ? "[dry-run] Would deactivate" : "Deactivating"} provider (no longer on Eros): ${provider.display_name} (${provider.id}) - URL: ${provider.verification_url}`);
+      if (!dryRun) {
+        await prisma.provider.update({
+          where: { id: provider.id },
+          data: { status: "inactive", updated_date: new Date() },
+        });
+      }
       deactivatedCount++;
     }
   }
-  console.log(`[reconcile] Total deactivated: ${deactivatedCount}`);
+  }
+  console.log(`[reconcile] Total deactivated: ${deactivatedCount} (fullScan=${isFullScan}, citiesScanned=${scannedCityKeys.size})`);
 
   // 6. Find newly discovered profile URLs
   // To avoid duplicate profiles, we query all verification URLs (active or inactive) in the DB
@@ -364,7 +455,9 @@ async function run() {
     (await prisma.provider.findMany({
       where: { verification_provider: "eros" },
       select: { verification_url: true },
-    })).map(p => String(p.verification_url || "").trim().toLowerCase()).filter(Boolean)
+    }))
+      .map((p) => canonicalErosProfileUrl(p.verification_url))
+      .filter(Boolean),
   );
 
   const newProfileUrls = [...profileUrls].filter(url => !allDbUrls.has(url));
@@ -394,6 +487,12 @@ async function run() {
         const profile = parseProfile(markdown, profileUrl);
         if (!profile.display_name || (!profile.phone && !profile.email)) {
           console.log(`[reconcile] Skipping invalid profile (missing name or contact): ${profileUrl}`);
+          continue;
+        }
+
+        if (dryRun) {
+          console.log(`[reconcile] [dry-run] Would import provider: ${profile.display_name} - URL: ${profile.sourceUrl} with ${profile.photos.length} photos.`);
+          importedCount++;
           continue;
         }
 

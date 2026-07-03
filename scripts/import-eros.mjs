@@ -19,9 +19,10 @@ const args = new Map(
 const options = {
   dryRun: args.has("dry-run"),
   delayMs: Number(args.get("delay-ms") ?? "600"),
-  maxPages: Number(args.get("max-pages") ?? "800"),
+  maxPages: Number(args.get("max-pages") ?? "2500"),
   maxProfiles: Number(args.get("max-profiles") ?? "0"),
   startUrl: args.get("start-url") ?? null,
+  fromCities: args.has("from-cities"),
 };
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
@@ -317,18 +318,54 @@ async function importProfile(profile) {
   });
 }
 
+async function fetchCityListingSeeds() {
+  const text = await fetchMirrorText("https://www.eros.com/sitemap-cities.xml");
+  if (!text) return [];
+  const hubs = new Map();
+  for (const m of text.matchAll(/https?:\/\/www\.eros\.com\/[^\s)\]]+\/eros\.htm/gi)) {
+    const match = m[0].match(/eros\.com\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\/eros\.htm/i);
+    if (!match) continue;
+    const state = match[1].toLowerCase();
+    const city = (match[2] ?? match[1]).toLowerCase();
+    hubs.set(`${state}/${city}`, { state, city });
+  }
+  const seeds = [];
+  for (const { state, city } of hubs.values()) {
+    for (const host of ["www.eros.com", "trans.eros.com", "massage.eros.com"]) {
+      if (state === city) {
+        seeds.push(`https://${host}/${state}/${state}_escorts.htm`);
+      } else {
+        seeds.push(`https://${host}/${state}/${city}/${city}_escorts.htm`);
+      }
+    }
+  }
+  return seeds;
+}
+
 async function crawlProfileUrls() {
   const queue = [];
   const visited = new Set();
   const profileUrls = new Set();
 
-  const seeds = options.startUrl
+  let seeds = options.startUrl
     ? [options.startUrl]
-    : [
+    : options.fromCities
+      ? await fetchCityListingSeeds()
+      : [
+        "https://www.eros.com/",
+        "https://trans.eros.com/",
+        "https://massage.eros.com/",
+      ];
+
+  if (options.fromCities && seeds.length === 0) {
+    seeds = [
       "https://www.eros.com/",
       "https://trans.eros.com/",
       "https://massage.eros.com/",
     ];
+  }
+
+  console.log(`[import-eros] crawl seeds: ${seeds.length}`);
 
   for (const seed of seeds) {
     const normalized = normalizeUrl(seed);
