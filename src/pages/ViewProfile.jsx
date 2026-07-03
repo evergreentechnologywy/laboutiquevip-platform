@@ -1,13 +1,12 @@
 // @ts-nocheck
 import React from "react";
-import { Link, useParams } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { useParams, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video, ArrowRight } from "lucide-react";
+import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,17 +17,17 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
-function extractIdFromSlug(slug) {
-  if (!slug) return null;
-  // SEO slug format: name-city-uuidPrefix (last 8 chars are uuid prefix)
-  // For best-effort lookup, return the full slug; backend can match against id prefix or slug.
-  return slug;
+const MAX_PROVIDER_PHOTOS = 8;
+
+function resolveProviderId(profileSlug, queryId) {
+  return queryId || profileSlug || null;
 }
 
 export default function ViewProfile() {
-  const urlParams = new URLSearchParams(window.location.search);
   const { profileSlug } = useParams();
-  const providerId = urlParams.get('id') || extractIdFromSlug(profileSlug);
+  const [searchParams] = useSearchParams();
+  const queryId = searchParams.get("id");
+  const providerId = resolveProviderId(profileSlug, queryId);
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
   const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
   const [sending, setSending] = React.useState(false);
@@ -63,6 +62,7 @@ export default function ViewProfile() {
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
+  const displayPhotos = Array.isArray(provider?.photos) ? provider.photos.slice(0, MAX_PROVIDER_PHOTOS) : [];
 
   const handleMessageSubmit = async (e) => {
     e.preventDefault();
@@ -102,13 +102,10 @@ export default function ViewProfile() {
 
   if (!provider) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center px-6">
-        <div className="text-center max-w-md">
-          <h2 className="text-2xl font-serif text-zinc-300 mb-2">Profile not found</h2>
-          <p className="text-zinc-500 font-light mb-6">This provider profile doesn't exist or has been removed.</p>
-          <Link to={createPageUrl("Browse")} className="inline-flex rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-6 py-3 text-sm font-semibold text-white hover:opacity-95">
-            Back to browse
-          </Link>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-zinc-300 mb-2">Profile not found</h2>
+          <p className="text-zinc-500">This provider profile doesn't exist or has been removed.</p>
         </div>
       </div>
     );
@@ -117,56 +114,38 @@ export default function ViewProfile() {
   const maskedPhone = provider.phone ? provider.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2") : "";
   const maskedEmail = provider.email ? provider.email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
 
-  const profileUrl = `https://www.laboutiquevip.net/viewprofile?id=${provider.id}`;
-  const profileJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ProfilePage",
-    name: provider.display_name,
-    description: provider.tagline || provider.bio || undefined,
-    url: profileUrl,
-    image: provider.photos?.[0] || undefined,
-    mainEntity: {
-      "@type": "Person",
-      name: provider.display_name,
-      ...(provider.location_city ? { address: { "@type": "PostalAddress", addressLocality: provider.location_city, addressRegion: provider.location_state || undefined } } : {}),
-    },
-  };
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
+    <div className="min-h-screen bg-zinc-950">
       <SEO
         title={`${provider.display_name} | ${provider.location_city} | La Boutique VIP`}
         description={provider.tagline || `View profile of ${provider.display_name} in ${provider.location_city}`}
         ogTitle={`${provider.display_name} | La Boutique VIP`}
         ogDescription={provider.tagline}
-        ogImage={provider.photos?.[0]}
-        ogUrl={profileUrl}
-        jsonLd={profileJsonLd}
+        ogImage={displayPhotos[0]}
+        noindex={true}
       />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-        
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Photo Gallery */}
-        <div className="mb-10">
-          <div className="relative aspect-[4/3] sm:aspect-video rounded-[32px] overflow-hidden bg-zinc-900/60 mb-4 shadow-2xl border border-zinc-900">
+        <div className="mb-8">
+          <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-900 mb-4">
             <ProfileImage
-              src={provider.photos?.[selectedPhoto]}
+              src={displayPhotos[selectedPhoto]}
               alt={provider.display_name}
-              className="w-full h-full object-cover transition duration-300"
+              className="w-full h-full"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent" />
           </div>
           
-          {provider.photos && provider.photos.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
-              {provider.photos.map((photo, index) => (
+          {displayPhotos.length > 1 && (
+            <div className="flex gap-4 overflow-x-auto">
+              {displayPhotos.map((photo, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedPhoto(index)}
-                  className={`flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden border-2 transition-all ${
-                    selectedPhoto === index ? 'border-amber-400 scale-[0.98] shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'border-zinc-900 hover:border-zinc-700'
+                  className={`flex-shrink-0 w-24 h-24 rounded-xl overflow-hidden border-2 transition-all ${
+                    selectedPhoto === index ? 'border-rose-500' : 'border-zinc-800 hover:border-zinc-600'
                   }`}
                 >
-                  <ProfileImage src={photo} alt="" className="w-full h-full object-cover" />
+                  <ProfileImage src={photo} alt="" className="w-full h-full" />
                 </button>
               ))}
             </div>
@@ -175,12 +154,12 @@ export default function ViewProfile() {
 
         {/* Video Embed */}
         {provider.video_url && (
-          <div className="mb-10">
+          <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <Video className="w-5 h-5 text-rose-450" />
-              <h2 className="text-xl font-serif font-bold text-zinc-100">Video Introduction</h2>
+              <Video className="w-5 h-5 text-rose-400" />
+              <h2 className="text-xl font-semibold text-zinc-100">Video</h2>
             </div>
-            <div className="relative aspect-video rounded-[32px] overflow-hidden bg-zinc-900/60 border border-zinc-900 shadow-2xl">
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-zinc-900">
               <iframe
                 src={getVideoEmbedUrl(provider.video_url)}
                 title="Provider video"
@@ -192,311 +171,341 @@ export default function ViewProfile() {
           </div>
         )}
 
-        <div className="grid md:grid-cols-[1.8fr_1.2fr] gap-10 items-start">
+        <div className="grid md:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="space-y-8">
-            
-            {/* Header / Intro */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Header */}
             <div>
-              <div className="flex flex-wrap items-center gap-3 mb-3">
-                {provider.is_verified && (
-                  <Badge className="rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold py-1 px-3 shadow-sm">
-                    <Shield className="w-3.5 h-3.5 mr-1" />
-                    Verified
-                  </Badge>
-                )}
-                {provider.is_premium && (
-                  <Badge className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold py-1 px-3 shadow-sm">
-                    <Crown className="w-3.5 h-3.5 mr-1" />
-                    Premium
-                  </Badge>
-                )}
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-serif font-bold tracking-tight text-zinc-100 mb-3">{provider.display_name}</h1>
-              <p className="text-lg sm:text-xl text-zinc-400 font-light mb-4">{provider.tagline}</p>
-              
-              <div className="flex flex-wrap items-center gap-5 text-sm text-zinc-500">
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-zinc-400" />
-                  <span>{provider.location_city}, {provider.location_state}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="font-semibold text-zinc-350">{ratingMeta.value}</span>
-                  <span className="text-zinc-550">({ratingMeta.detail})</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Verification Alert Info box */}
-            <div className="rounded-[32px] border border-amber-500/20 bg-amber-500/5 p-6 sm:p-8 shadow-sm">
-              <div className="flex items-start gap-4">
-                <AlertTriangle className="w-5 h-5 text-amber-400 mt-1 shrink-0" />
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-xs font-bold text-amber-450 uppercase tracking-widest">Verification status</h3>
-                  <p className="mt-2 text-sm leading-6 text-zinc-400 font-light">
-                    Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval.
-                  </p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-4xl font-bold text-zinc-100">{provider.display_name}</h1>
+                    {provider.is_verified && (
+                      <Badge className="bg-rose-500/20 border-rose-500 text-rose-400">
+                        <Shield className="w-3 h-3 mr-1" />
+                        Verified
+                      </Badge>
+                    )}
+                    {provider.is_premium && (
+                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0">
+                        <Crown className="w-3 h-3 mr-1" />
+                        Premium
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xl text-zinc-400 mb-2">{provider.tagline}</p>
+                  <div className="flex items-center gap-4 text-zinc-500">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      <span>{provider.location_city}, {provider.location_state}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      <span>{ratingMeta.value} · {ratingMeta.detail}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* About Me */}
-            <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-4">About Me</h2>
-              <p className="whitespace-pre-wrap text-zinc-400 font-light leading-7 text-sm sm:text-base">{provider.bio || 'No bio available.'}</p>
-            </div>
+            <Card className="bg-amber-500/5 border-amber-500/20">
+              <CardContent className="pt-6 text-sm text-zinc-300">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-amber-100 mb-1">Verified Profile</p>
+                    <p className="leading-6">
+                      Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Details Grid */}
-            <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-6">Profile Details</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {provider.age && (
-                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-550 font-semibold mb-1">Age</p>
-                    <p className="text-lg font-serif font-bold text-zinc-200">{provider.age}</p>
-                  </div>
-                )}
-                {provider.ethnicity && (
-                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-550 font-semibold mb-1">Ethnicity</p>
-                    <p className="text-lg font-serif font-bold text-zinc-200">{provider.ethnicity}</p>
-                  </div>
-                )}
-                {provider.height && (
-                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-550 font-semibold mb-1">Height</p>
-                    <p className="text-lg font-serif font-bold text-zinc-200">{provider.height}</p>
-                  </div>
-                )}
-                {provider.body_type && (
-                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-4 text-center">
-                    <p className="text-[10px] uppercase tracking-widest text-zinc-550 font-semibold mb-1">Body Type</p>
-                    <p className="text-lg font-serif font-bold text-zinc-200 truncate">{provider.body_type}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* About */}
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">About Me</CardTitle>
+              </CardHeader>
+              <CardContent className="text-zinc-400">
+                <p className="whitespace-pre-wrap">{provider.bio || 'No bio available.'}</p>
+              </CardContent>
+            </Card>
+
+            {/* Details */}
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                  {provider.age && (
+                    <div>
+                      <span className="text-zinc-500">Age:</span>
+                      <span className="ml-2 text-zinc-300">{provider.age}</span>
+                    </div>
+                  )}
+                  {provider.ethnicity && (
+                    <div>
+                      <span className="text-zinc-500">Ethnicity:</span>
+                      <span className="ml-2 text-zinc-300">{provider.ethnicity}</span>
+                    </div>
+                  )}
+                  {provider.height && (
+                    <div>
+                      <span className="text-zinc-500">Height:</span>
+                      <span className="ml-2 text-zinc-300">{provider.height}</span>
+                    </div>
+                  )}
+                  {provider.body_type && (
+                    <div>
+                      <span className="text-zinc-500">Body Type:</span>
+                      <span className="ml-2 text-zinc-300">{provider.body_type}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Services */}
             {provider.services_offered && provider.services_offered.length > 0 && (
-              <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-                <h2 className="text-xl font-serif font-bold text-zinc-100 mb-4">Services</h2>
-                <div className="flex flex-wrap gap-2.5">
-                  {provider.services_offered.map((service, index) => (
-                    <Badge key={index} variant="outline" className="border-zinc-800 bg-zinc-950/30 text-zinc-355 text-xs font-medium py-1.5 px-4 rounded-full">
-                      <Check className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-                      {service}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">Services</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {provider.services_offered.map((service, index) => (
+                      <Badge key={index} variant="outline" className="border-zinc-700 text-zinc-300">
+                        <Check className="w-3 h-3 mr-1" />
+                        {service}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Reviews */}
-            <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-6">Reviews ({reviews.length})</h2>
-              {reviews.length === 0 ? (
-                <div className="py-8 text-center text-zinc-500 font-light text-sm">
-                  <p>Be the first to leave a review. Reviews appear after moderation.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b border-zinc-900 last:border-0 pb-6 last:pb-0">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${
-                                i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-800'
-                              }`}
-                            />
-                          ))}
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">Reviews ({reviews.length})</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {reviews.length === 0 ? (
+                  <div className="py-8 text-center text-zinc-500">
+                    <p>Be the first to leave a review. Reviews appear after moderation.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="border-b border-zinc-800 last:border-0 pb-4 last:pb-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium text-zinc-300">{review.reviewer_name}</span>
+                          <span className="text-xs text-zinc-500">
+                            {format(new Date(review.created_date), 'MMM d, yyyy')}
+                          </span>
                         </div>
-                        <span className="text-sm font-semibold text-zinc-200">{review.reviewer_name}</span>
-                        <span className="text-xs text-zinc-550 ml-auto">
-                          {format(new Date(review.created_date), 'MMM d, yyyy')}
-                        </span>
+                        <p className="text-zinc-400 text-sm">{review.comment}</p>
                       </div>
-                      <p className="text-zinc-400 font-light text-sm leading-6">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-8">
-            
-            {/* Rates Card */}
-            <div className="bg-gradient-to-br from-zinc-900/50 to-zinc-950 border border-zinc-900 rounded-[32px] p-6 sm:p-8 shadow-2xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-6">Rates</h2>
-              <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Rates */}
+            <Card className="bg-gradient-to-br from-zinc-900 to-zinc-900/50 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Rates</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 {provider.rate_hourly && (
-                  <div className="flex justify-between items-center py-1.5 border-b border-zinc-900/80">
-                    <span className="text-sm text-zinc-400 font-light">1 Hour</span>
-                    <span className="text-2xl font-serif font-bold text-amber-400">${provider.rate_hourly}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">1 Hour</span>
+                    <span className="text-2xl font-bold text-rose-400">${provider.rate_hourly}</span>
                   </div>
                 )}
                 {provider.rate_two_hours && (
-                  <div className="flex justify-between items-center py-1.5 border-b border-zinc-900/80">
-                    <span className="text-sm text-zinc-400 font-light">2 Hours</span>
-                    <span className="text-2xl font-serif font-bold text-amber-400">${provider.rate_two_hours}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">2 Hours</span>
+                    <span className="text-2xl font-bold text-rose-400">${provider.rate_two_hours}</span>
                   </div>
                 )}
                 {provider.rate_overnight && (
-                  <div className="flex justify-between items-center py-1.5 border-b border-zinc-900/80">
-                    <span className="text-sm text-zinc-400 font-light">Overnight</span>
-                    <span className="text-2xl font-serif font-bold text-amber-400">${provider.rate_overnight}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">Overnight</span>
+                    <span className="text-2xl font-bold text-rose-400">${provider.rate_overnight}</span>
                   </div>
                 )}
                 
-                <p className="text-xs text-zinc-550 leading-5 pt-2">
-                  This profile is published for advertising visibility. Contact details shown below are the only verified routing.
-                </p>
-              </div>
-            </div>
+                <Separator className="bg-zinc-800" />
+                
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-sm text-zinc-400">
+                  This profile is published for advertising visibility. Contact details shown below are the only on-page contact route.
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Contact Form */}
-            <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-4">Send enquiry</h2>
-              {sent ? (
-                <div className="py-8 text-center text-rose-400">
-                  <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-rose-450 glow-rose" />
-                  <p className="font-semibold text-zinc-200">Enquiry sent successfully</p>
-                  <p className="text-xs text-zinc-550 mt-2">The advertiser will receive your message.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleMessageSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sender-name" className="text-xs uppercase tracking-wider font-semibold text-zinc-500">Your Name</Label>
-                    <Input 
-                      id="sender-name" 
-                      value={messageForm.name} 
-                      onChange={e => setMessageForm({...messageForm, name: e.target.value})}
-                      placeholder="Name" 
-                      required 
-                      className="bg-zinc-950/70 border-zinc-850 h-12 rounded-2xl text-zinc-100 placeholder:text-zinc-550 focus:border-amber-500 focus:ring-amber-500/20 text-sm" 
-                    />
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Send an enquiry</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {sent ? (
+                  <div className="py-6 text-center text-green-400">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-3" />
+                    <p className="font-medium">Message sent successfully</p>
+                    <p className="text-xs text-zinc-500 mt-1">The provider has been notified.</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sender-email" className="text-xs uppercase tracking-wider font-semibold text-zinc-500">Email Address</Label>
-                    <Input 
-                      id="sender-email" 
-                      type="email" 
-                      value={messageForm.email} 
-                      onChange={e => setMessageForm({...messageForm, email: e.target.value})}
-                      placeholder="email@example.com" 
-                      required 
-                      className="bg-zinc-950/70 border-zinc-850 h-12 rounded-2xl text-zinc-100 placeholder:text-zinc-550 focus:border-amber-500 focus:ring-amber-500/20 text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sender-msg" className="text-xs uppercase tracking-wider font-semibold text-zinc-500">Message</Label>
-                    <Textarea 
-                      id="sender-msg" 
-                      value={messageForm.message} 
-                      onChange={e => setMessageForm({...messageForm, message: e.target.value})}
-                      placeholder="Inquire about availability or bookings..." 
-                      required 
-                      rows={4}
-                      className="bg-zinc-950/70 border-zinc-850 rounded-2xl text-zinc-100 placeholder:text-zinc-550 focus:border-amber-500 focus:ring-amber-500/20 text-sm leading-6" 
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    disabled={sending}
-                    className="w-full bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-white h-12 font-semibold rounded-2xl shadow-lg border-0 glow-rose mt-2"
-                  >
-                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Send className="h-4 w-4 mr-2" /> Send Enquiry</>}
-                  </Button>
-                  <p className="text-[10px] text-zinc-650 text-center leading-4">
-                    Enquiries are securely delivered direct to the advertiser.
-                  </p>
-                </form>
-              )}
-            </div>
+                ) : (
+                  <form onSubmit={handleMessageSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-name" className="text-xs text-zinc-400">Your Name</Label>
+                      <Input 
+                        id="sender-name" 
+                        value={messageForm.name} 
+                        onChange={e => setMessageForm({...messageForm, name: e.target.value})}
+                        placeholder="Name" 
+                        required 
+                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-email" className="text-xs text-zinc-400">Email Address</Label>
+                      <Input 
+                        id="sender-email" 
+                        type="email" 
+                        value={messageForm.email} 
+                        onChange={e => setMessageForm({...messageForm, email: e.target.value})}
+                        placeholder="email@example.com" 
+                        required 
+                        className="bg-zinc-800 border-zinc-700 h-10 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sender-msg" className="text-xs text-zinc-400">Message</Label>
+                      <Textarea 
+                        id="sender-msg" 
+                        value={messageForm.message} 
+                        onChange={e => setMessageForm({...messageForm, message: e.target.value})}
+                        placeholder="Inquire about availability or services..." 
+                        required 
+                        rows={4}
+                        className="bg-zinc-800 border-zinc-700 text-sm" 
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      disabled={sending}
+                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-10 text-sm font-semibold rounded-xl"
+                    >
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-2" /> Send Message</>}
+                    </Button>
+                    <p className="text-[10px] text-zinc-500 text-center leading-4">
+                      Enquiries are stored securely and sent directly to the provider. 
+                    </p>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
 
-            {/* Contact Details Panel */}
-            <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-              <h2 className="text-xl font-serif font-bold text-zinc-100 mb-4">Contact</h2>
-              <div className="space-y-4">
+            {/* Contact Details */}
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100">Contact Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 {provider.phone && (
-                  <div className="flex items-center gap-3 text-zinc-400">
-                    <Phone className="w-4 h-4 text-rose-450 shrink-0" />
-                    <span className="text-sm font-light">{maskedPhone} <span className="text-xs text-zinc-600">(Masked)</span></span>
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Phone className="w-4 h-4" />
+                    <span className="text-sm">{maskedPhone} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.email && (
-                  <div className="flex items-center gap-3 text-zinc-400">
-                    <Mail className="w-4 h-4 text-rose-450 shrink-0" />
-                    <span className="text-sm font-light">{maskedEmail} <span className="text-xs text-zinc-600">(Masked)</span></span>
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Mail className="w-4 h-4" />
+                    <span className="text-sm">{maskedEmail} (Masked for privacy)</span>
                   </div>
                 )}
                 {provider.website && (
-                  <div className="flex items-center gap-3 text-zinc-400">
-                    <Globe className="w-4 h-4 text-rose-450 shrink-0" />
-                    <a href={provider.website} target="_blank" rel="noopener noreferrer" className="text-sm font-light hover:text-amber-400 transition-colors">
-                      Website URL
+                  <div className="flex items-center gap-2 text-zinc-400">
+                    <Globe className="w-4 h-4" />
+                    <a href={provider.website} target="_blank" rel="noopener noreferrer" className="text-sm hover:text-rose-400 transition-colors">
+                      Website
                     </a>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* External Trust accounts */}
             {(provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
-              <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-                <h2 className="text-xl font-serif font-bold text-zinc-100 mb-6">Trust Links</h2>
-                <div className="space-y-5 text-sm">
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">External trust references</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
                   {(provider.verification_provider || provider.verification_username || provider.verification_url) && (
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
-                      <p className="font-semibold text-zinc-200">Verification Account</p>
-                      <p className="mt-1 text-xs text-zinc-500">{provider.verification_provider || "External provider"}</p>
-                      {provider.verification_username && <p className="mt-2 text-sm text-amber-450 font-semibold">@{String(provider.verification_username).replace(/^@/, "")}</p>}
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Verification account</p>
+                      <p className="mt-1 text-zinc-400">{provider.verification_provider || "External provider"}</p>
+                      {provider.verification_username && <p className="mt-2 text-zinc-300">@{String(provider.verification_username).replace(/^@/, "")}</p>}
                       {provider.verification_url && (
-                        <a href={provider.verification_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex text-xs text-zinc-400 transition-colors hover:text-rose-400 items-center gap-1">
-                          Verify profile link <ArrowRight className="w-3 h-3" />
+                        <a href={provider.verification_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                          View external account
                         </a>
                       )}
                     </div>
                   )}
                   {(provider.review_provider || provider.review_username || provider.review_url) && (
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
-                      <p className="font-semibold text-zinc-200">Review Reference</p>
-                      <p className="mt-1 text-xs text-zinc-500">{provider.review_provider || "External provider"}</p>
-                      {provider.review_username && <p className="mt-2 text-sm text-amber-450 font-semibold">@{String(provider.review_username).replace(/^@/, "")}</p>}
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Review account</p>
+                      <p className="mt-1 text-zinc-400">{provider.review_provider || "External provider"}</p>
+                      {provider.review_username && <p className="mt-2 text-zinc-300">@{String(provider.review_username).replace(/^@/, "")}</p>}
                       {provider.review_url && (
-                        <a href={provider.review_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex text-xs text-zinc-400 transition-colors hover:text-rose-400 items-center gap-1">
-                          View external reviews <ArrowRight className="w-3 h-3" />
+                        <a href={provider.review_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-zinc-300 transition-colors hover:text-rose-400">
+                          View external account
                         </a>
                       )}
                     </div>
                   )}
-                  <p className="text-[10px] leading-4 text-zinc-600 font-light">
-                    These external links point to third-party services and are displayed for reference. Verification and reviews on those platforms are managed externally.
+                  <p className="text-xs leading-6 text-zinc-500">
+                    These links point to third-party services and are displayed for reference only. Availability, verification status, and review publication on those services are handled externally.
                   </p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Social Media */}
             {(provider.social_media?.instagram || provider.social_media?.twitter) && (
-              <div className="bg-zinc-900/40 border border-zinc-900/80 backdrop-blur-md rounded-[32px] p-6 sm:p-8 shadow-xl">
-                <h2 className="text-xl font-serif font-bold text-zinc-100 mb-4">Social Media</h2>
-                <div className="space-y-3">
+              <Card className="bg-zinc-900 border-zinc-800">
+                <CardHeader>
+                  <CardTitle className="text-zinc-100">Social Media</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   {provider.social_media.instagram && (
                     <a
                       href={`https://instagram.com/${provider.social_media.instagram}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 text-zinc-450 hover:text-rose-400 transition-colors"
+                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
                     >
-                      <Instagram className="w-4 h-4 text-rose-450" />
-                      <span className="text-sm font-light">@{provider.social_media.instagram}</span>
+                      <Instagram className="w-4 h-4" />
+                      <span className="text-sm">@{provider.social_media.instagram}</span>
                     </a>
                   )}
                   {provider.social_media.twitter && (
@@ -504,14 +513,14 @@ export default function ViewProfile() {
                       href={`https://twitter.com/${provider.social_media.twitter}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 text-zinc-450 hover:text-rose-400 transition-colors"
+                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
                     >
-                      <Twitter className="w-4 h-4 text-rose-450" />
-                      <span className="text-sm font-light">@{provider.social_media.twitter}</span>
+                      <Twitter className="w-4 h-4" />
+                      <span className="text-sm">@{provider.social_media.twitter}</span>
                     </a>
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
@@ -530,6 +539,6 @@ function getVideoEmbedUrl(url) {
   // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  // Direct link or unknown   return as-is, the iframe will try it
+  // Direct link or unknown — return as-is, the iframe will try it
   return url;
 }
