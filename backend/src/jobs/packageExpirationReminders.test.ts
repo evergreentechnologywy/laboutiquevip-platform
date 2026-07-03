@@ -69,6 +69,8 @@ test("runPackageExpirationCleanup downgrades expired paid packages", async () =>
   });
   assert.deepEqual(updates[0]?.data, {
     ad_package: "none",
+    ad_package_expiry: null,
+    ad_package_expiration_reminder_sent_at: null,
     is_premium: false,
   });
 });

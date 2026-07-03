@@ -1,0 +1,16 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { publicProviderVisibilityWhere } from "./providerVisibility.js";
+
+test("publicProviderVisibilityWhere keeps free-tier listings visible with stale expiry", () => {
+  const where = publicProviderVisibilityWhere();
+  const packageVisibility = (where.AND as Record<string, unknown>[])[0] as {
+    OR: Record<string, unknown>[];
+  };
+
+  assert.deepEqual(packageVisibility.OR, [
+    { ad_package_expiry: null },
+    { ad_package_expiry: { gte: new Date().toISOString() } },
+    { ad_package: "none" },
+  ]);
+});

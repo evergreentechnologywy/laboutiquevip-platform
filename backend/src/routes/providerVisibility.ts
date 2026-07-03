@@ -52,6 +52,8 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
         OR: [
           { ad_package_expiry: null },
           { ad_package_expiry: { gte: new Date().toISOString() } },
+          // Free tier stays public after cleanup even if a stale expiry date remains.
+          { ad_package: "none" },
         ],
       },
       // Eros-only scraped catalog: imported listings must be eros or evergreen.

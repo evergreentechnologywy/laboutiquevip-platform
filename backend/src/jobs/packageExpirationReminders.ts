@@ -104,6 +104,8 @@ export async function runPackageExpirationCleanup(context: CleanupContext): Prom
     },
     data: {
       ad_package: "none",
+      ad_package_expiry: null,
+      ad_package_expiration_reminder_sent_at: null,
       is_premium: false,
     },
   });
