@@ -10,6 +10,8 @@ REPORT_FILE="${LOG_DIR}/eros-reconcile-report.log"
 
 # Default: full catalog every run (eros-only source). Optional shard via CITIES_PER_DAY>0.
 CITIES_PER_DAY="${CITIES_PER_DAY:-0}"
+PROFILES_PER_CITY="${PROFILES_PER_CITY:-50}"
+PROFILES_PER_STATE="${PROFILES_PER_STATE:-100}"
 RECONCILE_SHARDS="${RECONCILE_SHARDS:-7}"
 DAY_OF_YEAR="$(date -u +%j)"
 SHARD_INDEX=$(( (10#${DAY_OF_YEAR} - 1) % RECONCILE_SHARDS ))
@@ -47,7 +49,10 @@ set +e
   if [ "$CITIES_PER_DAY" -gt 0 ]; then
     RECONCILE_ARGS+=(--limit-cities="$CITIES_PER_DAY" --city-offset="$CITY_OFFSET")
   fi
-  node "$REPO_DIR/scripts/reconcile-eros.mjs" "${RECONCILE_ARGS[@]}"
+  node "$REPO_DIR/scripts/reconcile-eros.mjs" \
+    "${RECONCILE_ARGS[@]}" \
+    --profiles-per-city="$PROFILES_PER_CITY" \
+    --profiles-per-state="$PROFILES_PER_STATE"
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") eros reconciliation done ==="
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
 RUN_EXIT=${PIPESTATUS[0]}

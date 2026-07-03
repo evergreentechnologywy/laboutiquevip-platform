@@ -6,6 +6,8 @@ REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/laboutiquevip}"
 LOCK_FILE="${LOCK_FILE:-/tmp/laboutiquevip-eros-photo-update.lock}"
 DELAY_MS="${DELAY_MS:-350}"
+PROFILES_PER_CITY="${PROFILES_PER_CITY:-50}"
+PROFILES_PER_STATE="${PROFILES_PER_STATE:-100}"
 LOG_FILE="${LOG_DIR}/eros-photo-update.log"
 REPORT_FILE="${LOG_DIR}/eros-photo-update-report.log"
 
@@ -33,8 +35,13 @@ fi
   echo "--- refresh Eros photos → R2 ---"
   node "$REPO_DIR/scripts/populate-r2-from-eros.cjs" --delay-ms="$DELAY_MS"
 
-  echo "--- incremental Eros catalog (city-seeded) ---"
-  node "$REPO_DIR/scripts/import-eros.mjs" --delay-ms="$DELAY_MS" --max-pages=2500 --from-cities || true
+  echo "--- incremental Eros catalog (city-seeded, capped) ---"
+  node "$REPO_DIR/scripts/import-eros.mjs" \
+    --delay-ms="$DELAY_MS" \
+    --max-pages=2500 \
+    --from-cities \
+    --profiles-per-city="$PROFILES_PER_CITY" \
+    --profiles-per-state="$PROFILES_PER_STATE" || true
 
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") eros photo update done ==="
 } 2>&1 | tee -a "$LOG_FILE"

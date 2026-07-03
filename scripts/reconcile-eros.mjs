@@ -27,6 +27,8 @@ const EXT_BY_TYPE = {
 
 const limitCities = Number(process.argv.find((a) => a.startsWith("--limit-cities="))?.split("=")[1] ?? 0);
 const cityOffset = Number(process.argv.find((a) => a.startsWith("--city-offset="))?.split("=")[1] ?? 0);
+const profilesPerCity = Number(process.argv.find((a) => a.startsWith("--profiles-per-city="))?.split("=")[1] ?? 50);
+const profilesPerState = Number(process.argv.find((a) => a.startsWith("--profiles-per-state="))?.split("=")[1] ?? 100);
 const dryRun = process.argv.includes("--dry-run");
 
 // Load env from workspace
@@ -324,6 +326,18 @@ function listingUrlsForHub(c) {
   return urls;
 }
 
+function profileLimitForHub(hub) {
+  return hub.state === hub.city ? profilesPerState : profilesPerCity;
+}
+
+function hubKeyFromListingUrl(url) {
+  const match = String(url ?? "").match(
+    /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)/i,
+  );
+  if (!match) return null;
+  return `${match[1].toLowerCase()}/${match[2].toLowerCase()}`;
+}
+
 async function run() {
   const startedAt = Date.now();
   const s3 = getS3Client();
@@ -339,8 +353,11 @@ async function run() {
       : allCities;
   console.log(
     `[reconcile] Discovered ${allCities.length} unique cities. Processing ${cities.length} cities ` +
-      `(offset=${cityOffset}, limit=${limitCities || "all"}, dryRun=${dryRun}).`,
+      `(offset=${cityOffset}, limit=${limitCities || "all"}, dryRun=${dryRun}, ` +
+      `profilesPerCity=${profilesPerCity}, profilesPerState=${profilesPerState}).`,
   );
+
+  const hubLimits = new Map(cities.map((c) => [`${c.state}/${c.city}`, profileLimitForHub(c)]));
 
   // 2. Generate listing URLs (www, trans, massage)
   const listingUrls = [];
@@ -351,6 +368,7 @@ async function run() {
 
   // 3. Scan listing pages concurrently with concurrency pool (5 workers)
   const profileUrls = new Set();
+  const hubProfileCounts = new Map();
   const concurrency = 5;
   let listingIndex = 0;
   let crawledSuccessCount = 0;
@@ -372,10 +390,21 @@ async function run() {
       }
 
       crawledSuccessCount++;
-      // Extract all profile URLs
+      const hubKey = hubKeyFromListingUrl(url);
+      const hubLimit = hubKey ? (hubLimits.get(hubKey) ?? profilesPerCity) : profilesPerCity;
+      let hubCount = hubKey ? (hubProfileCounts.get(hubKey) ?? 0) : profileUrls.size;
+
       const matches = [...text.matchAll(/https?:\/\/(?:www|trans|massage)\.eros\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/files\/\d+\.htm/gi)].map(m => m[0]);
       for (const m of matches) {
-        profileUrls.add(canonicalErosProfileUrl(m));
+        if (hubKey && hubCount >= hubLimit) break;
+        const canonical = canonicalErosProfileUrl(m);
+        if (!profileUrls.has(canonical)) {
+          profileUrls.add(canonical);
+          if (hubKey) {
+            hubCount += 1;
+            hubProfileCounts.set(hubKey, hubCount);
+          }
+        }
       }
     }
   }

@@ -24,8 +24,13 @@ node ./scripts/deactivate-ultragfe-providers.cjs || true
 echo "--- eros full reconcile (all sitemap cities) ---"
 CITIES_PER_DAY=0 DELAY_MS=350 bash ./scripts/run-eros-reconcile.sh || echo "eros reconcile exited non-zero"
 
-echo "--- eros full import (city-seeded crawl) ---"
-DELAY_MS=350 node ./scripts/import-eros.mjs --delay-ms=350 --max-pages=2500 --from-cities || echo "eros import exited non-zero"
+echo "--- eros full import (city-seeded crawl, capped) ---"
+DELAY_MS=350 node ./scripts/import-eros.mjs \
+  --delay-ms=350 \
+  --max-pages=2500 \
+  --from-cities \
+  --profiles-per-city="${PROFILES_PER_CITY:-50}" \
+  --profiles-per-state="${PROFILES_PER_STATE:-100}" || echo "eros import exited non-zero"
 
 echo "--- zero-photo recovery (imported catalog) ---"
 node ./scripts/recover-zero-photo-providers.cjs --delay-ms=450 --limit=0 || true
