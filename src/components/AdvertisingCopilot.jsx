@@ -190,6 +190,12 @@ export default function AdvertisingCopilot({
         <Textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              askCopilot();
+            }
+          }}
           placeholder="Ask about your ad, photos, city competition, package timing, or tour dates..."
           rows={compact ? 3 : 4}
           className={compact ? "border-stone-200 bg-white text-stone-900" : "border-zinc-700 bg-zinc-950 text-zinc-100"}
