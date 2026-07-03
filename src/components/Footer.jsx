@@ -4,9 +4,7 @@ import { Crown, ShieldCheck, MapPin, Smartphone } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import {
   bookingAffiliateUrl,
-  knownHostAffiliateUrl,
   nordVpnAffiliateUrl,
-  stripeAffiliateUrl,
   textVerifiedAffiliateUrl,
 } from "@/lib/affiliateLinks";
 
@@ -75,32 +73,35 @@ export function Footer() {
           </div>
 
           {/* Col 4: Affiliate recommendations — non-invasive, footer-only */}
-          {recommendedLinks.length > 0 && (
           <div className="space-y-6">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-900">Recommended</h3>
-            <ul className="space-y-4">
-              {recommendedLinks.map(({ key, href, icon: Icon, label }) => (
-                <li key={key}>
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="nofollow sponsored"
-                    className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
-                  >
-                    <Icon className="h-4 w-4 text-stone-400 shrink-0" />
-                    <span>{label}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+            {recommendedLinks.length > 0 && (
+              <>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-900">Recommended</h3>
+                <ul className="space-y-4">
+                  {recommendedLinks.map(({ key, href, icon: Icon, label }) => (
+                    <li key={key}>
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="nofollow sponsored"
+                        className="flex items-center gap-2 text-sm hover:text-stone-900 transition-colors"
+                      >
+                        <Icon className="h-4 w-4 text-stone-400 shrink-0" />
+                        <span>{label}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <div className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-stone-700">
               18+ Adults Only
             </div>
             <p className="text-xs leading-5">
-              &copy; {currentYear} La Boutique VIP International. All rights reserved. Some links are affiliate links &mdash; we may earn a commission at no extra cost to you.
+              &copy; {currentYear} La Boutique VIP International. All rights reserved.
+              {recommendedLinks.length > 0 ? " Some links are affiliate links — we may earn a commission at no extra cost to you." : ""}
             </p>
           </div>
-          )}
         </div>
       </div>
     </footer>
