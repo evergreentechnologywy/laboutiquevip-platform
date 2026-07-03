@@ -66,6 +66,7 @@ import type { ApiRequest, ApiResponse } from "./types.js";
 import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 import { videoUploadHandler } from "./routes/base44Compat.js";
 import { r2PhotoProxyHandler } from "./routes/r2-photo-proxy.js";
+import { erosPhotoProxyHandler } from "./routes/eros-photo-proxy.js";
 
 
 const PORT = Number(process.env.API_PORT ?? 8787);
@@ -226,6 +227,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname.startsWith("/api/r2-photo/") && request.method === "GET") {
     return r2PhotoProxyHandler(request);
+  }
+
+  if (request.pathname === "/api/eros-photo" && request.method === "GET") {
+    return erosPhotoProxyHandler(request);
   }
 
   if (request.pathname.startsWith("/api/admin")) {

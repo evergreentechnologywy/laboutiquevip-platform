@@ -8,6 +8,7 @@ import { Search, MapPin, Star, Shield, Crown, ArrowRight, BadgeCheck, Gem, Messa
 import { useQuery } from "@tanstack/react-query";
 import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
+import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
@@ -164,7 +165,7 @@ export default function Home() {
                 <article className="overflow-hidden rounded-[28px] border border-zinc-900 bg-zinc-900/20 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.8)] transition duration-300 hover:-translate-y-1 hover:border-rose-500/30 hover:shadow-[0_24px_50px_-20px_rgba(244,63,94,0.15)]">
                   <div className="aspect-[4/5] overflow-hidden bg-zinc-950 relative">
                     <ProfileImage
-                      src={provider.photos?.[0]}
+                      src={getPrimaryProfilePhoto(provider)}
                       alt={provider.display_name}
                       className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                     />

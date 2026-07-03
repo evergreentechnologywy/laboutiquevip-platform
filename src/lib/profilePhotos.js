@@ -122,7 +122,40 @@ export function getProfilePhotos(photos, provider) {
   return dedupeUrls(valid.filter((url) => photoMatchesProvider(url, provider)));
 }
 
+export function isR2PhotoUrl(url) {
+  return String(url || "").includes("/api/r2-photo/");
+}
+
+export function isErosImageUrl(url) {
+  const lower = String(url || "").trim().toLowerCase();
+  if (!lower) return false;
+  return /eros\.com\/i\//.test(lower) || /:\/\/i\.eros\.com\//.test(lower);
+}
+
+/**
+ * Returns a browser-safe photo URL: r2-photo passthrough, eros.com via backend proxy.
+ */
+export function resolvePublicPhotoUrl(src, providerId) {
+  const value = String(src || "").trim();
+  if (!value) return null;
+
+  if (isR2PhotoUrl(value)) {
+    return value;
+  }
+
+  if (isErosImageUrl(value)) {
+    const params = new URLSearchParams({ url: value });
+    if (providerId) params.set("providerId", String(providerId));
+    return `/api/eros-photo?${params.toString()}`;
+  }
+
+  return value;
+}
+
 export function getPrimaryProfilePhoto(provider) {
-  const photos = getProfilePhotos(provider?.photos, provider);
-  return photos[0] || null;
+  const photos = Array.isArray(provider?.photos) ? provider.photos : [];
+  const r2Photos = photos.filter(isR2PhotoUrl);
+  const filtered = getProfilePhotos(photos, provider);
+  const primary = r2Photos[0] || filtered[0] || null;
+  return primary ? resolvePublicPhotoUrl(primary, provider?.id) : null;
 }
