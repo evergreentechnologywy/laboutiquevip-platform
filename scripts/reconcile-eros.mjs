@@ -15,6 +15,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import pkgS3 from '@aws-sdk/client-s3';
+import {
+  parseErosLocationFromUrl,
+  resolveErosLocationState,
+} from "./lib/eros-location.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -172,9 +176,14 @@ function parseProfile(markdown, sourceUrl) {
   const cityFromLine = cityStateLine.match(/\b(?:Escort|Trans|Massage)\s+in\s+([A-Za-z\s'.-]+)/i)?.[1] ?? null;
 
   const fromTitle = parseLocationFromTitle(titleLine);
+  const fromUrl = parseErosLocationFromUrl(sourceUrl);
 
-  const location_city = cleanText(cityFromLine ?? fromTitle.city ?? "") || null;
-  const location_state = fromTitle.state ?? null;
+  const location_city = cleanText(cityFromLine ?? fromTitle.city ?? fromUrl.city ?? "") || null;
+  const location_state = resolveErosLocationState({
+    location_state: fromTitle.state,
+    location_city,
+    verification_url: sourceUrl,
+  });
 
   const ageRaw = markdown.match(/\bAge[:\s]+(\d{2})\b/i)?.[1] ?? markdown.match(/\nAge\s*\n\s*(\d{2})\b/i)?.[1];
   const ageNum = ageRaw ? Number(ageRaw) : null;
