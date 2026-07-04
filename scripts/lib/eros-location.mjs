@@ -182,12 +182,34 @@ export function resolveStateFromCity(city) {
   return CITY_TO_STATE[key] ?? null;
 }
 
+function stateFromSlug(stateSlug) {
+  if (!stateSlug) return null;
+  return (
+    resolveStateAbbrev(stateSlug) ??
+    // Regional hubs (e.g. carolinas) and non-US: keep readable label
+    (stateSlug.length <= 3
+      ? stateSlug.toUpperCase()
+      : titleCaseWords(stateSlug.replace(/[_-]+/g, " ")))
+  );
+}
+
 /**
- * Parse eros.com/{state}/{city}/... profile or listing URLs.
+ * Parse eros.com/{state}/{city}/files/... or state-only eros.com/{state}/files/...
  * Underscores and hyphens in state slugs both map to US 2-letter codes.
  */
 export function parseErosLocationFromUrl(url) {
-  const match = String(url ?? "").match(
+  const text = String(url ?? "");
+
+  // State-only hub: eros.com/{state}/files/{id}.htm
+  const stateOnly = text.match(
+    /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/files\//i,
+  );
+  if (stateOnly) {
+    return { city: null, state: stateFromSlug(stateOnly[1]) };
+  }
+
+  // City hub: eros.com/{state}/{city}/files/...
+  const match = text.match(
     /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)(?:\/|$)/i,
   );
   if (!match) return { city: null, state: null };
@@ -198,13 +220,10 @@ export function parseErosLocationFromUrl(url) {
     return { city: null, state: null };
   }
 
-  const city = titleCaseWords(citySlug.replace(/[_-]+/g, " "));
-  const state =
-    resolveStateAbbrev(stateSlug) ??
-    // Non-US / unknown hubs: keep a readable uppercase token (not ideal, but non-null)
-    (stateSlug.length <= 3 ? stateSlug.toUpperCase() : titleCaseWords(stateSlug.replace(/[_-]+/g, " ")));
-
-  return { city, state };
+  return {
+    city: titleCaseWords(citySlug.replace(/[_-]+/g, " ")),
+    state: stateFromSlug(stateSlug),
+  };
 }
 
 /**
@@ -219,7 +238,8 @@ export function resolveErosLocationState({ location_state, location_city, verifi
   }
 
   if (!state && location_city) {
-    state = resolveStateFromCity(location_city);
+    // State-only hubs often store the state name in location_city (e.g. "Virginia")
+    state = resolveStateAbbrev(location_city) ?? resolveStateFromCity(location_city);
   }
 
   if (state && state.length > 2) {

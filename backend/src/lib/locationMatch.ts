@@ -169,14 +169,25 @@ export function parseErosLocationFromUrl(url: string): { city: string | null; st
   try {
     const parsed = new URL(url);
     const segments = parsed.pathname.split("/").filter(Boolean);
-    if (segments.length < 2) return { city: null, state: null };
+    if (segments.length < 1) return { city: null, state: null };
 
     const stateSlug = segments[0];
     const citySlug = segments[1];
+
+    // State-only hub: /{state}/files/{id}.htm
+    if (stateSlug && citySlug === "files") {
+      const state =
+        resolveStateAbbrev(stateSlug) ??
+        (stateSlug.length <= 3
+          ? stateSlug.toUpperCase()
+          : titleCaseWords(stateSlug.replace(/[_-]+/g, " ")));
+      return { city: null, state };
+    }
+
     if (!stateSlug || !citySlug || citySlug === "files") return { city: null, state: null };
 
     const state = resolveStateAbbrev(stateSlug) ?? stateSlug.toUpperCase();
-    const city = titleCaseWords(citySlug.replace(/-/g, " "));
+    const city = titleCaseWords(citySlug.replace(/[_-]+/g, " "));
     return { city, state };
   } catch {
     return { city: null, state: null };
@@ -222,6 +233,11 @@ export function normalizeProviderLocation(input: {
     const fromUrl = parseErosLocationFromUrl(input.verification_url);
     city = city || fromUrl.city;
     state = state || fromUrl.state;
+  }
+
+  // State-only Eros hubs often store the state name in location_city
+  if (!state && city) {
+    state = resolveStateAbbrev(city);
   }
 
   if (state && state.length > 3) {
