@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
+import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 
@@ -62,7 +63,7 @@ export default function ViewProfile() {
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
-  const displayPhotos = Array.isArray(provider?.photos) ? provider.photos.slice(0, MAX_PROVIDER_PHOTOS) : [];
+  const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
 
   const handleMessageSubmit = async (e) => {
     e.preventDefault();

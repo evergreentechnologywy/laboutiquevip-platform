@@ -115,13 +115,6 @@ export function photoMatchesProvider(url, provider) {
   return false;
 }
 
-export function getProfilePhotos(photos, provider) {
-  if (!Array.isArray(photos)) return [];
-  const valid = photos.filter(isValidProfilePhoto);
-  if (!provider) return dedupeUrls(valid);
-  return dedupeUrls(valid.filter((url) => photoMatchesProvider(url, provider)));
-}
-
 export function isR2PhotoUrl(url) {
   return String(url || "").includes("/api/r2-photo/");
 }
@@ -129,7 +122,26 @@ export function isR2PhotoUrl(url) {
 export function isErosImageUrl(url) {
   const lower = String(url || "").trim().toLowerCase();
   if (!lower) return false;
-  return /eros\.com\/i\//.test(lower) || /:\/\/i\.eros\.com\//.test(lower);
+  // www.eros.com/i/..., i.eros.com/..., *.eros.com/profile/...
+  return /(?:^|\/\/)(?:[\w-]+\.)?eros\.com\/(?:i|profile)\//.test(lower);
+}
+
+/**
+ * Gallery URLs for display. Prefers R2, keeps Eros CDN URLs (identity match is
+ * for ultragfe cross-contamination only), then other provider-matched photos.
+ */
+export function getProfilePhotos(photos, provider) {
+  if (!Array.isArray(photos)) return [];
+
+  // R2 paths are listed in JUNK_SUBSTRINGS for scrape cleanup, but are valid for display.
+  const r2 = photos.filter(isR2PhotoUrl);
+  const valid = photos.filter(isValidProfilePhoto);
+  if (!provider) return dedupeUrls([...r2, ...valid]);
+
+  // Eros CDN URLs are scraped from the provider's own listing — trust them.
+  const eros = valid.filter(isErosImageUrl);
+  const other = valid.filter((url) => !isErosImageUrl(url) && photoMatchesProvider(url, provider));
+  return dedupeUrls([...r2, ...eros, ...other]);
 }
 
 /**
@@ -140,7 +152,9 @@ export function resolvePublicPhotoUrl(src, providerId) {
   if (!value) return null;
 
   if (isR2PhotoUrl(value)) {
-    return value;
+    // Prefer site-relative path so the active origin serves the proxy.
+    const idx = value.indexOf("/api/r2-photo/");
+    return idx >= 0 ? value.slice(idx) : value;
   }
 
   if (isErosImageUrl(value)) {
@@ -152,10 +166,15 @@ export function resolvePublicPhotoUrl(src, providerId) {
   return value;
 }
 
+export function getDisplayProfilePhotos(provider, max = 32) {
+  const photos = getProfilePhotos(Array.isArray(provider?.photos) ? provider.photos : [], provider);
+  return photos
+    .slice(0, max)
+    .map((url) => resolvePublicPhotoUrl(url, provider?.id))
+    .filter(Boolean);
+}
+
 export function getPrimaryProfilePhoto(provider) {
-  const photos = Array.isArray(provider?.photos) ? provider.photos : [];
-  const r2Photos = photos.filter(isR2PhotoUrl);
-  const filtered = getProfilePhotos(photos, provider);
-  const primary = r2Photos[0] || filtered[0] || null;
-  return primary ? resolvePublicPhotoUrl(primary, provider?.id) : null;
+  const photos = getDisplayProfilePhotos(provider, 1);
+  return photos[0] || null;
 }
