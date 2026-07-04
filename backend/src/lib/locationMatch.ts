@@ -63,6 +63,55 @@ const ABBREV_TO_NAMES = Object.fromEntries(
   Object.entries(STATE_ALIASES).map(([abbrev, names]) => [abbrev, names]),
 );
 
+/** Common city names → state abbrev for state-wide Eros hub matching. */
+const CITY_TO_STATE: Record<string, string> = {
+  miami: "FL",
+  orlando: "FL",
+  tampa: "FL",
+  jacksonville: "FL",
+  "fort lauderdale": "FL",
+  "west palm beach": "FL",
+  naples: "FL",
+  tallahassee: "FL",
+  "new york": "NY",
+  manhattan: "NY",
+  brooklyn: "NY",
+  queens: "NY",
+  "los angeles": "CA",
+  "san francisco": "CA",
+  "san diego": "CA",
+  "orange county": "CA",
+  sacramento: "CA",
+  chicago: "IL",
+  houston: "TX",
+  dallas: "TX",
+  austin: "TX",
+  "san antonio": "TX",
+  atlanta: "GA",
+  "las vegas": "NV",
+  phoenix: "AZ",
+  tucson: "AZ",
+  scottsdale: "AZ",
+  mesa: "AZ",
+  seattle: "WA",
+  denver: "CO",
+  boston: "MA",
+  philadelphia: "PA",
+  detroit: "MI",
+  "washington dc": "DC",
+  baltimore: "MD",
+  nashville: "TN",
+  "new orleans": "LA",
+  portland: "OR",
+  minneapolis: "MN",
+  charlotte: "NC",
+  raleigh: "NC",
+  durham: "NC",
+  charleston: "SC",
+  columbia: "SC",
+  greenville: "SC",
+};
+
 export function slugify(value: string): string {
   return String(value || "")
     .toLowerCase()
@@ -101,6 +150,50 @@ export function resolveStateAbbrev(raw: string): string | null {
   return SLUG_TO_ABBREV[slug] ?? SLUG_TO_ABBREV[text.toLowerCase()] ?? null;
 }
 
+export function resolveStateFromCity(city: string): string | null {
+  const key = String(city || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+  if (!key) return null;
+  return CITY_TO_STATE[key] ?? null;
+}
+
+/** Prisma JSON path filter for social_media.eros_state_wide === true */
+export function erosStateWideJsonFilter(): Record<string, unknown> {
+  return {
+    social_media: {
+      path: ["eros_state_wide"],
+      equals: true,
+    },
+  };
+}
+
+/**
+ * Match active Eros state-wide listings for a resolved state (and Carolinas for NC/SC).
+ */
+export function buildStateWideLocationBranch(stateRaw: string): Record<string, unknown> | null {
+  const abbrev = resolveStateAbbrev(stateRaw);
+  const terms = new Set(stateSearchTerms(stateRaw));
+  if (abbrev === "NC" || abbrev === "SC") {
+    terms.add("Carolinas");
+    terms.add("carolinas");
+  }
+  if (!terms.size) return null;
+
+  return {
+    AND: [
+      {
+        OR: Array.from(terms).map((term) => ({
+          location_state: { contains: term, mode: "insensitive" },
+        })),
+      },
+      erosStateWideJsonFilter(),
+    ],
+  };
+}
+
 export function stateSearchTerms(raw: string): string[] {
   const text = String(raw || "").trim();
   if (!text) return [];
@@ -126,7 +219,6 @@ export function buildLocationFilter(rawLocation: string): Record<string, unknown
   const parsed = parseCityStateCombo(location);
   const stateTerms = stateSearchTerms(location);
   const citySlug = slugify(parsed.city ?? location);
-  const locationSlug = slugify(location);
 
   const cityMatchers: Record<string, unknown>[] = [
     { location_city: { contains: location, mode: "insensitive" } },
@@ -162,35 +254,74 @@ export function buildLocationFilter(rawLocation: string): Record<string, unknown
     }
   }
 
+  // Include Eros whole-state hub listings for any city in that state
+  const stateForWide =
+    parsed.state ??
+    resolveStateAbbrev(location) ??
+    resolveStateFromCity(parsed.city ?? location);
+  if (stateForWide) {
+    const stateWideBranch = buildStateWideLocationBranch(stateForWide);
+    if (stateWideBranch) branches.push(stateWideBranch);
+  }
+
   return { OR: branches };
 }
 
-export function parseErosLocationFromUrl(url: string): { city: string | null; state: string | null } {
+export function isErosStateWideHub(url: string): boolean {
   try {
     const parsed = new URL(url);
     const segments = parsed.pathname.split("/").filter(Boolean);
-    if (segments.length < 1) return { city: null, state: null };
+    if (segments.length < 1) return false;
+
+    const stateSlug = segments[0]?.toLowerCase();
+    const citySlug = segments[1]?.toLowerCase();
+    if (!stateSlug) return false;
+    if (citySlug === "files") return true;
+    if (!citySlug) return false;
+    return stateSlug === citySlug;
+  } catch {
+    return false;
+  }
+}
+
+export function parseErosLocationFromUrl(url: string): {
+  city: string | null;
+  state: string | null;
+  stateWide: boolean;
+} {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (segments.length < 1) return { city: null, state: null, stateWide: false };
 
     const stateSlug = segments[0];
     const citySlug = segments[1];
 
+    const stateFromSlug = (slug: string) =>
+      resolveStateAbbrev(slug) ??
+      (slug.length <= 3
+        ? slug.toUpperCase()
+        : titleCaseWords(slug.replace(/[_-]+/g, " ")));
+
     // State-only hub: /{state}/files/{id}.htm
     if (stateSlug && citySlug === "files") {
-      const state =
-        resolveStateAbbrev(stateSlug) ??
-        (stateSlug.length <= 3
-          ? stateSlug.toUpperCase()
-          : titleCaseWords(stateSlug.replace(/[_-]+/g, " ")));
-      return { city: null, state };
+      return { city: null, state: stateFromSlug(stateSlug), stateWide: true };
     }
 
-    if (!stateSlug || !citySlug || citySlug === "files") return { city: null, state: null };
+    if (!stateSlug || !citySlug || citySlug === "files") {
+      return { city: null, state: null, stateWide: false };
+    }
+
+    // Whole-state hub when path segments match (arizona/arizona, carolinas/carolinas)
+    if (stateSlug.toLowerCase() === citySlug.toLowerCase()) {
+      return { city: null, state: stateFromSlug(stateSlug), stateWide: true };
+    }
 
     const state = resolveStateAbbrev(stateSlug) ?? stateSlug.toUpperCase();
     const city = titleCaseWords(citySlug.replace(/[_-]+/g, " "));
-    return { city, state };
+    return { city, state, stateWide: false };
   } catch {
-    return { city: null, state: null };
+    return { city: null, state: null, stateWide: false };
   }
 }
 
@@ -219,9 +350,10 @@ export function normalizeProviderLocation(input: {
   location_state?: string | null;
   verification_url?: string | null;
   verification_provider?: string | null;
-}): { location_city: string | null; location_state: string | null } {
+}): { location_city: string | null; location_state: string | null; eros_state_wide: boolean } {
   let city = String(input.location_city || "").trim() || null;
   let state = String(input.location_state || "").trim() || null;
+  let eros_state_wide = false;
 
   if (city?.includes(",")) {
     const parsed = parseCityStateCombo(city);
@@ -229,14 +361,20 @@ export function normalizeProviderLocation(input: {
     state = state || parsed.state;
   }
 
-  if ((!state || state.length > 3) && input.verification_provider === "eros" && input.verification_url) {
+  if (input.verification_provider === "eros" && input.verification_url) {
     const fromUrl = parseErosLocationFromUrl(input.verification_url);
-    city = city || fromUrl.city;
-    state = state || fromUrl.state;
+    eros_state_wide = fromUrl.stateWide;
+    if (eros_state_wide) {
+      city = "Statewide";
+      state = state || fromUrl.state;
+    } else if (!state || state.length > 3) {
+      city = city || fromUrl.city;
+      state = state || fromUrl.state;
+    }
   }
 
   // State-only Eros hubs often store the state name in location_city
-  if (!state && city) {
+  if (!state && city && city.toLowerCase() !== "statewide") {
     state = resolveStateAbbrev(city);
   }
 
@@ -247,5 +385,6 @@ export function normalizeProviderLocation(input: {
   return {
     location_city: city,
     location_state: state,
+    eros_state_wide,
   };
 }

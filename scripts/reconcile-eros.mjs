@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pkgS3 from '@aws-sdk/client-s3';
 import {
+  isErosStateWideHub,
   parseErosLocationFromUrl,
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
@@ -177,13 +178,15 @@ function parseProfile(markdown, sourceUrl) {
 
   const fromTitle = parseLocationFromTitle(titleLine);
   const fromUrl = parseErosLocationFromUrl(sourceUrl);
+  const eros_state_wide = isErosStateWideHub(sourceUrl) || Boolean(fromUrl.stateWide);
 
-  const location_city = cleanText(cityFromLine ?? fromTitle.city ?? fromUrl.city ?? "") || null;
+  let location_city = cleanText(cityFromLine ?? fromTitle.city ?? fromUrl.city ?? "") || null;
   const location_state = resolveErosLocationState({
     location_state: fromTitle.state,
-    location_city,
+    location_city: eros_state_wide ? null : location_city,
     verification_url: sourceUrl,
   });
+  if (eros_state_wide) location_city = "Statewide";
 
   const ageRaw = markdown.match(/\bAge[:\s]+(\d{2})\b/i)?.[1] ?? markdown.match(/\nAge\s*\n\s*(\d{2})\b/i)?.[1];
   const ageNum = ageRaw ? Number(ageRaw) : null;
@@ -211,6 +214,7 @@ function parseProfile(markdown, sourceUrl) {
     bio,
     location_city,
     location_state,
+    eros_state_wide,
     age,
     phone,
     email,
@@ -535,12 +539,13 @@ async function run() {
         }
 
         // Create new provider record (temporary ID needed to upload photos)
+        const eros_state_wide = Boolean(profile.eros_state_wide);
         const provider = await prisma.provider.create({
           data: {
             display_name: profile.display_name,
             tagline: profile.tagline,
             bio: profile.bio,
-            location_city: profile.location_city,
+            location_city: eros_state_wide ? "Statewide" : profile.location_city,
             location_state: profile.location_state,
             age: profile.age,
             phone: profile.phone,
@@ -550,6 +555,7 @@ async function run() {
             social_media: {
               eros_profile: profile.sourceUrl,
               eros_source: "r.jina.ai",
+              eros_state_wide,
             },
             ad_headline: profile.tagline || profile.display_name,
             ad_body: profile.bio,

@@ -194,8 +194,35 @@ function stateFromSlug(stateSlug) {
 }
 
 /**
+ * True when the Eros URL is a whole-state (or regional) hub, not a city hub.
+ * Patterns:
+ *   - /{state}/files/{id}.htm  (state-only)
+ *   - /{state}/{state}/files/...  (state slug equals city slug, e.g. arizona/arizona)
+ */
+export function isErosStateWideHub(url) {
+  const text = String(url ?? "");
+
+  if (
+    /https?:\/\/(?:www|trans|massage)\.eros\.com\/[a-z0-9_-]+\/files\//i.test(text)
+  ) {
+    return true;
+  }
+
+  const match = text.match(
+    /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)(?:\/|$)/i,
+  );
+  if (!match) return false;
+
+  const stateSlug = match[1].toLowerCase();
+  const citySlug = match[2].toLowerCase();
+  if (!stateSlug || !citySlug || citySlug === "files") return false;
+  return stateSlug === citySlug;
+}
+
+/**
  * Parse eros.com/{state}/{city}/files/... or state-only eros.com/{state}/files/...
  * Underscores and hyphens in state slugs both map to US 2-letter codes.
+ * State-wide hubs return city: null and stateWide: true.
  */
 export function parseErosLocationFromUrl(url) {
   const text = String(url ?? "");
@@ -205,24 +232,34 @@ export function parseErosLocationFromUrl(url) {
     /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/files\//i,
   );
   if (stateOnly) {
-    return { city: null, state: stateFromSlug(stateOnly[1]) };
+    return { city: null, state: stateFromSlug(stateOnly[1]), stateWide: true };
   }
 
   // City hub: eros.com/{state}/{city}/files/...
   const match = text.match(
     /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)(?:\/|$)/i,
   );
-  if (!match) return { city: null, state: null };
+  if (!match) return { city: null, state: null, stateWide: false };
 
   const stateSlug = match[1];
   const citySlug = match[2];
   if (!stateSlug || !citySlug || citySlug.toLowerCase() === "files") {
-    return { city: null, state: null };
+    return { city: null, state: null, stateWide: false };
+  }
+
+  // Whole-state hub when path segments match (arizona/arizona, carolinas/carolinas)
+  if (stateSlug.toLowerCase() === citySlug.toLowerCase()) {
+    return {
+      city: null,
+      state: stateFromSlug(stateSlug),
+      stateWide: true,
+    };
   }
 
   return {
     city: titleCaseWords(citySlug.replace(/[_-]+/g, " ")),
     state: stateFromSlug(stateSlug),
+    stateWide: false,
   };
 }
 

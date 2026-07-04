@@ -7,6 +7,7 @@
  */
 
 import {
+  isErosStateWideHub,
   parseErosLocationFromUrl,
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
@@ -212,13 +213,15 @@ function parseProfile(markdown, sourceUrl) {
 
   const fromTitle = parseLocationFromTitle(titleLine);
   const fromUrl = parseErosLocationFromUrl(sourceUrl);
+  const eros_state_wide = isErosStateWideHub(sourceUrl) || Boolean(fromUrl.stateWide);
 
-  const location_city = cleanText(cityFromLine ?? fromTitle.city ?? fromUrl.city ?? "") || null;
+  let location_city = cleanText(cityFromLine ?? fromTitle.city ?? fromUrl.city ?? "") || null;
   const location_state = resolveErosLocationState({
     location_state: fromTitle.state,
-    location_city,
+    location_city: eros_state_wide ? null : location_city,
     verification_url: sourceUrl,
   });
+  if (eros_state_wide) location_city = "Statewide";
 
   const ageRaw = markdown.match(/\bAge[:\s]+(\d{2})\b/i)?.[1] ?? markdown.match(/\nAge\s*\n\s*(\d{2})\b/i)?.[1];
   const ageNum = ageRaw ? Number(ageRaw) : null;
@@ -246,6 +249,7 @@ function parseProfile(markdown, sourceUrl) {
     bio,
     location_city,
     location_state,
+    eros_state_wide,
     age,
     phone,
     email,
@@ -273,11 +277,15 @@ function buildProviderPayload(profile, existing = null) {
     ? existing.social_media
     : {};
 
+  const eros_state_wide = Boolean(profile.eros_state_wide);
+
   return {
     display_name: profile.display_name ?? existing?.display_name ?? "Unknown",
     tagline: profile.tagline ?? existing?.tagline ?? null,
     bio: profile.bio ?? existing?.bio ?? null,
-    location_city: profile.location_city ?? existing?.location_city ?? null,
+    location_city: eros_state_wide
+      ? "Statewide"
+      : (profile.location_city ?? existing?.location_city ?? null),
     location_state: profile.location_state ?? existing?.location_state ?? null,
     age: profile.age ?? existing?.age ?? null,
     phone: profile.phone ?? existing?.phone ?? null,
@@ -289,6 +297,7 @@ function buildProviderPayload(profile, existing = null) {
       ...existingSocial,
       eros_profile: profile.sourceUrl,
       eros_source: "r.jina.ai",
+      eros_state_wide,
     },
     ad_headline: profile.tagline ?? existing?.ad_headline ?? profile.display_name ?? null,
     ad_body: profile.bio ?? existing?.ad_body ?? null,
