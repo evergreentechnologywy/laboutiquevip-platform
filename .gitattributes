@@ -1,0 +1,2 @@
+# Shell scripts must stay LF so shebangs work under Linux cron.
+*.sh text eol=lf
