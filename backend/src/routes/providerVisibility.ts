@@ -37,16 +37,15 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Scraped catalog stubs with no photos and no verification source — hide from public browse. */
-export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
+/** Require verification URL or non-empty photos JSON (excludes import stubs). */
+export function buildPublicPhotoRequirement(): Record<string, unknown> {
   return {
-    AND: [
-      { user_id: null },
-      { verification_url: null },
+    OR: [
+      { verification_url: { not: null } },
       {
-        OR: [
-          { photos: { equals: Prisma.DbNull } },
-          { photos: { equals: [] } },
+        AND: [
+          { photos: { not: { equals: Prisma.DbNull } } },
+          { photos: { not: { equals: [] } } },
         ],
       },
     ],
@@ -82,7 +81,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
-      { NOT: buildEmptyPhotoStubExclusion() },
+      buildPublicPhotoRequirement(),
     ],
     NOT: {
       OR: exclusionBranches,
