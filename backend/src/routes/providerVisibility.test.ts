@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildPublicPhotoRequirement,
+  buildEmptyPhotoStubExclusion,
   publicProviderVisibilityWhere,
 } from "./providerVisibility.js";
 
@@ -18,11 +18,26 @@ test("publicProviderVisibilityWhere keeps free-tier listings visible with stale 
   ]);
 });
 
-test("publicProviderVisibilityWhere requires verification URL or non-empty photos", () => {
+test("publicProviderVisibilityWhere excludes scraped stubs with empty photos and no verification", () => {
   const where = publicProviderVisibilityWhere();
-  const photoRequirement = (where.AND as Record<string, unknown>[])[2];
+  const andClause = where.AND as Record<string, unknown>[];
+  const stubExclusion = andClause.find(
+    (branch) =>
+      typeof branch === "object" &&
+      branch !== null &&
+      "NOT" in branch &&
+      JSON.stringify((branch as { NOT: unknown }).NOT) === JSON.stringify(buildEmptyPhotoStubExclusion()),
+  );
 
-  assert.deepEqual(photoRequirement, buildPublicPhotoRequirement());
+  assert.ok(stubExclusion, "expected NOT stub exclusion in AND");
+});
+
+test("buildEmptyPhotoStubExclusion keeps advertiser-owned profiles eligible", () => {
+  const exclusion = buildEmptyPhotoStubExclusion();
+  const andClause = exclusion.AND as Record<string, unknown>[];
+
+  assert.deepEqual(andClause[0], { user_id: null });
+  assert.deepEqual(andClause[1], { verification_url: null });
 });
 
 test("publicProviderVisibilityWhere keeps advertiser-owned profiles without photos", () => {
