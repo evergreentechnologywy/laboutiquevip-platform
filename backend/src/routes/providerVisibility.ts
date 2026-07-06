@@ -35,15 +35,15 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Scraped catalog stubs with no photos and no verification source — no public thumbnail. */
-export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
+/** Require a public thumbnail source: advertiser account, verification URL, or photo URLs in JSON. */
+export function buildPublicPhotoVisibilityRequirement(): Record<string, unknown> {
+  // Positive OR: keep advertiser accounts, verified imports, or listings with photo URLs.
+  // Prisma Json filters reject bare `photos: null`; string_contains matches serialized array URLs.
   return {
-    AND: [
-      { user_id: null },
-      { verification_url: null },
-      {
-        OR: [{ photos: null }, { photos: { equals: [] } }],
-      },
+    OR: [
+      { user_id: { not: null } },
+      { verification_url: { not: null } },
+      { photos: { string_contains: "http" } },
     ],
   };
 }
@@ -55,7 +55,6 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
       display_name: { equals: name, mode: "insensitive" },
     })),
     ...((buildTestDataExclusion().OR as Record<string, unknown>[]) ?? []),
-    buildEmptyPhotoStubExclusion(),
   ];
 
   return {
@@ -78,6 +77,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
+      buildPublicPhotoVisibilityRequirement(),
     ],
     NOT: {
       OR: exclusionBranches,
