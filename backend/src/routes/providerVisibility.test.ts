@@ -32,12 +32,12 @@ test("publicProviderVisibilityWhere excludes scraped stubs with empty photos and
   assert.ok(stubExclusion, "expected NOT stub exclusion in AND");
 });
 
-test("buildEmptyPhotoStubExclusion keeps advertiser-owned profiles eligible", () => {
+test("buildEmptyPhotoStubExclusion targets unverified scraped stubs", () => {
   const exclusion = buildEmptyPhotoStubExclusion();
   const andClause = exclusion.AND as Record<string, unknown>[];
 
-  assert.deepEqual(andClause[0], { user_id: null });
-  assert.deepEqual(andClause[1], { verification_url: null });
+  assert.deepEqual(andClause[0], { verification_url: null });
+  assert.deepEqual(andClause[1], { verification_provider: null });
 });
 
 test("publicProviderVisibilityWhere keeps advertiser-owned profiles without photos", () => {
