@@ -59,7 +59,6 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
       display_name: { equals: name, mode: "insensitive" },
     })),
     ...((buildTestDataExclusion().OR as Record<string, unknown>[]) ?? []),
-    buildEmptyPhotoStubExclusion(),
   ];
 
   return {
@@ -82,6 +81,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
+      { NOT: buildEmptyPhotoStubExclusion() },
     ],
     NOT: {
       OR: exclusionBranches,
