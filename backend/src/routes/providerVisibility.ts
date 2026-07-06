@@ -37,15 +37,15 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Hide listings with no verification URL and no renderable photos (import stubs). */
-export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
+/** Require verification URL or non-empty photos JSON (excludes import stubs). */
+export function buildPublicPhotoRequirement(): Record<string, unknown> {
   return {
-    AND: [
-      { verification_url: { equals: null } },
+    OR: [
+      { verification_url: { not: null } },
       {
-        OR: [
-          { photos: { equals: Prisma.DbNull } },
-          { photos: { equals: [] } },
+        AND: [
+          { photos: { not: { equals: Prisma.DbNull } } },
+          { photos: { not: { equals: [] } } },
         ],
       },
     ],
@@ -81,7 +81,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
-      { NOT: buildEmptyPhotoStubExclusion() },
+      buildPublicPhotoRequirement(),
     ],
     NOT: {
       OR: exclusionBranches,
