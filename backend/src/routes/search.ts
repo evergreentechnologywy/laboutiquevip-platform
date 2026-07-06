@@ -2,7 +2,7 @@ import type { ApiRequest, ApiResponse } from "../types.js";
 import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
-import { publicProviderVisibilityWhere, publicSearchCacheHeaders } from "./providerVisibility.js";
+import { publicProviderVisibilityWhere, publicSearchCacheHeaders, buildPublicPhotoSearchFilter } from "./providerVisibility.js";
 import { buildLocationFilter, suggestLocationQueries } from "../lib/locationMatch.js";
 
 interface SearchRouteContext {
@@ -111,6 +111,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     });
 
     const andFilters: any[] = [publicProviderVisibilityWhere()];
+    andFilters.push(await buildPublicPhotoSearchFilter(context.prisma));
 
     if (query.q) {
       andFilters.push({

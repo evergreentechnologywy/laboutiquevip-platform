@@ -1,5 +1,3 @@
-import { Prisma } from "../../generated/prisma-client/index.js";
-
 const DEFAULT_PUBLIC_PROVIDER_NAME_BLOCKLIST = ["Jarvis Test Listing"];
 
 function parseConfiguredBlockedNames(): string[] {
@@ -37,18 +35,21 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Scraped import stubs: no verification source and no renderable photos. */
-export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
+/** Prisma Json filters conflict with the user_id source guard — resolve photo IDs via SQL. */
+export async function buildPublicPhotoSearchFilter(prisma: {
+  $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
+}): Promise<Record<string, unknown>> {
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM "Provider"
+    WHERE photos IS NOT NULL
+      AND jsonb_typeof(photos::jsonb) = 'array'
+      AND jsonb_array_length(photos::jsonb) > 0
+  `;
+
   return {
-    AND: [
-      { verification_url: null },
-      { verification_provider: null },
-      {
-        OR: [
-          { photos: { equals: Prisma.DbNull } },
-          { photos: { equals: [] } },
-        ],
-      },
+    OR: [
+      { verification_url: { not: null } },
+      { id: { in: rows.map((row) => row.id) } },
     ],
   };
 }
@@ -70,16 +71,18 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
         OR: [
           { ad_package_expiry: null },
           { ad_package_expiry: { gte: new Date().toISOString() } },
+          // Free tier stays public after cleanup even if a stale expiry date remains.
           { ad_package: "none" },
         ],
       },
+      // Eros-only scraped catalog: imported listings must be eros or evergreen.
+      // Advertiser-owned profiles (user_id set) remain eligible when approved.
       {
         OR: [
           { user_id: { not: null } },
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
-      { NOT: buildEmptyPhotoStubExclusion() },
     ],
     NOT: {
       OR: exclusionBranches,
