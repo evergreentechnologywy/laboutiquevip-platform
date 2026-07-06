@@ -1,3 +1,5 @@
+import { Prisma } from "../../generated/prisma-client/index.js";
+
 const DEFAULT_PUBLIC_PROVIDER_NAME_BLOCKLIST = ["Jarvis Test Listing"];
 
 function parseConfiguredBlockedNames(): string[] {
@@ -35,15 +37,17 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Require a public thumbnail source: advertiser account, verification URL, or photo URLs in JSON. */
-export function buildPublicPhotoVisibilityRequirement(): Record<string, unknown> {
-  // Positive OR: keep advertiser accounts, verified imports, or listings with photo URLs.
-  // Prisma Json filters reject bare `photos: null`; string_contains matches serialized array URLs.
+/** Hide listings with no verification URL and no renderable photos (import stubs). */
+export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
   return {
-    OR: [
-      { user_id: { not: null } },
-      { verification_url: { not: null } },
-      { photos: { string_contains: "http" } },
+    AND: [
+      { verification_url: { equals: null } },
+      {
+        OR: [
+          { photos: { equals: Prisma.DbNull } },
+          { photos: { equals: [] } },
+        ],
+      },
     ],
   };
 }
@@ -55,6 +59,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
       display_name: { equals: name, mode: "insensitive" },
     })),
     ...((buildTestDataExclusion().OR as Record<string, unknown>[]) ?? []),
+    buildEmptyPhotoStubExclusion(),
   ];
 
   return {
@@ -77,7 +82,6 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
-      buildPublicPhotoVisibilityRequirement(),
     ],
     NOT: {
       OR: exclusionBranches,
