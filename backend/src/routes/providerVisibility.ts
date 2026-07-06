@@ -41,7 +41,8 @@ export async function buildPublicPhotoSearchFilter(prisma: {
 }): Promise<Record<string, unknown>> {
   const rows = await prisma.$queryRaw`
     SELECT id FROM "Provider"
-    WHERE photos IS NOT NULL
+    WHERE verification_provider IN ('eros', 'evergreen')
+      AND photos IS NOT NULL
       AND jsonb_typeof(photos::jsonb) = 'array'
       AND CASE
         WHEN jsonb_typeof(photos::jsonb) = 'array' THEN jsonb_array_length(photos::jsonb) > 0
@@ -78,14 +79,9 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { ad_package: "none" },
         ],
       },
-      // Eros/Evergreen scraped catalog plus advertiser-owned profiles.
-      // Prisma UuidFilter cannot express user_id IS NOT NULL; null verification_provider matches advertisers only.
-      {
-        OR: [
-          { verification_provider: null },
-          { verification_provider: { in: ["eros", "evergreen"] } },
-        ],
-      },
+      // Public catalog: current eros.com + evergreen imports only.
+      // Advertiser-owned profiles (null verification_provider) stay in DB but are hidden from browse/search.
+      { verification_provider: { in: ["eros", "evergreen"] } },
     ],
     NOT: {
       OR: exclusionBranches,

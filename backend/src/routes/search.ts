@@ -56,13 +56,13 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
         UNION ALL
         SELECT city, city_slug FROM provider_tours
         UNION ALL
-        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true
+        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
         UNION ALL
-        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true
+        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
         UNION ALL
         SELECT concat(location_city, ', ', location_state) as city, lower(regexp_replace(concat(location_city, '-', location_state), '[^a-zA-Z0-9]+', '-', 'g')) as city_slug
           FROM "Provider"
-          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true
+          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
       ) city_pool
       WHERE lower(city) LIKE ${partial}
          OR lower(city_slug) LIKE ${prefix}
