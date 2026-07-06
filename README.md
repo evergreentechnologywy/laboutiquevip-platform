@@ -28,6 +28,8 @@ This repo keeps the current Vite/Base44 frontend running while introducing a bac
 - `npm run build:backend`: compile backend to `backend/dist`
 - `npm run test:backend`: compile + run backend tests
 - `npm run start:backend`: start compiled backend server
+- `npm run import:ultragfe:dry`: crawl ultragfe.com in dry-run mode (no DB writes)
+- `npm run import:ultragfe -- --state=california --max-cities=3`: scrape/import provider content into `Provider` via Prisma
 - `npm run dev:hybrid`: alias to frontend in Phase 0
 - `npm run db:generate`: prisma client generation
 - `npm run db:migrate:dev`: apply prisma migrations in dev

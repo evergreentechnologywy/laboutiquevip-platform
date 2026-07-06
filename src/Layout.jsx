@@ -225,7 +225,7 @@ export default function Layout({ children, currentPageName }) {
 
         <main className="flex-1 flex flex-col">
           {!isProviderPage && (
-            <nav className="border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur sticky top-0 z-30">
+            <nav className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-2xl sticky top-0 z-30 shadow-sm shadow-black/50">
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 sm:h-20 items-center justify-between">
                   <Link to={createPageUrl("Home")} className="flex items-center gap-3">
@@ -233,7 +233,7 @@ export default function Layout({ children, currentPageName }) {
                       <Crown className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col leading-tight">
-                      <span className="text-sm sm:text-base font-semibold tracking-tight text-zinc-100">
+                      <span className="text-sm sm:text-base font-serif font-bold tracking-tight text-zinc-100 text-gradient-gold">
                         La Boutique VIP<span className="hidden sm:inline"> International</span>
                       </span>
                       <span className="hidden sm:block text-xs text-zinc-500">Curated, discreet discovery</span>

@@ -10,6 +10,16 @@ function normalizeOptionalNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+const MAX_PROVIDER_PHOTOS = 8;
+
+function normalizePhotoList(photos) {
+  if (!Array.isArray(photos)) return [];
+  return [...new Set(photos.map((photo) => (typeof photo === "string" ? photo.trim() : "")).filter(Boolean))].slice(
+    0,
+    MAX_PROVIDER_PHOTOS,
+  );
+}
+
 export function buildProviderSignupPayload({ formData, userId, billingPeriod }) {
   return {
     user_id: userId,
@@ -29,6 +39,6 @@ export function buildProviderSignupPayload({ formData, userId, billingPeriod }) 
     review_username: normalizeOptionalString(formData.review_username),
     review_url: normalizeOptionalString(formData.review_url),
     verification_documents: Array.isArray(formData.verification_documents) ? formData.verification_documents : [],
-    pending_photos: [],
+    pending_photos: normalizePhotoList(formData.photos),
   };
 }

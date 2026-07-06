@@ -156,14 +156,14 @@ export default function Browse() {
               </p>
             </div>
 
-            <div className="grid gap-3 rounded-[32px] border border-zinc-800/80 bg-zinc-900/40 p-5 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] backdrop-blur sm:grid-cols-3">
+            <div className="grid gap-3 rounded-[32px] glass-panel p-5 sm:grid-cols-3">
               <StatCard label="Live listings" value={isLoading ? <span aria-hidden="true">...</span> : `${total}`} helper="Approved and active" />
               <StatCard label="Trust layer" value="Checked" helper="Verification disclosure" />
               <StatCard label="Best use" value="Browse wide" helper="Then narrow by criteria" />
             </div>
           </div>
 
-          <div className="mt-10 rounded-[32px] border border-zinc-800 bg-zinc-900/60 p-5 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] backdrop-blur sm:p-6 glow-gold">
+          <div className="mt-10 rounded-[32px] glass-panel glow-gold p-5 sm:p-6">
             <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
@@ -407,7 +407,7 @@ export default function Browse() {
           {ctaCards.map((card) => {
             const Icon = card.icon;
             return (
-              <Link key={card.title} to={card.href} className="group rounded-[28px] border border-zinc-900 bg-zinc-900/20 p-5 shadow-xl transition hover:-translate-y-0.5 hover:border-zinc-800 hover:shadow-2xl">
+              <Link key={card.title} to={card.href} className="group rounded-[32px] glass-panel glass-panel-hover p-5 hover-lift">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400">
                   <Icon className="h-5 w-5 text-rose-450" />
                 </div>
@@ -452,8 +452,8 @@ function ProviderCard({ provider }) {
   const ratingMeta = getProviderRatingMeta(provider);
 
   return (
-    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
-      <article className="overflow-hidden rounded-[28px] border border-zinc-900 bg-zinc-900/20 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.8)] transition duration-300 hover:-translate-y-1 hover:border-rose-500/30 hover:shadow-[0_24px_50px_-20px_rgba(244,63,94,0.15)]">
+    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift">
+      <article className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative">
         <div className="relative aspect-[4/5] overflow-hidden bg-zinc-950">
           <ProfileImage
             src={getPrimaryProfilePhoto(provider)}

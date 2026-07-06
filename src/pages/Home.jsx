@@ -90,7 +90,7 @@ export default function Home() {
               Browse polished listings, transparent rates, and direct enquiry options in a trusted premium environment.
             </p>
 
-            <div className="mx-auto mt-12 max-w-4xl rounded-[32px] border border-zinc-800 bg-zinc-900/60 p-4 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.7)] backdrop-blur-md glow-gold">
+            <div className="mx-auto mt-12 max-w-4xl rounded-[36px] glass-panel glow-gold p-6 transition-all duration-500 hover:glow-gold-hover">
               <div className="grid gap-3 md:grid-cols-[1.35fr_1fr_auto]">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
@@ -114,7 +114,7 @@ export default function Home() {
                 </div>
                 <Button
                   onClick={handleSearch}
-                  className="h-14 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 px-8 text-base font-semibold text-white shadow-lg transition hover:opacity-95 border-0 glow-rose"
+                  className="h-14 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 px-8 text-base font-semibold text-white shadow-lg border-0 glow-rose hover-lift"
                 >
                   Search
                 </Button>
@@ -161,8 +161,8 @@ export default function Home() {
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProviders.slice(0, 6).map((provider) => (
-              <Link key={provider.id} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block">
-                <article className="overflow-hidden rounded-[28px] border border-zinc-900 bg-zinc-900/20 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.8)] transition duration-300 hover:-translate-y-1 hover:border-rose-500/30 hover:shadow-[0_24px_50px_-20px_rgba(244,63,94,0.15)]">
+              <Link key={provider.id} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift">
+                <article className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative">
                   <div className="aspect-[4/5] overflow-hidden bg-zinc-950 relative">
                     <ProfileImage
                       src={getPrimaryProfilePhoto(provider)}
@@ -253,9 +253,9 @@ export default function Home() {
 
           <div className="mt-14 grid gap-8 lg:grid-cols-3">
             {whyItems.map((item) => (
-              <div key={item.title} className="rounded-[28px] border border-zinc-900 bg-zinc-900/20 p-8 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.8)] hover:border-zinc-800/80 transition duration-300">
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white shadow-md glow-rose">
-                  <item.icon className="h-5 w-5" />
+              <div key={item.title} className="rounded-[32px] glass-panel glass-panel-hover p-10 hover-lift">
+                <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white shadow-md glow-rose">
+                  <item.icon className="h-6 w-6" />
                 </div>
                 <h3 className="text-xl font-serif font-bold text-zinc-100">{item.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-zinc-400 font-light">{item.body}</p>
@@ -266,18 +266,21 @@ export default function Home() {
       </section>
 
       {/* Provider CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-8">
-        <div className="rounded-[40px] border border-zinc-900 bg-gradient-to-br from-zinc-900/80 to-zinc-950 shadow-2xl p-12 text-center glow-rose max-w-5xl mx-auto">
-          <h2 className="text-3xl font-serif font-bold tracking-tight text-zinc-100 sm:text-5xl">Are you a provider?</h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base sm:text-lg leading-8 text-zinc-400 font-light">
-            Join La Boutique VIP International and present your profile in a more polished, trusted, and premium environment.
-          </p>
-          <Button
-            onClick={() => navigate(createPageUrl("ProviderSignup"))}
-            className="mt-8 h-14 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-10 text-base font-semibold text-white transition hover:opacity-95 shadow-lg border-0"
-          >
-            Get Started
-          </Button>
+      <section className="mx-auto max-w-7xl px-6 py-24 lg:px-8">
+        <div className="rounded-[40px] glass-panel p-16 text-center glow-rose-hover hover-lift max-w-5xl mx-auto relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-zinc-900/80 to-zinc-950 z-0"></div>
+          <div className="relative z-10">
+            <h2 className="text-4xl font-serif font-bold tracking-tight text-zinc-100 sm:text-6xl text-gradient-gold">Are you a provider?</h2>
+            <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-8 text-zinc-400 font-light">
+              Join La Boutique VIP International and present your profile in a more polished, trusted, and premium environment.
+            </p>
+            <Button
+              onClick={() => navigate(createPageUrl("ProviderSignup"))}
+              className="mt-10 h-14 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-12 text-base font-semibold text-white shadow-xl border-0 hover-lift glow-rose"
+            >
+              Get Started
+            </Button>
+          </div>
         </div>
       </section>
     </div>

@@ -13,6 +13,7 @@ function sanitizeNextUrl(rawNext) {
   return rawNext;
 }
 
+
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
