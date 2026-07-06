@@ -35,6 +35,19 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
+/** Scraped catalog stubs with no photos and no verification source — no public thumbnail. */
+export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
+  return {
+    AND: [
+      { user_id: null },
+      { verification_url: null },
+      {
+        OR: [{ photos: null }, { photos: { equals: [] } }],
+      },
+    ],
+  };
+}
+
 export function publicProviderVisibilityWhere(): Record<string, unknown> {
   const blockedNames = parseConfiguredBlockedNames();
   const exclusionBranches: Record<string, unknown>[] = [
@@ -42,6 +55,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
       display_name: { equals: name, mode: "insensitive" },
     })),
     ...((buildTestDataExclusion().OR as Record<string, unknown>[]) ?? []),
+    buildEmptyPhotoStubExclusion(),
   ];
 
   return {
