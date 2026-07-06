@@ -22,7 +22,7 @@ test("publicProviderVisibilityWhere keeps advertiser-owned profiles without phot
   };
 
   assert.deepEqual(sourceFilter.OR, [
-    { user_id: { not: null } },
+    { verification_provider: null },
     { verification_provider: { in: ["eros", "evergreen"] } },
   ]);
 });

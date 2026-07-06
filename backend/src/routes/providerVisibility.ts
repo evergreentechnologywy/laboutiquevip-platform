@@ -78,11 +78,11 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { ad_package: "none" },
         ],
       },
-      // Eros-only scraped catalog: imported listings must be eros or evergreen.
-      // Advertiser-owned profiles (user_id set) remain eligible when approved.
+      // Eros/Evergreen scraped catalog plus advertiser-owned profiles.
+      // Prisma UuidFilter cannot express user_id IS NOT NULL; null verification_provider matches advertisers only.
       {
         OR: [
-          { user_id: { not: null } },
+          { verification_provider: null },
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
