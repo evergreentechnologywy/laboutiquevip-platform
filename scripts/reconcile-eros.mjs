@@ -20,6 +20,11 @@ import {
   parseErosLocationFromUrl,
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
+import {
+  hubEligibleForDeactivation,
+  listingHubKeyFromUrl,
+  recordHubListingAttempt,
+} from "./lib/reconcile-hub.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -344,11 +349,7 @@ function profileLimitForHub(hub) {
 }
 
 function hubKeyFromListingUrl(url) {
-  const match = String(url ?? "").match(
-    /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/([a-z0-9_-]+)/i,
-  );
-  if (!match) return null;
-  return `${match[1].toLowerCase()}/${match[2].toLowerCase()}`;
+  return listingHubKeyFromUrl(url);
 }
 
 async function run() {
@@ -382,6 +383,7 @@ async function run() {
   // 3. Scan listing pages concurrently with concurrency pool (5 workers)
   const profileUrls = new Set();
   const hubProfileCounts = new Map();
+  const hubListingStats = new Map();
   const concurrency = 5;
   let listingIndex = 0;
   let crawledSuccessCount = 0;
@@ -398,11 +400,13 @@ async function run() {
       const text = await fetchMirrorText(url);
       if (!text) {
         crawledFailureCount++;
+        recordHubListingAttempt(hubListingStats, url, false);
         console.warn(`[WARN] Failed to fetch listing page: ${url}`);
         continue;
       }
 
       crawledSuccessCount++;
+      recordHubListingAttempt(hubListingStats, url, true);
       const hubKey = hubKeyFromListingUrl(url);
       const hubLimit = hubKey ? (hubLimits.get(hubKey) ?? profilesPerCity) : profilesPerCity;
       let hubCount = hubKey ? (hubProfileCounts.get(hubKey) ?? 0) : profileUrls.size;
@@ -449,31 +453,30 @@ async function run() {
   });
   console.log(`[reconcile] Database active Eros providers: ${dbProviders.length}`);
 
-  const minDeactivationSuccessRatio = 0.85;
-  const allowDeactivation =
-    successRatio >= minDeactivationSuccessRatio &&
-    profileUrls.size >= Math.max(50, Math.floor(dbProviders.length * 0.4));
-
-  if (!allowDeactivation) {
-    console.warn(
-      `[reconcile] Skipping deactivation (successRatio=${(successRatio * 100).toFixed(1)}%, ` +
-        `profileUrls=${profileUrls.size}, dbActive=${dbProviders.length}). ` +
-        `Need >=${minDeactivationSuccessRatio * 100}% listing success.`,
-    );
-  }
-
   const scannedCityKeys = new Set(cities.map((c) => `${c.state}/${c.city}`));
   const isFullScan = limitCities === 0 || cities.length >= allCities.length;
 
-  // 5. Deactivate inactive profiles (scoped to cities scanned this run)
+  const hubsEligible = [...hubListingStats.entries()].filter(([, stats]) => stats.success > 0).length;
+  const hubsSkipped = [...hubListingStats.entries()].filter(([, stats]) => stats.success === 0).length;
+  console.log(
+    `[reconcile] Per-hub deactivation: ${hubsEligible} hubs eligible (>=1 listing success), ` +
+      `${hubsSkipped} hubs skipped (all listing fetches failed). Global success ${(successRatio * 100).toFixed(1)}%.`,
+  );
+
+  // 5. Deactivate profiles missing from scraped listings (per-hub success gate)
   let deactivatedCount = 0;
-  if (allowDeactivation) {
+  const hubDeactivationCounts = new Map();
+
   for (const provider of dbProviders) {
     const canonicalUrl = canonicalErosProfileUrl(provider.verification_url);
     if (!canonicalUrl) continue;
 
     const cityKey = erosCityKeyFromUrl(provider.verification_url);
     if (!isFullScan && (!cityKey || !scannedCityKeys.has(cityKey))) {
+      continue;
+    }
+
+    if (!cityKey || !hubEligibleForDeactivation(hubListingStats, cityKey)) {
       continue;
     }
 
@@ -486,9 +489,15 @@ async function run() {
         });
       }
       deactivatedCount++;
+      hubDeactivationCounts.set(cityKey, (hubDeactivationCounts.get(cityKey) ?? 0) + 1);
     }
   }
+
+  for (const [hubKey, count] of hubDeactivationCounts) {
+    const stats = hubListingStats.get(hubKey) ?? { success: 0, attempted: 0 };
+    console.log(`[reconcile] deactivated ${count} in hub ${hubKey} (listing success ${stats.success}/${stats.attempted})`);
   }
+
   console.log(`[reconcile] Total deactivated: ${deactivatedCount} (fullScan=${isFullScan}, citiesScanned=${scannedCityKeys.size})`);
 
   // 6. Find newly discovered profile URLs
