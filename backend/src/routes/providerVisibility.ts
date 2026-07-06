@@ -43,7 +43,10 @@ export async function buildPublicPhotoSearchFilter(prisma: {
     SELECT id FROM "Provider"
     WHERE photos IS NOT NULL
       AND jsonb_typeof(photos::jsonb) = 'array'
-      AND jsonb_array_length(photos::jsonb) > 0
+      AND CASE
+        WHEN jsonb_typeof(photos::jsonb) = 'array' THEN jsonb_array_length(photos::jsonb) > 0
+        ELSE false
+      END
   `;
 
   return {
