@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildPublicPhotoRequirement,
+  buildEmptyPhotoStubExclusion,
   publicProviderVisibilityWhere,
 } from "./providerVisibility.js";
 
@@ -18,14 +18,22 @@ test("publicProviderVisibilityWhere keeps free-tier listings visible with stale 
   ]);
 });
 
-test("publicProviderVisibilityWhere requires verification URL or non-empty photos", () => {
+test("publicProviderVisibilityWhere hides photo-less stubs without verification", () => {
   const where = publicProviderVisibilityWhere();
-  const photoRequirement = (where.AND as Record<string, unknown>[])[2];
+  const stubGuard = (where.AND as Record<string, unknown>[])[2];
 
-  assert.deepEqual(photoRequirement, buildPublicPhotoRequirement());
+  assert.deepEqual(stubGuard, { NOT: buildEmptyPhotoStubExclusion() });
 });
 
-test("publicProviderVisibilityWhere keeps advertiser-owned profiles without photos", () => {
+test("buildEmptyPhotoStubExclusion targets unverified import stubs", () => {
+  const exclusion = buildEmptyPhotoStubExclusion();
+  const andClause = exclusion.AND as Record<string, unknown>[];
+
+  assert.deepEqual(andClause[0], { verification_url: null });
+  assert.deepEqual(andClause[1], { verification_provider: null });
+});
+
+test("publicProviderVisibilityWhere keeps eros and evergreen scraped listings", () => {
   const where = publicProviderVisibilityWhere();
   const sourceFilter = (where.AND as Record<string, unknown>[])[1] as {
     OR: Record<string, unknown>[];

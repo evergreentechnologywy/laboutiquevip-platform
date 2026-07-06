@@ -37,15 +37,16 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Require verification URL or non-empty photos JSON (excludes import stubs). */
-export function buildPublicPhotoRequirement(): Record<string, unknown> {
+/** Scraped import stubs: no verification source and no renderable photos. */
+export function buildEmptyPhotoStubExclusion(): Record<string, unknown> {
   return {
-    OR: [
-      { verification_url: { not: null } },
+    AND: [
+      { verification_url: null },
+      { verification_provider: null },
       {
-        AND: [
-          { photos: { not: { equals: Prisma.DbNull } } },
-          { photos: { not: { equals: [] } } },
+        OR: [
+          { photos: { equals: Prisma.DbNull } },
+          { photos: { equals: [] } },
         ],
       },
     ],
@@ -69,19 +70,16 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
         OR: [
           { ad_package_expiry: null },
           { ad_package_expiry: { gte: new Date().toISOString() } },
-          // Free tier stays public after cleanup even if a stale expiry date remains.
           { ad_package: "none" },
         ],
       },
-      // Eros-only scraped catalog: imported listings must be eros or evergreen.
-      // Advertiser-owned profiles (user_id set) remain eligible when approved.
       {
         OR: [
           { user_id: { not: null } },
           { verification_provider: { in: ["eros", "evergreen"] } },
         ],
       },
-      buildPublicPhotoRequirement(),
+      { NOT: buildEmptyPhotoStubExclusion() },
     ],
     NOT: {
       OR: exclusionBranches,
