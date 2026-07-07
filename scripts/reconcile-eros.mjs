@@ -25,6 +25,7 @@ import {
   listingHubKeyFromUrl,
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
+import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -544,6 +545,12 @@ async function run() {
         if (dryRun) {
           console.log(`[reconcile] [dry-run] Would import provider: ${profile.display_name} - URL: ${profile.sourceUrl} with ${profile.photos.length} photos.`);
           importedCount++;
+          continue;
+        }
+
+        const existing = await findExistingErosProvider(prisma, profile.sourceUrl);
+        if (existing) {
+          console.log(`[reconcile] Skipping duplicate (existing ${existing.id}): ${profile.display_name}`);
           continue;
         }
 

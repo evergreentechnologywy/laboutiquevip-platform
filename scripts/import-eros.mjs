@@ -11,6 +11,7 @@ import {
   parseErosLocationFromUrl,
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
+import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -258,13 +259,7 @@ function parseProfile(markdown, sourceUrl) {
 }
 
 async function findExistingByErosUrl(sourceUrl) {
-  if (!prisma) return null;
-  return prisma.provider.findFirst({
-    where: {
-      verification_provider: "eros",
-      verification_url: sourceUrl,
-    },
-  });
+  return findExistingErosProvider(prisma, sourceUrl);
 }
 
 function buildProviderPayload(profile, existing = null) {

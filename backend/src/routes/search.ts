@@ -4,6 +4,7 @@ import { formatValidationErrors, searchModelsQuerySchema } from "../validation/m
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders, buildPublicPhotoSearchFilter } from "./providerVisibility.js";
 import { buildLocationFilter, suggestLocationQueries } from "../lib/locationMatch.js";
+import { dedupeProviders } from "../lib/providerDedupe.js";
 
 interface SearchRouteContext {
   prisma: any;
@@ -201,8 +202,11 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const maxRate = aggregate._max.rate_hourly || 2000;
 
+    const dedupedProviders = dedupeProviders(providers);
+    const duplicateCount = providers.length - dedupedProviders.length;
+
     const cityGroups = (Array.from(
-      providers.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
+      dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
         const key = `${provider.location_city || "Unknown"}||${provider.location_state || "Unknown"}`;
         const current = map.get(key) ?? {
           city: provider.location_city || "Unknown",
@@ -221,11 +225,11 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       body: {
       page: query.page,
       limit: query.limit,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / query.limit)),
+      total: Math.max(0, total - duplicateCount),
+      totalPages: Math.max(1, Math.ceil(Math.max(0, total - duplicateCount) / query.limit)),
       maxRate,
       cityGroups,
-      items: providers,
+      items: dedupedProviders,
       },
     };
   } catch (error) {
