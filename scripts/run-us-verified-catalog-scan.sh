@@ -24,7 +24,7 @@ export DELAY_MS="${DELAY_MS:-600}"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") skipped lock_busy" >> "$REPORT_FILE"
-  exit 0
+  exit 2
 fi
 
 RUN_LOG="$(mktemp)"

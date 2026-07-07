@@ -24,6 +24,12 @@ while true; do
   scan_exit=$?
   set -e
 
+  if [[ "$scan_exit" -eq 2 ]]; then
+    echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") scan lock busy; retry in 10m" >> "$LOOP_LOG"
+    sleep 600
+    continue
+  fi
+
   echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") scan finished exit=$scan_exit sleeping ${INTERVAL_SEC}s" >> "$LOOP_LOG"
   sleep "$INTERVAL_SEC"
 done
