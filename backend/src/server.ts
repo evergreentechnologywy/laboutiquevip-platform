@@ -22,6 +22,10 @@ import {
   updateAgencyProfileHandler,
 } from "./routes/agency.js";
 import {
+  auraEvergreenStatusHandler,
+  auraEvergreenSyncHandler,
+} from "./routes/auraIntegration.js";
+import {
   adminBillingReconciliationHandler,
   adminReportsQueueHandler,
   adminReviewVerificationHandler,
@@ -414,6 +418,19 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/agency/profiles" && request.method === "POST") {
     return createAgencyProfileHandler(request, context);
+  }
+
+  if (
+    request.pathname === "/api/v1/integrations/aura/evergreen-sync" &&
+    request.method === "POST"
+  ) {
+    return auraEvergreenSyncHandler(request, context);
+  }
+  if (
+    request.pathname === "/api/v1/integrations/aura/evergreen-status" &&
+    request.method === "GET"
+  ) {
+    return auraEvergreenStatusHandler(request, context);
   }
 
   const agencyProfileId = matchAgencyProfileIdPath(request.pathname);

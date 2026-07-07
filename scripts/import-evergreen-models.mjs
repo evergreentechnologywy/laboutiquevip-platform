@@ -39,6 +39,9 @@ const args = new Map(
   }),
 );
 const dryRun = args.has("dry-run");
+const modelFilter = args.get("model")?.trim() || null;
+const locationCityOverride = args.get("location-city")?.trim() || null;
+const locationStateOverride = args.get("location-state")?.trim() || null;
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -264,7 +267,7 @@ async function buildPhotoSources(site, siteUrl, html, calendarProfile) {
   return unique(collected).slice(0, MAX_PHOTOS);
 }
 
-async function upsertEvergreenModel(site, modelProfiles) {
+async function upsertEvergreenModel(site, modelProfiles, locationOverride = null) {
   const domain = site.domain;
   const siteUrl = `https://${domain}`;
   stats.sites += 1;
@@ -286,6 +289,14 @@ async function upsertEvergreenModel(site, modelProfiles) {
   }
 
   const finalName = calendarMatch?.name || existing?.display_name || displayName;
+  const locationCity =
+    locationOverride?.city ||
+    existing?.location_city ||
+    "Miami";
+  const locationState =
+    locationOverride?.state ||
+    existing?.location_state ||
+    "FL";
   const payload = {
     display_name: finalName,
     bio,
@@ -331,6 +342,8 @@ async function upsertEvergreenModel(site, modelProfiles) {
           photo_review_status = ${payload.photo_review_status},
           tagline = ${payload.tagline},
           social_media = ${JSON.stringify(payload.social_media)}::jsonb,
+          location_city = ${locationCity},
+          location_state = ${locationState},
           updated_date = NOW()
         WHERE id = ${existing.id}::uuid
       `;
@@ -349,7 +362,7 @@ async function upsertEvergreenModel(site, modelProfiles) {
           ${payload.status}, ${payload.is_premium}, ${payload.is_verified}, ${payload.is_profile_approved},
           ${payload.ad_package}, ${payload.photo_review_status}, ${payload.tagline},
           ${JSON.stringify(payload.social_media)}::jsonb,
-          ${"Miami"}, ${"FL"}, ${"US"}, NOW(), NOW()
+          ${locationCity}, ${locationState}, ${"US"}, NOW(), NOW()
         )
         RETURNING id
       `;
@@ -397,6 +410,39 @@ function writeStatus(extra = {}) {
   }
 }
 
+function siteMatchesModelFilter(site, modelProfiles) {
+  if (!modelFilter) return true;
+  const target = modelFilter.toLowerCase();
+  const domain = site.domain.replace(/\.site$/i, "").toLowerCase();
+  const profile = modelProfiles[modelFilter];
+  if (profile?.siteUrl && String(profile.siteUrl).toLowerCase().includes(domain)) return true;
+  if (domain.includes(target.replace(/\s+/g, "")) || domain.includes(target.replace(/\s+/g, "-"))) {
+    return true;
+  }
+  const fallbackName = titleCaseFromDomain(site.domain);
+  const calendarMatch = matchCalendarModel(site.domain, fallbackName, modelProfiles);
+  if (calendarMatch?.name?.toLowerCase() === target) return true;
+  if (fallbackName.toLowerCase() === target) return true;
+  return false;
+}
+
+function resolveSitesForImport(sites, modelProfiles) {
+  if (!modelFilter) return sites;
+  const filtered = sites.filter((site) => siteMatchesModelFilter(site, modelProfiles));
+  if (filtered.length > 0) return filtered;
+  const profile = modelProfiles[modelFilter];
+  if (profile?.siteUrl) {
+    try {
+      const domain = new URL(profile.siteUrl).hostname.replace(/^www\./i, "");
+      const match = sites.find((s) => s.domain === domain || domain.endsWith(s.domain));
+      if (match) return [match];
+    } catch {
+      /* ignore */
+    }
+  }
+  return [];
+}
+
 async function main() {
   if (!fs.existsSync(SITES_JSON)) {
     console.error(`Missing sites list: ${SITES_JSON}`);
@@ -404,19 +450,37 @@ async function main() {
     process.exit(2);
   }
 
-  const sites = JSON.parse(fs.readFileSync(SITES_JSON, "utf8"));
+  const sitesAll = JSON.parse(fs.readFileSync(SITES_JSON, "utf8"));
   const modelProfiles = fs.existsSync(MODEL_PROFILES)
     ? JSON.parse(fs.readFileSync(MODEL_PROFILES, "utf8"))
     : {};
 
-  console.log(`Evergreen model import — ${sites.length} sites`);
+  const sites = resolveSitesForImport(sitesAll, modelProfiles);
+  if (modelFilter && sites.length === 0) {
+    console.error(`No SiteConsole site matched model filter: ${modelFilter}`);
+    writeStatus({ error: "model_not_found", model: modelFilter });
+    process.exit(2);
+  }
+
+  const locationOverride =
+    locationCityOverride || locationStateOverride
+      ? {
+          city: locationCityOverride || null,
+          state: locationStateOverride || null,
+        }
+      : null;
+
+  console.log(
+    `Evergreen model import — ${sites.length} site(s)${modelFilter ? ` (filter: ${modelFilter})` : ""}`,
+  );
   for (const site of sites) {
-    await upsertEvergreenModel(site, modelProfiles);
+    await upsertEvergreenModel(site, modelProfiles, locationOverride);
   }
 
   console.log("\nDone.", stats);
   writeStatus({
     siteCount: sites.length,
+    modelFilter,
     modelProfileCount: Object.keys(modelProfiles).length,
   });
   await prisma.$disconnect();
