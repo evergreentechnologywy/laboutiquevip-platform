@@ -15,7 +15,7 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
-import { CityAutocomplete } from "@/components/CityAutocomplete";
+import { LocationPicker } from "@/components/LocationPicker";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -201,7 +201,7 @@ export default function Browse() {
           </div>
 
           <div className="mt-10 rounded-[32px] glass-panel glow-gold p-5 sm:p-6">
-            <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr_0.8fr]">
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr_0.75fr]">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
                 <Input
@@ -212,14 +212,7 @@ export default function Browse() {
                   className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 pl-11 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
-              <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
-                <CityAutocomplete
-                  value={location}
-                  onChange={setLocation}
-                  className="h-12 w-full rounded-2xl border border-zinc-850 bg-zinc-950/70 pl-11 pr-4 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-              </div>
+              <LocationPicker value={location} onChange={setLocation} />
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20" aria-label="Sort results by">
                   <SelectValue placeholder="Sort by" />

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchProvidersHandler } from "./search.js";
+import { searchProvidersHandler, searchLocationsHandler } from "./search.js";
 
 function makeReq(query: Record<string, string> = {}): any {
   return {
@@ -63,4 +63,38 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
     { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
   ]);
   assert.deepEqual(seenCountArgs.where, seenFindManyArgs.where);
+});
+
+test("searchLocationsHandler returns hierarchical states with cities", async () => {
+  const prisma = {
+    $queryRaw: async () => [{ id: "p1" }, { id: "p2" }],
+    provider: {
+      findMany: async () => [
+        { location_state: "FL", location_city: "Miami" },
+        { location_state: "FL", location_city: "Miami" },
+        { location_state: "FL", location_city: "Tampa" },
+        { location_state: "TX", location_city: "Dallas" },
+      ],
+    },
+  };
+
+  const res = await searchLocationsHandler(
+    {
+      method: "GET",
+      pathname: "/api/v1/search/locations",
+      query: new URLSearchParams(),
+    },
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(Array.isArray(res.body.states));
+  assert.equal(res.body.states.length, 2);
+
+  const florida = res.body.states.find((s: { code: string }) => s.code === "FL");
+  assert.ok(florida);
+  assert.equal(florida.count, 3);
+  assert.equal(florida.cities.length, 2);
+  const miami = florida.cities.find((c: { slug: string }) => c.slug === "miami");
+  assert.equal(miami?.count, 2);
 });

@@ -372,6 +372,13 @@ model Provider {
   review_provider        String?
   review_username        String?
   review_url             String?
+  review_urls            Json?
+  ter_url                String?
+  tob_url                String?
+  pd_url                 String?
+  review_site_rating     Float?
+  review_site_count      Int?
+  review_matched_at      DateTime?
   ad_package             String?  @default("none")
   ad_package_expiry      String?
   ad_package_started_at  String?

@@ -42,3 +42,16 @@ export async function searchProviders({
 
   return data;
 }
+
+export async function fetchSearchLocations() {
+  const res = await fetch("/api/v1/search/locations", { credentials: "same-origin" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    /** @type {ApiError} */
+    const err = new Error(data?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}

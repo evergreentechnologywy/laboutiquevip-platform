@@ -55,7 +55,7 @@ import {
   registerModelHandler,
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
-import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
+import { searchCitiesHandler, searchLocationsHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
 import { getProviderBySlugHandler } from "./routes/providerPublic.js";
 import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
@@ -307,6 +307,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (tourId && request.method === "DELETE") {
     return deleteTourHandler(request, tourId, context);
+  }
+
+  if (request.pathname === "/api/v1/search/locations" && request.method === "GET") {
+    return searchLocationsHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/search/cities" && request.method === "GET") {

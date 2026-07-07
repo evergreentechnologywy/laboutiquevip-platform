@@ -3,7 +3,7 @@ import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders, buildPublicPhotoSearchFilter } from "./providerVisibility.js";
-import { buildLocationFilter, suggestLocationQueries } from "../lib/locationMatch.js";
+import { buildLocationFilter, suggestLocationQueries, resolveStateAbbrev, slugify, stateDisplayName } from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
 
 interface SearchRouteContext {
@@ -57,13 +57,13 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
         UNION ALL
         SELECT city, city_slug FROM provider_tours
         UNION ALL
-        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
+        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
         UNION ALL
-        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
+        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
         UNION ALL
         SELECT concat(location_city, ', ', location_state) as city, lower(regexp_replace(concat(location_city, '-', location_state), '[^a-zA-Z0-9]+', '-', 'g')) as city_slug
           FROM "Provider"
-          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen')
+          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
       ) city_pool
       WHERE lower(city) LIKE ${partial}
          OR lower(city_slug) LIKE ${prefix}
@@ -240,6 +240,70 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       });
     }
 
+    return json(500, { error: "internal_error" });
+  }
+}
+
+type LocationCityRow = { slug: string; name: string; count: number };
+type LocationStateRow = { code: string; name: string; count: number; cities: LocationCityRow[] };
+
+/** Hierarchical state → city list derived from active public listings (query-driven, not static config). */
+export async function searchLocationsHandler(request: ApiRequest, context: SearchRouteContext): Promise<ApiResponse> {
+  try {
+    if (request.method !== "GET") {
+      return json(405, { error: "method_not_allowed" });
+    }
+
+    const photoFilter = await buildPublicPhotoSearchFilter(context.prisma);
+    const rows = await context.prisma.provider.findMany({
+      where: {
+        AND: [
+          publicProviderVisibilityWhere(),
+          photoFilter,
+          { location_state: { not: null } },
+          { location_city: { not: null } },
+          { NOT: { location_city: { equals: "Statewide", mode: "insensitive" } } },
+        ],
+      },
+      select: { location_state: true, location_city: true },
+    });
+
+    const stateMap = new Map<string, { name: string; count: number; cities: Map<string, LocationCityRow> }>();
+
+    for (const row of rows as Array<{ location_state: string | null; location_city: string | null }>) {
+      const rawState = String(row.location_state || "").trim();
+      const rawCity = String(row.location_city || "").trim();
+      if (!rawState || !rawCity) continue;
+
+      const code = resolveStateAbbrev(rawState) ?? rawState.toUpperCase();
+      const stateName = stateDisplayName(code);
+      const citySlug = slugify(rawCity);
+      const cityName = rawCity;
+
+      const stateEntry = stateMap.get(code) ?? { name: stateName, count: 0, cities: new Map<string, LocationCityRow>() };
+      stateEntry.count += 1;
+
+      const cityEntry = stateEntry.cities.get(citySlug) ?? { slug: citySlug, name: cityName, count: 0 };
+      cityEntry.count += 1;
+      stateEntry.cities.set(citySlug, cityEntry);
+      stateMap.set(code, stateEntry);
+    }
+
+    const states: LocationStateRow[] = Array.from(stateMap.entries())
+      .map(([code, entry]) => ({
+        code,
+        name: entry.name,
+        count: entry.count,
+        cities: Array.from(entry.cities.values()).sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      statusCode: 200,
+      headers: publicSearchCacheHeaders(),
+      body: { states },
+    };
+  } catch {
     return json(500, { error: "internal_error" });
   }
 }

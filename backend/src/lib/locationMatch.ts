@@ -112,6 +112,12 @@ const CITY_TO_STATE: Record<string, string> = {
   greenville: "SC",
 };
 
+export function stateDisplayName(abbrev: string): string {
+  const code = String(abbrev || "").trim().toUpperCase();
+  const names = ABBREV_TO_NAMES[code];
+  return names?.[0] ? titleCaseWords(names[0]) : code;
+}
+
 export function slugify(value: string): string {
   return String(value || "")
     .toLowerCase()

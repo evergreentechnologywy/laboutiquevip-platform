@@ -1,3 +1,6 @@
+/** Sources shown on public browse (import pipelines set verification_provider). */
+export const PUBLIC_VERIFICATION_PROVIDERS = ["eros", "evergreen", "tryst"] as const;
+
 const DEFAULT_PUBLIC_PROVIDER_NAME_BLOCKLIST = ["Jarvis Test Listing"];
 
 function parseConfiguredBlockedNames(): string[] {
@@ -48,7 +51,7 @@ async function loadPublicPhotoProviderIds(prisma: {
 
   const rows = await prisma.$queryRaw`
     SELECT id FROM "Provider"
-    WHERE verification_provider IN ('eros', 'evergreen')
+    WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
       AND photos IS NOT NULL
       AND jsonb_typeof(photos::jsonb) = 'array'
       AND jsonb_array_length(photos::jsonb) > 0
@@ -56,6 +59,7 @@ async function loadPublicPhotoProviderIds(prisma: {
         SELECT 1 FROM jsonb_array_elements_text(photos::jsonb) AS url
         WHERE url LIKE '%/api/r2-photo/%'
            OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
+           OR url ~* '(tryst\\.link|discovery\\.tryst|a4cdn\\.ch|a4cdn\\.org)'
            OR url ~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?|$)'
       )
   `;
@@ -101,7 +105,7 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
           { ad_package: "none" },
         ],
       },
-      { verification_provider: { in: ["eros", "evergreen"] } },
+      { verification_provider: { in: [...PUBLIC_VERIFICATION_PROVIDERS] } },
     ],
     NOT: {
       OR: exclusionBranches,
