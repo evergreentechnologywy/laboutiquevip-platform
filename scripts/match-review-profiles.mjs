@@ -8,6 +8,7 @@ import {
   extractP411FromMarkdown,
   extractReviewUrlsFromMarkdown,
   mergeVerificationFields,
+  providerHasVerificationBadge,
   resolveProviderVerification,
   searchTerByPhone,
 } from "./lib/verification-match.mjs";
@@ -28,6 +29,7 @@ async function createPrismaClient() {
 
 const dryRun = process.argv.includes("--dry-run");
 const allSites = process.argv.includes("--all-sites");
+const reverifyAll = process.argv.includes("--reverify-all");
 const prisma = await createPrismaClient();
 
 function maskEmail(email) {
@@ -60,12 +62,14 @@ async function applyVerification(provider, verification) {
 }
 
 async function main() {
+  const where = {
+    status: "active",
+    verification_provider: { in: ["eros", "tryst"] },
+    OR: [{ phone: { not: null } }, { email: { not: null } }],
+  };
+
   const providers = await prisma.provider.findMany({
-    where: {
-      status: "active",
-      verification_provider: { in: ["eros", "tryst"] },
-      OR: [{ phone: { not: null } }, { email: { not: null } }],
-    },
+    where,
     select: {
       id: true,
       phone: true,
@@ -89,8 +93,13 @@ async function main() {
 
   let matched = 0;
   let scanned = 0;
+  let skippedVerified = 0;
 
   for (const provider of providers) {
+    if (!reverifyAll && providerHasVerificationBadge(provider)) {
+      skippedVerified += 1;
+      continue;
+    }
     scanned += 1;
     const markdown = `${provider.bio ?? ""}\n${provider.ad_body ?? ""}`;
     const pageSignals = {
@@ -102,7 +111,7 @@ async function main() {
       phone: provider.phone,
       email: provider.email,
       markdown,
-      includeApiLookup: true,
+      includeApiLookup: reverifyAll || !providerHasVerificationBadge(provider),
     });
 
     if (allSites) {
@@ -160,7 +169,9 @@ async function main() {
     if (applied) matched += 1;
   }
 
-  console.log(`Review match complete scanned=${scanned} matched=${matched} dryRun=${dryRun}`);
+  console.log(
+    `Review match complete scanned=${scanned} matched=${matched} skippedVerified=${skippedVerified} dryRun=${dryRun}`,
+  );
 }
 
 main()

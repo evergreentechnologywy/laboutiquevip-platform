@@ -56,8 +56,16 @@ set -e
 TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 if [[ "$RUN_EXIT" -eq 0 ]]; then
   echo "$TS status=ok exit=0 caps=city${PROFILES_PER_CITY}_state${TRYST_MAX_CITIES_PER_STATE}" >> "$REPORT_FILE"
+  SCAN_STATUS=ok
 else
   echo "$TS status=failed exit=$RUN_EXIT" >> "$REPORT_FILE"
+  SCAN_STATUS=failed
 fi
+
+export NODE_PATH="$REPO_DIR/node_modules"
+node "$REPO_DIR/scripts/lbv-catalog-scan-notify.mjs" \
+  --log="$RUN_LOG" \
+  --status="$SCAN_STATUS" \
+  --exit="$RUN_EXIT" >> "${LOG_DIR}/catalog-scan-notify.log" 2>&1 || true
 
 exit "$RUN_EXIT"

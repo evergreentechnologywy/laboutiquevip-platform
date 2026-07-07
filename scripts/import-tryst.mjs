@@ -27,6 +27,7 @@ import {
 import {
   mergeVerificationFields,
   passesImportGate,
+  providerHasVerificationBadge,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
 
@@ -59,6 +60,7 @@ const stats = {
   updated: 0,
   skipped: 0,
   skippedNoVerification: 0,
+  verificationCacheHits: 0,
   errors: 0,
 };
 
@@ -158,10 +160,13 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     },
   });
 
+  const cachedBadge = providerHasVerificationBadge(existing);
+  if (cachedBadge) stats.verificationCacheHits += 1;
   const verification = await resolveProviderVerification({
     phone: profile.phone,
     email: profile.email,
     markdown,
+    includeApiLookup: !cachedBadge,
   });
 
   if (!passesImportGate(existing, verification)) {

@@ -22,6 +22,7 @@ import {
 import {
   mergeVerificationFields,
   passesImportGate,
+  providerHasVerificationBadge,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
@@ -78,6 +79,7 @@ const stats = {
   updated: 0,
   skipped: 0,
   skippedNoVerification: 0,
+  verificationCacheHits: 0,
   errors: 0,
 };
 
@@ -338,10 +340,13 @@ async function importProfile(profile, markdown = "") {
   profile.socialExtract = contactExtract.social_media;
 
   const existing = await findExistingByErosUrl(profile.sourceUrl);
+  const cachedBadge = providerHasVerificationBadge(existing);
+  if (cachedBadge) stats.verificationCacheHits += 1;
   profile.verification = await resolveProviderVerification({
     phone: profile.phone,
     email: profile.email,
     markdown,
+    includeApiLookup: !cachedBadge,
   });
 
   if (!passesImportGate(existing, profile.verification)) {
