@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wait for an in-flight catalog scan (started before Hermes notify was deployed),
-# send first-completion Telegram, then start the 4h loop.
+# send first-completion Telegram. Daily cron runs the next cycle at 00:30 America/Denver.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
@@ -36,8 +36,4 @@ node "$REPO_DIR/scripts/lbv-catalog-scan-notify.mjs" \
 rm -f "$TMP"
 
 touch "$MARKER_FILE"
-if ! pgrep -f '[/]run-us-verified-catalog-loop.sh' >/dev/null 2>&1; then
-  nohup bash "$REPO_DIR/scripts/run-us-verified-catalog-loop.sh" \
-    >> "${LOG_DIR}/us-verified-catalog-loop.log" 2>&1 &
-  echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") started catalog loop pid=$!" >> "${LOG_DIR}/us-verified-catalog-loop.log"
-fi
+echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") first-scan Hermes notify done; daily cron handles next runs (00:30 America/Denver)" >> "${LOG_DIR}/first-scan-notify-hook.log"

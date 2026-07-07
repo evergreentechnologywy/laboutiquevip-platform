@@ -123,13 +123,15 @@ async function main() {
     headline = "⚠️ <b>LBV catalog scan failed</b>";
   }
 
-  const intervalH = Number(process.env.CATALOG_SCAN_INTERVAL_SEC ?? "14400") / 3600;
+  const scheduleNote =
+    process.env.CATALOG_SCAN_SCHEDULE_NOTE ??
+    "Next scan daily ~00:30 America/Denver (after site midnight maintenance).";
   const msg =
     `${headline}\n` +
     `⏱️ ${now.replace("T", " ").slice(0, 19)} UTC\n` +
     `Run #${next.runCount} · exit ${exitCode}\n\n` +
     `${formatStats(stats)}\n\n` +
-    (ok ? `Next scan in ~${intervalH}h (incremental verification cache).` : "Check /var/log/laboutiquevip/us-verified-catalog-scan.log");
+    (ok ? `${scheduleNote} Incremental verification cache on reruns.` : "Check /var/log/laboutiquevip/us-verified-catalog-scan.log");
 
   writeState(next);
   const sent = await hermesTelegramNotify(msg);
