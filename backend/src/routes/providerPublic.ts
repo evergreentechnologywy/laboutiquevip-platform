@@ -41,6 +41,15 @@ export async function getProviderBySlugHandler(
   }
 
   if (!provider) {
+    provider = await context.prisma.provider.findFirst({
+      where: {
+        ...visibility,
+        display_name: { equals: normalized, mode: "insensitive" },
+      },
+    });
+  }
+
+  if (!provider) {
     const candidates = await context.prisma.provider.findMany({
       where: {
         ...visibility,
