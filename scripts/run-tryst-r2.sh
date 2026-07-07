@@ -48,7 +48,9 @@ set +e
 {
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst r2 start limit=$LIMIT ==="
   node "$REPO_DIR/scripts/populate-r2-from-tryst.cjs" --limit="$LIMIT" --delay-ms="$DELAY_MS"
+  NODE_EXIT=$?
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst r2 done ==="
+  exit "$NODE_EXIT"
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
 RUN_EXIT=${PIPESTATUS[0]}
 set -e

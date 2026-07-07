@@ -66,6 +66,7 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
 });
 
 test("searchLocationsHandler returns hierarchical states with cities", async () => {
+  clearSearchLocationsCache();
   const prisma = {
     $queryRaw: async () => [{ id: "p1" }, { id: "p2" }],
     provider: {
