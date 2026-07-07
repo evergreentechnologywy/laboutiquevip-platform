@@ -549,6 +549,13 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
     return { statusCode: 200, body: normalizeDates(created) };
   }
 
+  if (entity === "Verification") {
+    if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
+    const data = { ...rawData, user_id: req.auth.userId };
+    const created = await prisma.verification.create({ data });
+    return { statusCode: 200, body: normalizeDates(created) };
+  }
+
   const created = await prisma[model.toLowerCase()].create({ data: rawData });
   return { statusCode: 200, body: normalizeDates(created) };
 }

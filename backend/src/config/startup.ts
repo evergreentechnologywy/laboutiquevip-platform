@@ -26,6 +26,8 @@ export function validateStartupOrThrow(): void {
 
   const missing = [
     requiredInProduction("DATABASE_URL"),
+    requiredInProduction("JWT_SECRET"),
+    requiredInProduction("CLERK_SECRET_KEY"),
     requiredInProduction("NOWPAYMENTS_API_KEY"),
     requiredOneInProduction(["NOWPAYMENTS_IPN_SECRET", "NOWPAYMENTS_WEBHOOK_SECRET"]),
     requiredInProduction("DIDIT_API_KEY"),
@@ -34,6 +36,14 @@ export function validateStartupOrThrow(): void {
     requiredInProduction("CORS_ALLOWLIST"),
     requiredInProduction("PUBLIC_BASE_URL"),
   ].filter((name): name is string => Boolean(name));
+
+  if (process.env.ALLOW_HEADER_AUTH_TRUST === "true") {
+    throw new Error("ALLOW_HEADER_AUTH_TRUST must not be enabled in production");
+  }
+
+  if (process.env.JWT_SECRET?.trim() === "change-me-in-production") {
+    throw new Error("JWT_SECRET must not use the default placeholder in production");
+  }
 
   if (missing.length > 0) {
     throw new Error(`Missing required production environment variables: ${missing.join(", ")}`);

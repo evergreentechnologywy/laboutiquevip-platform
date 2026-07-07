@@ -1,5 +1,6 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
 import type { AuditLogger } from "../utils/auditLogger.js";
+import { deriveProviderState } from "../lib/deriveProviderState.js";
 import { providerCreateSchema, providerUpdateSchema } from "../validation/base44Compat.js";
 
 interface AgencyContext {
@@ -118,8 +119,9 @@ export async function createAgencyProfileHandler(
     });
   }
 
+  const data = deriveProviderState(parsed.data, null, { isAdmin: auth.isPrivileged ?? false });
   const created = await context.prisma.provider.create({
-    data: parsed.data,
+    data,
   });
 
   await context.auditLogger.append({
@@ -178,9 +180,10 @@ export async function updateAgencyProfileHandler(
     });
   }
 
+  const data = deriveProviderState(parsed.data, resolved.profile, { isAdmin: hasRole(request, "admin") || hasRole(request, "service") });
   const updated = await context.prisma.provider.update({
     where: { id: profileId },
-    data: parsed.data,
+    data,
   });
 
   await context.auditLogger.append({
