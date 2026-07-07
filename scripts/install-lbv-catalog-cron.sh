@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Master installer: Eros daily jobs, failsafe, 8 PM scan + midnight production merge.
+# Master installer: failsafe, 8 PM scan + midnight production merge (includes Eros reconcile + R2 photos).
 set -euo pipefail
 
 REPO="${REPO:-/srv/apps/trystlike/repo}"

@@ -24,7 +24,7 @@
       "label": "Eros hub reconcile",
       "runner": "scripts/run-eros-reconcile.sh",
       "enabled": false,
-      "note": "Runs separately at 21:00 UTC (4 PM Central) via install-eros-only-cron.sh"
+      "note": "Runs in run-us-verified-catalog-merge.sh at midnight America/Denver"
     },
     {
       "id": "review-match",

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Daily Eros photo refresh → R2 + capped incremental import. No ultragfe.
+# Manual Eros photo refresh → R2 only (no live import). Scheduled runs use midnight merge.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/laboutiquevip}"
-LOCK_FILE="${LOCK_FILE:-/tmp/laboutiquevip-eros-photo-update.lock}"
+LOCK_FILE="${LOCK_FILE:-/tmp/lboutiquevip-eros-photo-update.lock}"
 DELAY_MS="${DELAY_MS:-350}"
 LOG_FILE="${LOG_DIR}/eros-photo-update.log"
 REPORT_FILE="${LOG_DIR}/eros-photo-update-report.log"
@@ -17,8 +17,6 @@ set -a
 . ./.env
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
-# shellcheck disable=SC1091
-. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -27,22 +25,8 @@ if ! flock -n 9; then
 fi
 
 {
-  echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") eros photo update start ==="
-
-  echo "--- dedupe imported providers ---"
-  node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
-
-  echo "--- refresh Eros photos → R2 ---"
+  echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") eros photo update (R2 only) start ==="
   node "$REPO_DIR/scripts/populate-r2-from-eros.cjs" --delay-ms="$DELAY_MS"
-
-  echo "--- incremental Eros catalog (city-seeded, US-wide) ---"
-  node "$REPO_DIR/scripts/import-eros.mjs" \
-    --delay-ms="$DELAY_MS" \
-    --max-pages="$EROS_MAX_PAGES" \
-    --from-cities \
-    --profiles-per-city="$PROFILES_PER_CITY" \
-    --profiles-per-state="$PROFILES_PER_STATE" || true
-
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") eros photo update done ==="
 } 2>&1 | tee -a "$LOG_FILE"
 

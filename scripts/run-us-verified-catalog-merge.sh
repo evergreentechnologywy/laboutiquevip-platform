@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Midnight production merge: apply staged 8 PM scan cache to DB, reconcile, match, dedupe.
+# Midnight production merge: apply staged 8 PM scan cache to DB, Eros hub reconcile,
+# Tryst reconcile, review match, dedupe, and Eros photo → R2 refresh.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/laboutiquevip}"
 LOCK_FILE="${LOCK_FILE:-/tmp/lboutiquevip-us-verified-merge.lock}"
 FLAG_PATH="${IMPORT_FLAG_PATH:-/var/run/lboutiquevip/import-in-progress}"
+DELAY_MS="${DELAY_MS:-350}"
 LOG_FILE="${LOG_DIR}/us-verified-catalog-merge.log"
 REPORT_FILE="${LOG_DIR}/us-verified-catalog-merge-report.log"
 
@@ -48,12 +50,18 @@ set +e
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog merge start ==="
 
   node "$REPO_DIR/scripts/merge-catalog-scan-cache.mjs"
+  write_flag "reconcile-eros"
+  node "$REPO_DIR/scripts/reconcile-eros.mjs" \
+    --profiles-per-city="$PROFILES_PER_CITY" \
+    --profiles-per-state="$PROFILES_PER_STATE"
   write_flag "reconcile-tryst"
   node "$REPO_DIR/scripts/reconcile-tryst.mjs"
   write_flag "match-review"
   node "$REPO_DIR/scripts/match-review-profiles.mjs" || true
   write_flag "dedupe"
   node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
+  write_flag "eros-r2-photos"
+  node "$REPO_DIR/scripts/populate-r2-from-eros.cjs" --delay-ms="$DELAY_MS"
 
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog merge done ==="
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
