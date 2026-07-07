@@ -5,13 +5,13 @@ REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/laboutiquevip}"
 LOCK_FILE="${LOCK_FILE:-/tmp/laboutiquevip-eros-backfill.lock}"
 DELAY_MS="${DELAY_MS:-350}"
-PROFILES_PER_CITY="${PROFILES_PER_CITY:-200}"
-PROFILES_PER_STATE="${PROFILES_PER_STATE:-500}"
 
 mkdir -p "$LOG_DIR"
 cd "$REPO_DIR"
 set -a; . ./.env; set +a
 export NODE_PATH="$REPO_DIR/node_modules"
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -32,7 +32,7 @@ LOG="$LOG_DIR/eros-backfill-$(date -u +%Y%m%dT%H%M%SZ).log"
   else
     node "$REPO_DIR/scripts/import-eros.mjs" \
       --delay-ms="$DELAY_MS" \
-      --max-pages=5000 \
+      --max-pages="$EROS_MAX_PAGES" \
       --from-cities \
       --profiles-per-city="$PROFILES_PER_CITY" \
       --profiles-per-state="$PROFILES_PER_STATE"

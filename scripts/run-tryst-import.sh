@@ -21,8 +21,8 @@ set -a
 . ./.env
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
-export TRYST_MAX_PROFILES_PER_CITY="${TRYST_MAX_PROFILES_PER_CITY:-25}"
-export TRYST_MAX_CITIES_PER_STATE="${TRYST_MAX_CITIES_PER_STATE:-5}"
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 for eros_lock in "${EROS_LOCKS[@]}"; do
   exec 8>"$eros_lock"

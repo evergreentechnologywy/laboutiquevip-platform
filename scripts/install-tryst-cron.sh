@@ -4,7 +4,8 @@
 set -euo pipefail
 
 REPO="${REPO:-/srv/apps/trystlike/repo}"
-CRON_TRYST="30 5 * * * REPO_DIR=$REPO $REPO/scripts/run-tryst-import.sh >> /var/log/laboutiquevip/cron.log 2>&1 # tryst-import-daily"
+CAPS="PROFILES_PER_CITY=250 PROFILES_PER_STATE=1250 TRYST_MAX_PROFILES_PER_CITY=250 TRYST_MAX_CITIES_PER_STATE=5 TRYST_MAX_LISTING_PAGES_PER_CITY=25 STRICT_IMPORT_VERIFICATION_GATE=1"
+CRON_TRYST="30 5 * * * REPO_DIR=$REPO $CAPS $REPO/scripts/run-tryst-import.sh >> /var/log/laboutiquevip/cron.log 2>&1 # tryst-import-daily"
 
 mkdir -p /var/log/laboutiquevip
 chmod +x "$REPO/scripts/run-tryst-import.sh" 2>/dev/null || true

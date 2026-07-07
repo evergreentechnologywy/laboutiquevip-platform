@@ -27,6 +27,7 @@ import {
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
+import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -39,8 +40,14 @@ const EXT_BY_TYPE = {
 
 const limitCities = Number(process.argv.find((a) => a.startsWith("--limit-cities="))?.split("=")[1] ?? 0);
 const cityOffset = Number(process.argv.find((a) => a.startsWith("--city-offset="))?.split("=")[1] ?? 0);
-const profilesPerCity = Number(process.argv.find((a) => a.startsWith("--profiles-per-city="))?.split("=")[1] ?? 50);
-const profilesPerState = Number(process.argv.find((a) => a.startsWith("--profiles-per-state="))?.split("=")[1] ?? 100);
+const profilesPerCity = parseImportLimit(
+  process.argv.find((a) => a.startsWith("--profiles-per-city="))?.split("=")[1] ?? process.env.PROFILES_PER_CITY,
+  250,
+);
+const profilesPerState = parseImportLimit(
+  process.argv.find((a) => a.startsWith("--profiles-per-state="))?.split("=")[1] ?? process.env.PROFILES_PER_STATE,
+  1250,
+);
 const dryRun = process.argv.includes("--dry-run");
 const skipDeactivate = process.argv.includes("--skip-deactivate");
 
@@ -348,7 +355,8 @@ function listingUrlsForHub(c) {
 }
 
 function profileLimitForHub(hub) {
-  return hub.state === hub.city ? profilesPerState : profilesPerCity;
+  const raw = hub.state === hub.city ? profilesPerState : profilesPerCity;
+  return effectiveLimit(raw);
 }
 
 function hubKeyFromListingUrl(url) {
@@ -371,7 +379,7 @@ async function run() {
   console.log(
     `[reconcile] Discovered ${allCities.length} unique cities. Processing ${cities.length} cities ` +
       `(offset=${cityOffset}, limit=${limitCities || "all"}, dryRun=${dryRun}, ` +
-      `profilesPerCity=${profilesPerCity}, profilesPerState=${profilesPerState}).`,
+      `profilesPerCity=${formatCap(profilesPerCity)}, profilesPerState=${formatCap(profilesPerState)}).`,
   );
 
   const hubLimits = new Map(cities.map((c) => [`${c.state}/${c.city}`, profileLimitForHub(c)]));

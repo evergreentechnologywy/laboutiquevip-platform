@@ -3,12 +3,13 @@
 set -euo pipefail
 
 REPO="${REPO:-/srv/apps/trystlike/repo}"
+CAPS="PROFILES_PER_CITY=250 PROFILES_PER_STATE=1250 EROS_MAX_PAGES=15000"
 
 # Daily photo refresh + capped incremental import (03:30 UTC = 10:30 PM Central prev day)
-CRON_PHOTO="30 3 * * * REPO_DIR=$REPO DELAY_MS=350 $REPO/scripts/run-eros-photo-update.sh >> /var/log/laboutiquevip/cron.log 2>&1 # eros-photo-update-daily"
+CRON_PHOTO="30 3 * * * REPO_DIR=$REPO DELAY_MS=350 $CAPS $REPO/scripts/run-eros-photo-update.sh >> /var/log/laboutiquevip/cron.log 2>&1 # eros-photo-update-daily"
 
 # Daily full reconcile (21:00 UTC = 4:00 PM Central; catalog scan, import deltas, per-hub deactivation)
-CRON_RECONCILE="0 21 * * * REPO_DIR=$REPO CITIES_PER_DAY=0 $REPO/scripts/run-eros-reconcile.sh >> /var/log/laboutiquevip/cron.log 2>&1 # eros-reconcile-daily-4pm-central"
+CRON_RECONCILE="0 21 * * * REPO_DIR=$REPO CITIES_PER_DAY=0 $CAPS $REPO/scripts/run-eros-reconcile.sh >> /var/log/laboutiquevip/cron.log 2>&1 # eros-reconcile-daily-4pm-central"
 
 mkdir -p /var/log/laboutiquevip
 chmod +x "$REPO/scripts/run-eros-photo-update.sh" 2>/dev/null || true

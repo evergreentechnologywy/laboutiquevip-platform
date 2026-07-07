@@ -14,6 +14,8 @@ cd "$REPO_DIR"
 set -a
 . ./.env
 set +a
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -27,13 +29,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-PROFILES_PER_CITY="${PROFILES_PER_CITY:-50}"
-PROFILES_PER_STATE="${PROFILES_PER_STATE:-100}"
-
 set +e
 node ./scripts/import-eros.mjs \
   --delay-ms="$DELAY_MS" \
-  --max-pages=2500 \
+  --max-pages="$EROS_MAX_PAGES" \
   --from-cities \
   --profiles-per-city="$PROFILES_PER_CITY" \
   --profiles-per-state="$PROFILES_PER_STATE" 2>&1 \

@@ -49,11 +49,12 @@ run_eros() {
   local mode="$1"
   cd "$REPO_DIR"
   set -a && . ./.env && set +a
+  # shellcheck disable=SC1091
+  . "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
   if [[ "$mode" == "full" ]]; then
     bash ./scripts/run-lbv-full-refresh.sh
   else
-    PROFILES_PER_CITY="${PROFILES_PER_CITY:-15}" PROFILES_PER_STATE="${PROFILES_PER_STATE:-30}" \
-      bash ./scripts/run-eros-import.sh
+    bash ./scripts/run-eros-import.sh
   fi
 }
 
@@ -61,10 +62,13 @@ run_tryst() {
   local mode="$1"
   cd "$REPO_DIR"
   set -a && . ./.env && set +a
+  # shellcheck disable=SC1091
+  . "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
   if [[ "$mode" == "full" ]]; then
-    node ./scripts/import-tryst.mjs
+    bash ./scripts/run-tryst-import.sh
   else
-    node ./scripts/import-tryst.mjs --limit=50
+    node ./scripts/import-tryst.mjs --pilot-only
+    node ./scripts/reconcile-tryst.mjs --pilot-only
   fi
 }
 

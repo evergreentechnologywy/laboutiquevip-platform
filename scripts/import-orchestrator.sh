@@ -28,6 +28,8 @@ set -a
 . ./.env
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec 9>"$ORCH_LOCK"
 if ! flock -n 9; then

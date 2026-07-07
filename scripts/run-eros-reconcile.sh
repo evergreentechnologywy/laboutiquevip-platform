@@ -10,8 +10,6 @@ REPORT_FILE="${LOG_DIR}/eros-reconcile-report.log"
 
 # Default: full catalog every run (eros-only source). Optional shard via CITIES_PER_DAY>0.
 CITIES_PER_DAY="${CITIES_PER_DAY:-0}"
-PROFILES_PER_CITY="${PROFILES_PER_CITY:-50}"
-PROFILES_PER_STATE="${PROFILES_PER_STATE:-100}"
 RECONCILE_SHARDS="${RECONCILE_SHARDS:-7}"
 DAY_OF_YEAR="$(date -u +%j)"
 SHARD_INDEX=$(( (10#${DAY_OF_YEAR} - 1) % RECONCILE_SHARDS ))
@@ -29,6 +27,8 @@ set -a
 . ./.env
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then

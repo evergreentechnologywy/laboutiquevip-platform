@@ -3,7 +3,8 @@
   "description": "Midnight Central import window — safe catalog refresh without breaking browse",
   "flagPath": "/var/run/lboutiquevip/import-in-progress",
   "logDir": "/var/log/laboutiquevip",
-  "maxWindowMinutes": 60,
+  "maxWindowMinutes": 180,
+  "capsNote": "250 profiles/city, 1250/state (Eros), Tryst 250/city top 5 cities/state — from lbv-import-defaults.sh / cron CAPS",
   "steps": [
     {
       "id": "eros-import",

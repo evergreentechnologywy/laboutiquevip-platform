@@ -4,6 +4,9 @@
  *
  * Uses r.jina.ai mirror pages to avoid direct anti-bot blocking when
  * crawling eros.com/trans.eros.com/massage.eros.com listing + profile URLs.
+ *
+ * Caps: --profiles-per-city / --profiles-per-state / --max-pages use 0 for unlimited
+ * (default). Pre-import gate skips profiles without P411 or review match.
  */
 
 import {
@@ -21,6 +24,7 @@ import {
   passesImportGate,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
+import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -35,13 +39,17 @@ const args = new Map(
 const options = {
   dryRun: args.has("dry-run"),
   delayMs: Number(args.get("delay-ms") ?? "600"),
-  maxPages: Number(args.get("max-pages") ?? "2500"),
-  maxProfiles: Number(args.get("max-profiles") ?? "0"),
-  profilesPerCity: Number(args.get("profiles-per-city") ?? "50"),
-  profilesPerState: Number(args.get("profiles-per-state") ?? "100"),
+  maxPages: parseImportLimit(args.get("max-pages") ?? process.env.EROS_MAX_PAGES, 15000),
+  maxProfiles: parseImportLimit(args.get("max-profiles"), 0),
+  profilesPerCity: parseImportLimit(args.get("profiles-per-city") ?? process.env.PROFILES_PER_CITY, 250),
+  profilesPerState: parseImportLimit(args.get("profiles-per-state") ?? process.env.PROFILES_PER_STATE, 1250),
   startUrl: args.get("start-url") ?? null,
   fromCities: args.has("from-cities"),
 };
+
+function maxPagesBudget() {
+  return options.maxPages > 0 ? options.maxPages : Number.POSITIVE_INFINITY;
+}
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -387,7 +395,8 @@ function listingUrlsForHub(hub) {
 }
 
 function profileLimitForHub(hub) {
-  return hub.state === hub.city ? options.profilesPerState : options.profilesPerCity;
+  const raw = hub.state === hub.city ? options.profilesPerState : options.profilesPerCity;
+  return effectiveLimit(raw);
 }
 
 function urlBelongsToHub(url, hub) {
@@ -475,20 +484,25 @@ async function crawlProfileUrls() {
     }
 
     console.log(
-      `[import-eros] city hubs: ${hubs.length} (cap ${options.profilesPerCity}/city, ${options.profilesPerState}/state)`,
+      `[import-eros] city hubs: ${hubs.length} (cap ${formatCap(options.profilesPerCity)}/city, ${formatCap(options.profilesPerState)}/state)`,
     );
 
     const allProfileUrls = new Set();
-    let pagesBudget = options.maxPages;
+    const totalPageBudget = maxPagesBudget();
 
     for (const hub of hubs) {
-      if (pagesBudget <= 0) break;
+      const remainingPages =
+        totalPageBudget === Number.POSITIVE_INFINITY
+          ? Number.POSITIVE_INFINITY
+          : Math.max(0, options.maxPages - stats.pagesFetched);
+      if (remainingPages !== Number.POSITIVE_INFINITY && remainingPages <= 0) break;
+
       const limit = profileLimitForHub(hub);
-      const profiles = await crawlProfilesForHub(hub, limit, pagesBudget);
-      pagesBudget = options.maxPages - stats.pagesFetched;
+      const profiles = await crawlProfilesForHub(hub, limit, remainingPages);
       for (const url of profiles) allProfileUrls.add(url);
       if (profiles.length > 0) {
-        console.log(`[import-eros] hub ${hub.state}/${hub.city}: ${profiles.length}/${limit} profiles`);
+        const limitLabel = Number.isFinite(limit) ? String(limit) : "unlimited";
+        console.log(`[import-eros] hub ${hub.state}/${hub.city}: ${profiles.length}/${limitLabel} profiles`);
       }
     }
 
@@ -514,7 +528,7 @@ async function crawlProfilesLegacy(seeds) {
     if (normalized) queue.push(normalized);
   }
 
-  while (queue.length > 0 && visited.size < options.maxPages) {
+  while (queue.length > 0 && visited.size < maxPagesBudget()) {
     const url = queue.shift();
     if (!url || visited.has(url)) continue;
     visited.add(url);
@@ -558,8 +572,8 @@ async function crawlProfilesLegacy(seeds) {
 async function run() {
   const startedAt = Date.now();
   console.log(
-    `[import-eros] start dryRun=${options.dryRun} maxPages=${options.maxPages} maxProfiles=${options.maxProfiles || "ALL"} ` +
-      `profilesPerCity=${options.profilesPerCity} profilesPerState=${options.profilesPerState} db=${hasDatabaseUrl ? "on" : "off"}`,
+    `[import-eros] start dryRun=${options.dryRun} maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
+      `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} db=${hasDatabaseUrl ? "on" : "off"}`,
   );
 
   if (!prisma && !options.dryRun) throw new Error("DATABASE_URL is required for live import mode.");

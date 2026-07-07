@@ -13,6 +13,8 @@ cd "$REPO_DIR"
 set -a
 . ./.env
 set +a
+# shellcheck disable=SC1091
+. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 
 exec > >(tee -a "$LOG") 2>&1
 
@@ -24,13 +26,17 @@ node ./scripts/deactivate-ultragfe-providers.cjs || true
 echo "--- eros full reconcile (all sitemap cities) ---"
 CITIES_PER_DAY=0 DELAY_MS=350 bash ./scripts/run-eros-reconcile.sh || echo "eros reconcile exited non-zero"
 
-echo "--- eros full import (city-seeded crawl, capped) ---"
+echo "--- eros full import (250/city, 1250/state hub cap) ---"
 DELAY_MS=350 node ./scripts/import-eros.mjs \
   --delay-ms=350 \
-  --max-pages=2500 \
+  --max-pages="$EROS_MAX_PAGES" \
   --from-cities \
-  --profiles-per-city="${PROFILES_PER_CITY:-50}" \
-  --profiles-per-state="${PROFILES_PER_STATE:-100}" || echo "eros import exited non-zero"
+  --profiles-per-city="$PROFILES_PER_CITY" \
+  --profiles-per-state="$PROFILES_PER_STATE" || echo "eros import exited non-zero"
+
+echo "--- tryst US import (250/city, top 5 cities/state) + reconcile ---"
+node ./scripts/import-tryst.mjs || echo "tryst import exited non-zero"
+node ./scripts/reconcile-tryst.mjs || echo "tryst reconcile exited non-zero"
 
 echo "--- zero-photo recovery (imported catalog) ---"
 node ./scripts/recover-zero-photo-providers.cjs --delay-ms=450 --limit=0 || true

@@ -1,28 +1,29 @@
 #!/usr/bin/env node
 /**
- * Tryst.link daily import for laboutiquevip.net
+ * Tryst.link US catalog import for laboutiquevip.net
  *
- * Caps (enforced):
- *   - Top 25 profiles per city
- *   - Top 5 cities per state (by listing count on Tryst state page)
+ * Default: full US rollout (all states/cities from Tryst state pages).
+ * Use --pilot-only for the small TRYST_PILOT_CITIES set.
  *
- * URL patterns:
- *   State:  https://tryst.link/us/escorts/{state}
- *   City:   https://tryst.link/us/escorts/{state}/{city}
- *   Profile: https://tryst.link/escort/{slug}
+ * Caps (0 = unlimited via env):
+ *   TRYST_MAX_PROFILES_PER_CITY
+ *   TRYST_MAX_CITIES_PER_STATE
+ *   TRYST_MAX_LISTING_PAGES_PER_CITY
+ *
+ * Pre-import gate: only providers with P411 and/or review match are upserted.
  */
 
-import {
-  TRYST_PILOT_CITIES,
-  TRYST_STATE_SLUGS,
-  parseTrystCityUrl,
-  parseTrystProfileUrl,
-  titleCaseWords,
-} from "./lib/tryst-location.mjs";
+import { parseTrystCityUrl, parseTrystProfileUrl, titleCaseWords } from "./lib/tryst-location.mjs";
 import {
   extractContactAndSocialFromMarkdown,
   mergeImportedSocial,
 } from "./lib/extract-social-links.mjs";
+import { formatCap } from "./lib/import-limits.mjs";
+import {
+  collectProfileLinksForCity,
+  getTrystCrawlLimits,
+  resolveTrystTargetCities,
+} from "./lib/tryst-crawl.mjs";
 import {
   mergeVerificationFields,
   passesImportGate,
@@ -30,11 +31,9 @@ import {
 } from "./lib/verification-match.mjs";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
-const MAX_PROFILES_PER_CITY = Number(process.env.TRYST_MAX_PROFILES_PER_CITY ?? "25");
-const MAX_CITIES_PER_STATE = Number(process.env.TRYST_MAX_CITIES_PER_STATE ?? "5");
-const DELAY_MS = Number(process.env.TRYST_DELAY_MS ?? "800");
+const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
-const pilotOnly = !process.argv.includes("--full-rollout");
+const pilotOnly = process.argv.includes("--pilot-only");
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -97,33 +96,6 @@ async function fetchPageText(url, attempts = 4) {
     }
   }
   return null;
-}
-
-function extractProfileLinks(markdown, cityUrl) {
-  const links = new Set();
-  const re = /https?:\/\/tryst\.link\/escort\/[a-z0-9-]+/gi;
-  for (const match of markdown.matchAll(re)) {
-    links.add(match[0].split("?")[0].replace(/\/$/, ""));
-  }
-  const relRe = /\]\((\/escort\/[a-z0-9-]+)\)/gi;
-  for (const match of markdown.matchAll(relRe)) {
-    links.add(`https://tryst.link${match[1]}`);
-  }
-  return [...links].slice(0, MAX_PROFILES_PER_CITY);
-}
-
-function extractCityLinksFromStatePage(markdown, stateSlug) {
-  const cities = new Map();
-  const re = new RegExp(`tryst\\.link/us/escorts/${stateSlug}/([a-z0-9-]+)`, "gi");
-  for (const match of markdown.matchAll(re)) {
-    const citySlug = match[1].toLowerCase();
-    if (citySlug === stateSlug) continue;
-    cities.set(citySlug, (cities.get(citySlug) ?? 0) + 1);
-  }
-  return [...cities.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_CITIES_PER_STATE)
-    .map(([slug]) => slug);
 }
 
 function parseProfilePage(markdown, profileUrl) {
@@ -242,18 +214,18 @@ async function importCity(stateSlug, citySlug) {
   const cityMeta = parseTrystCityUrl(cityUrl);
   if (!cityMeta) return;
 
-  const listingText = await fetchPageText(cityUrl);
   stats.citiesScanned += 1;
-  if (!listingText) {
+
+  const profileLinks = await collectProfileLinksForCity(cityUrl, fetchPageText, crawlLimits);
+  if (profileLinks.length === 0) {
     stats.errors += 1;
     return;
   }
 
-  const profileLinks = extractProfileLinks(listingText, cityUrl);
   stats.profilesDiscovered += profileLinks.length;
 
   for (const profileUrl of profileLinks) {
-    await sleep(DELAY_MS);
+    await sleep(crawlLimits.delayMs);
     const profileText = await fetchPageText(profileUrl);
     if (!profileText) {
       stats.errors += 1;
@@ -273,34 +245,26 @@ async function importCity(stateSlug, citySlug) {
   }
 }
 
-async function resolveTargetCities() {
-  if (pilotOnly) return TRYST_PILOT_CITIES;
-
-  const targets = [];
-  for (const stateSlug of Object.keys(TRYST_STATE_SLUGS)) {
-    const stateUrl = `https://tryst.link/us/escorts/${stateSlug}`;
-    await sleep(DELAY_MS);
-    const text = await fetchPageText(stateUrl);
-    if (!text) continue;
-    const citySlugs = extractCityLinksFromStatePage(text, stateSlug);
-    for (const citySlug of citySlugs) {
-      targets.push({ state: stateSlug, city: citySlug });
-    }
-  }
-  return targets;
-}
-
 async function main() {
-  console.log(`Tryst import start pilotOnly=${pilotOnly} dryRun=${dryRun}`);
-  console.log(`Caps: ${MAX_PROFILES_PER_CITY}/city, ${MAX_CITIES_PER_STATE}/state`);
+  console.log(
+    `Tryst import start pilotOnly=${pilotOnly} dryRun=${dryRun} ` +
+      `profilesPerCity=${formatCap(crawlLimits.maxProfilesPerCity)} ` +
+      `citiesPerState=${formatCap(crawlLimits.maxCitiesPerState)}`,
+  );
 
-  const cities = await resolveTargetCities();
+  const cities = await resolveTrystTargetCities({
+    fullUs: !pilotOnly,
+    fetchPageText,
+    delayMs: crawlLimits.delayMs,
+    limits: crawlLimits,
+    onState: (stateSlug) => console.log(`Discovering cities in ${titleCaseWords(stateSlug.replace(/-/g, " "))} (${stateSlug})...`),
+  });
   console.log(`Target cities: ${cities.length}`);
 
   for (const { state, city } of cities) {
     console.log(`Importing ${state}/${city}...`);
     await importCity(state, city);
-    await sleep(DELAY_MS);
+    await sleep(crawlLimits.delayMs);
   }
 
   console.log("Tryst import complete:", stats);

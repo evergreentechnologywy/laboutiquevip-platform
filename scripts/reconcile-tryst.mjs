@@ -1,15 +1,21 @@
 #!/usr/bin/env node
 /**
  * Tryst daily reconcile — deactivate providers missing from latest city scrape.
- * Same per-hub pattern as reconcile-eros (only deactivate when hub fetch succeeded).
+ * Uses the same full-US city discovery as import-tryst.mjs (unless --pilot-only).
  */
 
-import { parseTrystCityUrl, TRYST_PILOT_CITIES } from "./lib/tryst-location.mjs";
+import { parseTrystCityUrl } from "./lib/tryst-location.mjs";
+import {
+  collectProfileLinksForCity,
+  getTrystCrawlLimits,
+  resolveTrystTargetCities,
+} from "./lib/tryst-crawl.mjs";
+import { formatCap } from "./lib/import-limits.mjs";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
-const MAX_PROFILES_PER_CITY = Number(process.env.TRYST_MAX_PROFILES_PER_CITY ?? "25");
+const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
-const pilotOnly = !process.argv.includes("--full-rollout");
+const pilotOnly = process.argv.includes("--pilot-only");
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -39,34 +45,34 @@ function hubKey(state, city) {
   return `${state}/${city}`;
 }
 
-function extractProfileLinks(markdown) {
-  const links = new Set();
-  const re = /https?:\/\/tryst\.link\/escort\/[a-z0-9-]+/gi;
-  for (const match of markdown.matchAll(re)) {
-    links.add(match[0].split("?")[0].replace(/\/$/, "").toLowerCase());
-  }
-  return [...links].slice(0, MAX_PROFILES_PER_CITY);
-}
-
 async function scanCity(stateSlug, citySlug) {
-  const url = `https://tryst.link/us/escorts/${stateSlug}/${citySlug}`;
+  const cityUrl = `https://tryst.link/us/escorts/${stateSlug}/${citySlug}`;
   const key = hubKey(stateSlug, citySlug);
   const stats = hubStats.get(key) ?? { success: 0, attempted: 0 };
   stats.attempted += 1;
 
-  const text = await fetchPageText(url);
-  if (text) {
+  const profileLinks = await collectProfileLinksForCity(cityUrl, fetchPageText, crawlLimits);
+  if (profileLinks.length > 0) {
     stats.success += 1;
-    for (const profileUrl of extractProfileLinks(text)) {
-      activeUrls.add(profileUrl);
+    for (const profileUrl of profileLinks) {
+      activeUrls.add(profileUrl.toLowerCase());
     }
   }
   hubStats.set(key, stats);
 }
 
 async function main() {
-  const cities = pilotOnly ? TRYST_PILOT_CITIES : TRYST_PILOT_CITIES; // expand with import-tryst city resolver
-  console.log(`Tryst reconcile scanning ${cities.length} hubs (pilotOnly=${pilotOnly})`);
+  const cities = await resolveTrystTargetCities({
+    fullUs: !pilotOnly,
+    fetchPageText,
+    delayMs: crawlLimits.delayMs,
+    limits: crawlLimits,
+  });
+
+  console.log(
+    `Tryst reconcile scanning ${cities.length} hubs pilotOnly=${pilotOnly} ` +
+      `profilesPerCity=${formatCap(crawlLimits.maxProfilesPerCity)}`,
+  );
 
   for (const { state, city } of cities) {
     await scanCity(state, city);
@@ -84,7 +90,6 @@ async function main() {
     if (!url) continue;
     if (activeUrls.has(url)) continue;
 
-    // Only deactivate if at least one hub in same state succeeded (conservative)
     const stateSlug = String(provider.location_state ?? "").toLowerCase();
     const hubSucceeded = [...hubStats.entries()].some(
       ([key, stats]) => key.startsWith(`${stateSlug}/`) && stats.success > 0,
@@ -102,18 +107,12 @@ async function main() {
     deactivated += 1;
   }
 
-  console.log(`Tryst reconcile complete. activeUrls=${activeUrls.size} deactivated=${deactivated}`);
   console.log(`Deactivated: ${deactivated}`);
-  console.log(`Imported: 0`);
-  console.log(`Errors: 0`);
-  console.log(`Elapsed: ${Math.round(process.uptime())}s`);
+  console.log(`Active URLs seen: ${activeUrls.size}`);
+  await prisma.$disconnect();
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
