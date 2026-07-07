@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   hubEligibleForDeactivation,
+  hubScrapeCompleteForDeactivation,
   listingHubKeyFromUrl,
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
@@ -31,5 +32,11 @@ const allFailed = new Map();
 recordHubListingAttempt(allFailed, "https://www.eros.com/texas/dallas/dallas_escorts.htm", false);
 recordHubListingAttempt(allFailed, "https://trans.eros.com/texas/dallas/dallas_escorts.htm", false);
 assert.equal(hubEligibleForDeactivation(allFailed, "texas/dallas"), false);
+
+const hubLimits = new Map([["missouri/kansas_city", 50]]);
+const hubProfileCounts = new Map([["missouri/kansas_city", 50]]);
+assert.equal(hubScrapeCompleteForDeactivation(hubProfileCounts, hubLimits, "missouri/kansas_city"), false);
+hubProfileCounts.set("missouri/kansas_city", 49);
+assert.equal(hubScrapeCompleteForDeactivation(hubProfileCounts, hubLimits, "missouri/kansas_city"), true);
 
 console.log("reconcile-hub tests passed");

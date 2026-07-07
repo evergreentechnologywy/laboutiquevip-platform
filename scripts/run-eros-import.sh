@@ -27,8 +27,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+PROFILES_PER_CITY="${PROFILES_PER_CITY:-50}"
+PROFILES_PER_STATE="${PROFILES_PER_STATE:-100}"
+
 set +e
-node ./scripts/import-eros.mjs --delay-ms="$DELAY_MS" 2>&1 \
+node ./scripts/import-eros.mjs \
+  --delay-ms="$DELAY_MS" \
+  --max-pages=2500 \
+  --from-cities \
+  --profiles-per-city="$PROFILES_PER_CITY" \
+  --profiles-per-state="$PROFILES_PER_STATE" 2>&1 \
   | tee -a "$LOG_FILE" \
   | tee "$RUN_LOG" >/dev/null
 RUN_EXIT=${PIPESTATUS[0]}

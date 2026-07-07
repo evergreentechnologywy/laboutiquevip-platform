@@ -37,3 +37,14 @@ export function hubEligibleForDeactivation(statsByHub, hubKey) {
   const stats = statsByHub.get(hubKey);
   return Boolean(stats && stats.success > 0);
 }
+
+/**
+ * Skip deactivation when the hub scrape hit its profile cap — the catalog snapshot
+ * is incomplete and missing URLs are expected, not delistings.
+ */
+export function hubScrapeCompleteForDeactivation(hubProfileCounts, hubLimits, hubKey) {
+  const limit = hubLimits.get(hubKey);
+  if (!limit || limit <= 0) return true;
+  const scraped = hubProfileCounts.get(hubKey) ?? 0;
+  return scraped < limit;
+}

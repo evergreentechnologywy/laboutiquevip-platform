@@ -22,6 +22,7 @@ import {
 } from "./lib/eros-location.mjs";
 import {
   hubEligibleForDeactivation,
+  hubScrapeCompleteForDeactivation,
   listingHubKeyFromUrl,
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
@@ -41,6 +42,7 @@ const cityOffset = Number(process.argv.find((a) => a.startsWith("--city-offset="
 const profilesPerCity = Number(process.argv.find((a) => a.startsWith("--profiles-per-city="))?.split("=")[1] ?? 50);
 const profilesPerState = Number(process.argv.find((a) => a.startsWith("--profiles-per-state="))?.split("=")[1] ?? 100);
 const dryRun = process.argv.includes("--dry-run");
+const skipDeactivate = process.argv.includes("--skip-deactivate");
 
 // Load env from workspace
 function loadEnv(envPath) {
@@ -466,9 +468,16 @@ async function run() {
 
   // 5. Deactivate profiles missing from scraped listings (per-hub success gate)
   let deactivatedCount = 0;
+  let skippedIncompleteHub = 0;
   const hubDeactivationCounts = new Map();
 
+  if (skipDeactivate) {
+    console.log("[reconcile] Skipping deactivation (--skip-deactivate).");
+  }
+
   for (const provider of dbProviders) {
+    if (skipDeactivate) break;
+
     const canonicalUrl = canonicalErosProfileUrl(provider.verification_url);
     if (!canonicalUrl) continue;
 
@@ -478,6 +487,11 @@ async function run() {
     }
 
     if (!cityKey || !hubEligibleForDeactivation(hubListingStats, cityKey)) {
+      continue;
+    }
+
+    if (!hubScrapeCompleteForDeactivation(hubProfileCounts, hubLimits, cityKey)) {
+      skippedIncompleteHub += 1;
       continue;
     }
 
@@ -499,7 +513,9 @@ async function run() {
     console.log(`[reconcile] deactivated ${count} in hub ${hubKey} (listing success ${stats.success}/${stats.attempted})`);
   }
 
-  console.log(`[reconcile] Total deactivated: ${deactivatedCount} (fullScan=${isFullScan}, citiesScanned=${scannedCityKeys.size})`);
+  console.log(
+    `[reconcile] Total deactivated: ${deactivatedCount} (fullScan=${isFullScan}, citiesScanned=${scannedCityKeys.size}, skippedIncompleteHub=${skippedIncompleteHub})`,
+  );
 
   // 6. Find newly discovered profile URLs
   // To avoid duplicate profiles, we query all verification URLs (active or inactive) in the DB
