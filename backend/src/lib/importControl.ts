@@ -7,7 +7,7 @@ import {
   type ImportMaintenanceMode,
 } from "./importMaintenance.js";
 
-export type ImportSource = "eros" | "tryst" | "orchestrator";
+export type ImportSource = "eros" | "tryst" | "orchestrator" | "evergreen";
 export type ImportMode = "pilot" | "full";
 export type MaintenanceMode = "off" | "soft" | "hard";
 
@@ -40,6 +40,7 @@ function logPath(source: ImportSource): string {
     eros: path.join(logDir, "cron.log"),
     tryst: path.join(logDir, "tryst-import.log"),
     orchestrator: path.join(logDir, "orchestrator.log"),
+    evergreen: path.join(logDir, "evergreen-models.log"),
   };
   return map[source];
 }
@@ -154,7 +155,7 @@ export async function readImportLogTail(source: ImportSource, lines = 100): Prom
 }
 
 export async function readAllImportStatuses(): Promise<Record<ImportSource, Record<string, unknown>>> {
-  const sources: ImportSource[] = ["eros", "tryst", "orchestrator"];
+  const sources: ImportSource[] = ["eros", "tryst", "orchestrator", "evergreen"];
   const entries = await Promise.all(sources.map(async (source) => [source, await readImportStatus(source)] as const));
   return Object.fromEntries(entries) as Record<ImportSource, Record<string, unknown>>;
 }

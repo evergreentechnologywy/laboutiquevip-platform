@@ -18,6 +18,7 @@ import {
   readCatalogPipelineStatus,
   type CatalogLogSource,
 } from "../lib/catalogPipeline.js";
+import { readEvergreenModelsStatus, readEvergreenLogTail } from "../lib/evergreenModels.js";
 
 interface DevContext {
   prisma: any;
@@ -34,7 +35,7 @@ function isDevOrAdmin(request: ApiRequest): boolean {
 }
 
 const triggerSchema = z.object({
-  source: z.enum(["eros", "tryst", "orchestrator"]),
+  source: z.enum(["eros", "tryst", "orchestrator", "evergreen"]),
   mode: z.enum(["pilot", "full"]).default("pilot"),
 });
 
@@ -47,11 +48,21 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     return json(403, { error: "forbidden", message: "Dev role required" });
   }
 
-  const [imports, maintenance, catalogPipeline] = await Promise.all([
+  const [imports, maintenance, catalogPipeline, activeEvergreen, eliteActive] = await Promise.all([
     readAllImportStatuses(),
     readMaintenanceState(),
     readCatalogPipelineStatus(),
+    context.prisma.provider
+      .count({ where: { status: "active", verification_provider: "evergreen" } })
+      .catch(() => null),
+    context.prisma.provider.count({ where: { status: "active", ad_package: "elite" } }).catch(() => null),
   ]);
+
+  const evergreenStatus = await readEvergreenModelsStatus(
+    activeEvergreen != null && eliteActive != null
+      ? { activeEvergreen, eliteActive }
+      : null,
+  );
 
   await context.auditLogger.append({
     actorId: request.auth?.userId ?? null,
@@ -65,6 +76,7 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     imports,
     maintenance,
     catalogPipeline,
+    evergreenModels: evergreenStatus,
     mergePhases: MERGE_PHASES,
     cron: catalogPipeline.schedule,
   });
@@ -138,17 +150,19 @@ export async function devImportLogsHandler(request: ApiRequest, context: DevCont
   }
 
   const sourceParam = request.query.get("source") ?? "scan";
-  const catalogSources: CatalogLogSource[] = ["scan", "merge", "eros", "tryst", "orchestrator"];
+  const catalogSources: CatalogLogSource[] = ["scan", "merge", "evergreen", "eros", "tryst", "orchestrator"];
   let lines: string[];
 
-  if (catalogSources.includes(sourceParam as CatalogLogSource)) {
+  if (sourceParam === "evergreen") {
+    lines = (await readEvergreenLogTail(100)).map(sanitizeLogLine);
+  } else if (catalogSources.includes(sourceParam as CatalogLogSource)) {
     lines = (await readCatalogLogTail(sourceParam as CatalogLogSource, 100)).map(sanitizeLogLine);
   } else if (["eros", "tryst", "orchestrator"].includes(sourceParam)) {
     lines = await readImportLogTail(sourceParam as ImportSource, 100);
   } else {
     return json(400, {
       error: "validation_error",
-      message: "source must be scan|merge|eros|tryst|orchestrator",
+      message: "source must be scan|merge|evergreen|eros|tryst|orchestrator",
     });
   }
 

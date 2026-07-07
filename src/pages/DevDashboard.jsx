@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CalendarClock, Play, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
+import { AlertCircle, CalendarClock, Crown, Play, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
 import {
   fetchDevImportLogs,
   fetchDevImportStatus,
@@ -17,8 +17,8 @@ import {
   triggerDevImport,
 } from "@/api/devOps";
 
-const MANUAL_SOURCES = ["eros", "tryst", "orchestrator"];
-const LOG_SOURCES = ["scan", "merge", "eros", "tryst", "orchestrator"];
+const MANUAL_SOURCES = ["evergreen", "eros", "tryst", "orchestrator"];
+const LOG_SOURCES = ["scan", "merge", "evergreen", "eros", "tryst", "orchestrator"];
 
 function StatusBadge({ active, label }) {
   return (
@@ -80,6 +80,8 @@ export default function DevDashboard() {
   });
 
   const pipeline = status?.catalogPipeline;
+  const evergreen = status?.evergreenModels;
+  const evergreenImport = status?.imports?.evergreen ?? {};
   const notify = pipeline?.notify?.state;
   const lastStats = notify?.lastStats;
 
@@ -218,6 +220,83 @@ export default function DevDashboard() {
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <Crown className="w-5 h-5 text-violet-400" />
+                Evergreen elite models
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-zinc-400">
+              {isLoading ? (
+                <Skeleton className="h-32" />
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge
+                      active={Boolean(evergreenImport.inProgress)}
+                      label={evergreenImport.inProgress ? evergreenImport.state || "running" : "idle"}
+                    />
+                    <Badge className="bg-violet-500/20 text-violet-300 border-0">Auto: midnight merge</Badge>
+                  </div>
+                  <p>{evergreen?.autoSync?.note}</p>
+                  <p className="text-xs text-zinc-500">{evergreen?.autoSync?.schedule}</p>
+
+                  <div className="grid md:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">SiteConsole list</p>
+                      <p>
+                        {evergreen?.sources?.sitesAvailable
+                          ? `${evergreen.sources.siteCount} sites`
+                          : "sites.json not on this host"}
+                      </p>
+                      {evergreen?.sources?.siteDomains?.length > 0 && (
+                        <p className="mt-1 text-zinc-500 break-all">
+                          {evergreen.sources.siteDomains.slice(0, 8).join(", ")}
+                          {evergreen.sources.siteDomains.length > 8 ? "…" : ""}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">Calendar profiles</p>
+                      <p>
+                        {evergreen?.sources?.modelProfilesAvailable
+                          ? `${evergreen.sources.modelProfileCount} models`
+                          : "model-profiles.json missing"}
+                      </p>
+                      {evergreen?.sources?.modelNames?.length > 0 && (
+                        <p className="mt-1 text-zinc-500">{evergreen.sources.modelNames.slice(0, 6).join(", ")}…</p>
+                      )}
+                    </div>
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">LBV catalog</p>
+                      <p>Evergreen active: {evergreen?.catalog?.activeEvergreenProviders ?? "—"}</p>
+                      <p>Elite tier: {evergreen?.catalog?.eliteProviders ?? "—"}</p>
+                      {evergreen?.lastRun?.finishedAt && (
+                        <p className="mt-1 text-zinc-500">Last sync: {String(evergreen.lastRun.finishedAt)}</p>
+                      )}
+                      {evergreen?.lastRun?.stats && (
+                        <p className="text-zinc-500">
+                          +{evergreen.lastRun.stats.created ?? 0} created · {evergreen.lastRun.stats.updated ?? 0}{" "}
+                          updated · {evergreen.lastRun.stats.skipped ?? 0} skipped
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    disabled={triggerMutation.isPending || evergreenImport.inProgress}
+                    onClick={() => triggerMutation.mutate({ source: "evergreen", mode: "full" })}
+                  >
+                    <Play className="w-3 h-3 mr-1" />
+                    Sync Evergreen models now
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
                 <Wrench className="w-5 h-5 text-amber-400" />
                 Maintenance mode
               </CardTitle>
@@ -248,8 +327,8 @@ export default function DevDashboard() {
           </Card>
 
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Manual import triggers (legacy)</h2>
-            <div className="grid md:grid-cols-3 gap-4">
+            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Manual import triggers</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)
               ) : (
@@ -330,8 +409,9 @@ export default function DevDashboard() {
             <p>
               Production catalog updates run automatically: <strong className="text-zinc-400">8 PM</strong> cache-only
               scan (Eros + Tryst, P411/review gate) then <strong className="text-zinc-400">midnight</strong> merge to
-              DB, staged R2, reconcile, review match, dedupe, and full Eros/Tryst photo refresh. Manual triggers below
-              write request files under <code>/var/run/lboutiquevip/</code> for the orchestrator poller.
+              DB, staged R2, reconcile, review match, dedupe, <strong className="text-zinc-400">Evergreen elite models</strong>,
+              and full Eros/Tryst photo refresh. Manual triggers write request files under{" "}
+              <code>/var/run/lboutiquevip/</code> for the orchestrator poller.
             </p>
           </div>
         </div>

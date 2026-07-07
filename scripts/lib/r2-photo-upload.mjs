@@ -127,3 +127,97 @@ export async function uploadSourcePhotosToR2({
 
   return stored;
 }
+
+function mimeFromPath(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const map = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".avif": "image/avif",
+  };
+  return map[ext] || "image/jpeg";
+}
+
+function extFromMime(contentType) {
+  return EXT_BY_TYPE[String(contentType).split(";")[0].toLowerCase()] || "jpg";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Mirror remote URLs or local file paths to R2. Skips URLs already on /api/r2-photo/.
+ */
+export async function mirrorProviderPhotosToR2(providerId, sources, { max = 32, delayMs = 100, dryRun = false } = {}) {
+  const bucket = process.env.S3_BUCKET;
+  if (!bucket) throw new Error("S3_BUCKET is required");
+  const s3 = getS3Client();
+  const stored = [];
+  const seen = new Set();
+
+  for (const raw of Array.isArray(sources) ? sources : []) {
+    if (stored.length >= max) break;
+    const source = String(raw ?? "").trim();
+    if (!source || seen.has(source)) continue;
+    seen.add(source);
+
+    if (isR2PhotoUrl(source)) {
+      stored.push(source);
+      continue;
+    }
+
+    try {
+      let buffer;
+      let contentType;
+      if (source.startsWith("/") && fs.existsSync(source)) {
+        buffer = fs.readFileSync(source);
+        contentType = mimeFromPath(source);
+      } else if (source.startsWith("file://")) {
+        const filePath = new URL(source).pathname;
+        buffer = fs.readFileSync(filePath);
+        contentType = mimeFromPath(filePath);
+      } else if (/^https?:\/\//i.test(source)) {
+        const imageResponse = await fetch(source, {
+          headers: {
+            referer: refererForUrl(source),
+            "user-agent": "Mozilla/5.0 (compatible; lbv-evergreen-import/1.0)",
+          },
+        });
+        if (!imageResponse.ok) continue;
+        contentType = imageResponse.headers.get("content-type") || "image/jpeg";
+        if (!String(contentType).toLowerCase().startsWith("image/")) continue;
+        buffer = Buffer.from(await imageResponse.arrayBuffer());
+      } else {
+        continue;
+      }
+
+      if (!buffer || buffer.length < 2000) continue;
+      const ext = extFromMime(contentType);
+      const filename = `${String(stored.length).padStart(3, "0")}.${ext}`;
+      const key = `${getKeyPrefix()}/${providerId}/${filename}`;
+      const publicUrl = `${getPublicBase()}/${providerId}/${filename}`;
+
+      if (!dryRun) {
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            CacheControl: "public, max-age=31536000, immutable",
+          }),
+        );
+      }
+      stored.push(publicUrl);
+      if (delayMs > 0) await sleep(delayMs);
+    } catch (err) {
+      console.warn(`  photo skip ${source.slice(0, 80)}: ${err.message}`);
+    }
+  }
+
+  return stored;
+}

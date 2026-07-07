@@ -68,6 +68,9 @@ set +e
   node "$REPO_DIR/scripts/match-review-profiles.mjs" --all-sites || true
   write_flag "dedupe"
   node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
+  write_flag "evergreen-models"
+  node "$REPO_DIR/scripts/import-evergreen-models.mjs" >> "${LOG_DIR}/evergreen-models.log" 2>&1 || true
+  node "$REPO_DIR/scripts/filter-provider-photos.cjs" --scope=elite >> "${LOG_DIR}/evergreen-models.log" 2>&1 || true
   write_flag "eros-r2-photos"
   node "$REPO_DIR/scripts/populate-r2-from-eros.cjs" --delay-ms="$DELAY_MS"
   write_flag "tryst-r2-photos"

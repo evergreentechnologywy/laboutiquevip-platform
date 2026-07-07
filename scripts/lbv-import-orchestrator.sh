@@ -72,6 +72,14 @@ run_tryst() {
   fi
 }
 
+run_evergreen() {
+  cd "$REPO_DIR"
+  set -a && . ./.env && set +a
+  export NODE_PATH="$REPO_DIR/node_modules"
+  node ./scripts/import-evergreen-models.mjs >> "${LOG_DIR}/evergreen-models.log" 2>&1
+  node ./scripts/filter-provider-photos.cjs --scope=elite >> "${LOG_DIR}/evergreen-models.log" 2>&1 || true
+}
+
 run_orchestrator() {
   local mode="$1"
   cd "$REPO_DIR"
@@ -106,6 +114,7 @@ process_trigger() {
     eros) run_eros "$mode" ;;
     tryst) run_tryst "$mode" ;;
     orchestrator) run_orchestrator "$mode" ;;
+    evergreen) run_evergreen ;;
     *) log "unknown source $source"; exit_code=1 ;;
   esac
   exit_code=$?
@@ -126,6 +135,6 @@ process_trigger() {
   clear_import_flag
 }
 
-for source in eros tryst orchestrator; do
+for source in eros tryst orchestrator evergreen; do
   process_trigger "$source" || true
 done

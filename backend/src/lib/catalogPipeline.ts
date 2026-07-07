@@ -13,11 +13,12 @@ export const MERGE_PHASES = [
   "reconcile-tryst",
   "match-review",
   "dedupe",
+  "evergreen-models",
   "eros-r2-photos",
   "tryst-r2-photos",
 ] as const;
 
-export type CatalogLogSource = "scan" | "merge" | "eros" | "tryst" | "orchestrator";
+export type CatalogLogSource = "scan" | "merge" | "evergreen" | "eros" | "tryst" | "orchestrator";
 
 export interface CatalogPipelineStatus {
   schedule: {
@@ -213,7 +214,7 @@ export async function readCatalogPipelineStatus(): Promise<CatalogPipelineStatus
     schedule: {
       timezone: "America/Denver",
       scanCron: "0 20 * * * (8:00 PM — cache-only Eros + Tryst scrape)",
-      mergeCron: "0 0 * * * (midnight — production merge + R2 + reconcile)",
+      mergeCron: "0 0 * * * (midnight — production merge + R2 + reconcile + Evergreen models)",
       failsafeCron: "*/15 * * * * (stale lock / import flag cleanup)",
       orchestratorPoll: "* * * * * (manual Dev Dashboard triggers only)",
     },
@@ -257,6 +258,7 @@ export function catalogLogPath(source: CatalogLogSource): string {
   const map: Record<CatalogLogSource, string> = {
     scan: path.join(dir, "us-verified-catalog-scan.log"),
     merge: path.join(dir, "us-verified-catalog-merge.log"),
+    evergreen: path.join(dir, "evergreen-models.log"),
     eros: path.join(dir, "cron.log"),
     tryst: path.join(dir, "tryst-import.log"),
     orchestrator: path.join(dir, "orchestrator.log"),
