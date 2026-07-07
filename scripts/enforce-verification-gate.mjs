@@ -12,7 +12,14 @@ import {
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
 async function createPrismaClient() {
+  try {
+    const generated = await dynamicImport("../backend/generated/prisma-client/index.js");
+    if (generated?.PrismaClient) return new generated.PrismaClient();
+  } catch {
+    // fallback
+  }
   const runtime = await dynamicImport("@prisma/client");
+  if (!runtime?.PrismaClient) throw new Error("PrismaClient not available. Run `npm run db:generate`.");
   return new runtime.PrismaClient();
 }
 
