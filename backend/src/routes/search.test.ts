@@ -2,11 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { searchProvidersHandler, searchLocationsHandler } from "./search.js";
 
-function makeReq(query: Record<string, string> = {}): any {
+function makeReq(
+  pathname: string,
+  query: Record<string, string> = {},
+): any {
   return {
     method: "GET",
-    path: "/api/v1/search/providers",
-    pathname: "/api/v1/search/providers",
+    path: pathname,
+    pathname,
     query: new URLSearchParams(query),
     headers: {},
     ipAddress: "127.0.0.1",
@@ -39,7 +42,7 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
   };
 
   const res = await searchProvidersHandler(
-    makeReq({ premium: "true", verified: "true", limit: "6" }),
+    makeReq("/api/v1/search/providers", { premium: "true", verified: "true", limit: "6" }),
     { prisma },
   );
 
@@ -79,16 +82,14 @@ test("searchLocationsHandler returns hierarchical states with cities", async () 
   };
 
   const res = await searchLocationsHandler(
-    {
-      ...makeReq(),
-      pathname: "/api/v1/search/locations",
-      path: "/api/v1/search/locations",
-    },
+    makeReq("/api/v1/search/locations"),
     { prisma },
   );
 
   assert.equal(res.statusCode, 200);
-  const body = res.body as { states: Array<{ code: string; count: number; cities: Array<{ slug: string; count: number }> }> };
+  const body = res.body as {
+    states: Array<{ code: string; count: number; cities: Array<{ slug: string; count: number }> }>;
+  };
   assert.ok(Array.isArray(body.states));
   assert.equal(body.states.length, 2);
 
