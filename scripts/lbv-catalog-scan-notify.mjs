@@ -70,9 +70,23 @@ function parseMergeBlock(text) {
   }
 }
 
+function parseStagedR2(text) {
+  const idx = text.lastIndexOf("[staged-r2] complete");
+  if (idx < 0) return null;
+  const slice = text.slice(idx);
+  const match = slice.match(/\{[\s\S]*?\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
 function summarizeLog(text) {
   const eros = parseImportBlock(text, "[import-eros] complete");
   const merge = parseMergeBlock(text);
+  const stagedR2 = parseStagedR2(text);
   const trystLine = text.split("\n").reverse().find((l) => l.includes("skippedNoVerification"));
   let tryst = null;
   if (trystLine) {
@@ -88,6 +102,7 @@ function summarizeLog(text) {
   return {
     eros,
     merge,
+    stagedR2,
     tryst,
     review: parseReviewMatch(text),
   };
@@ -97,7 +112,13 @@ function formatStats(stats) {
   const lines = [];
   if (stats.merge) {
     lines.push(
-      `Merge: +${stats.merge.created ?? 0} new, ${stats.merge.updated ?? 0} updated, ${stats.merge.errors ?? 0} errors`,
+      `Merge: +${stats.merge.created ?? 0} new, ${stats.merge.updated ?? 0} updated, ${stats.merge.errors ?? 0} errors` +
+        (stats.merge.verified != null ? `, ${stats.merge.verified} verified` : ""),
+    );
+  }
+  if (stats.stagedR2) {
+    lines.push(
+      `Staged photos→R2: ${stats.stagedR2.updated ?? 0} updated, ${stats.stagedR2.failed ?? 0} failed`,
     );
   }
   if (stats.eros) {

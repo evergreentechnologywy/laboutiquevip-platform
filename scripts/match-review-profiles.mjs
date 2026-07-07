@@ -68,6 +68,9 @@ async function main() {
     OR: [{ phone: { not: null } }, { email: { not: null } }],
   };
 
+  const limitRaw = process.env.REVIEW_MATCH_LIMIT;
+  const limit = limitRaw == null || limitRaw === "" ? 0 : Number(limitRaw);
+
   const providers = await prisma.provider.findMany({
     where,
     select: {
@@ -88,7 +91,7 @@ async function main() {
       review_verified_at: true,
       review_matched_at: true,
     },
-    take: Number(process.env.REVIEW_MATCH_LIMIT ?? "500"),
+    ...(limit > 0 ? { take: limit } : {}),
   });
 
   let matched = 0;

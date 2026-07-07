@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# US catalog scan (8 PM Mountain): crawl Eros + Tryst (profiles + source photo URLs),
-# verification gate, stage to cache only. R2 mirror runs at midnight merge.
+# US catalog scan (8 PM Mountain): daily scrape Eros + Tryst with P411/review verification gate,
+# stage profiles + source photo URLs to cache. Production import + R2 at midnight merge.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"

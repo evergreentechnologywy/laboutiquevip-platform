@@ -23,7 +23,18 @@ const cacheDir = args.has("cache-dir")
 const { PrismaClient } = await import("@prisma/client");
 const prisma = new PrismaClient();
 
-const stats = { created: 0, updated: 0, skipped: 0, errors: 0 };
+const stats = { created: 0, updated: 0, skipped: 0, errors: 0, verified: 0 };
+
+function recordIsVerified(payload) {
+  return Boolean(
+    payload?.p411_url ||
+      payload?.ter_url ||
+      payload?.pd_url ||
+      payload?.tob_url ||
+      payload?.p411_verified_at ||
+      payload?.review_verified_at,
+  );
+}
 
 async function upsertRecord(record) {
   const { existingId, payload } = record;
@@ -36,6 +47,7 @@ async function upsertRecord(record) {
     if (existingId) {
       await prisma.provider.update({ where: { id: existingId }, data: payload });
       stats.updated += 1;
+      if (recordIsVerified(payload)) stats.verified += 1;
       return;
     }
 
@@ -53,6 +65,7 @@ async function upsertRecord(record) {
     if (dup) {
       await prisma.provider.update({ where: { id: dup.id }, data: payload });
       stats.updated += 1;
+      if (recordIsVerified(payload)) stats.verified += 1;
       return;
     }
 
@@ -63,6 +76,7 @@ async function upsertRecord(record) {
       },
     });
     stats.created += 1;
+    if (recordIsVerified(payload)) stats.verified += 1;
   } catch (err) {
     stats.errors += 1;
     console.error(`[merge-cache] error ${payload.verification_url}: ${String(err)}`);

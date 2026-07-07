@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Master installer: failsafe, 8 PM scan + midnight production merge (reconcile + Eros/Tryst R2 photos).
+# Master installer: daily 8 PM verified scrape + midnight import (P411/review match + Eros/Tryst R2).
 set -euo pipefail
 
 REPO="${REPO:-/srv/apps/trystlike/repo}"
-CAPS="PROFILES_PER_CITY=250 PROFILES_PER_STATE=1250 EROS_MAX_PAGES=15000 TRYST_MAX_PROFILES_PER_CITY=250 TRYST_MAX_CITIES_PER_STATE=5 TRYST_MAX_LISTING_PAGES_PER_CITY=25 STRICT_IMPORT_VERIFICATION_GATE=1 CATALOG_SCAN_INTERVAL_SEC=86400"
+CAPS="PROFILES_PER_CITY=250 PROFILES_PER_STATE=1250 EROS_MAX_PAGES=15000 TRYST_MAX_PROFILES_PER_CITY=250 TRYST_MAX_CITIES_PER_STATE=5 TRYST_MAX_LISTING_PAGES_PER_CITY=25 STRICT_IMPORT_VERIFICATION_GATE=1 REVIEW_MATCH_LIMIT=0 CATALOG_SCAN_INTERVAL_SEC=86400"
 # 8:00 PM Mountain — crawl + verify into staging cache (no production merge)
 CRON_SCAN="0 20 * * * TZ=America/Denver REPO_DIR=$REPO $CAPS $REPO/scripts/run-us-verified-catalog-scan.sh >> /var/log/laboutiquevip/cron.log 2>&1 # lbv-us-verified-scan-8pm"
 # Midnight Mountain — apply cache to production during site maintenance window

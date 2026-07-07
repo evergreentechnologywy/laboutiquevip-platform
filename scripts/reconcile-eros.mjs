@@ -28,6 +28,11 @@ import {
 } from "./lib/reconcile-hub.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
+import {
+  mergeVerificationFields,
+  passesImportGate,
+  resolveProviderVerification,
+} from "./lib/verification-match.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -578,6 +583,17 @@ async function run() {
           continue;
         }
 
+        const verification = await resolveProviderVerification({
+          phone: profile.phone,
+          email: profile.email,
+          markdown,
+          includeApiLookup: true,
+        });
+        if (!passesImportGate(null, verification)) {
+          console.log(`[reconcile] Skipping unverified (no P411/review): ${profile.display_name} ${profile.sourceUrl}`);
+          continue;
+        }
+
         // Create new provider record (temporary ID needed to upload photos)
         const eros_state_wide = Boolean(profile.eros_state_wide);
         const provider = await prisma.provider.create({
@@ -603,6 +619,7 @@ async function run() {
             is_verified: true,
             is_profile_approved: true,
             is_premium: false,
+            ...mergeVerificationFields(null, verification),
           },
         });
 

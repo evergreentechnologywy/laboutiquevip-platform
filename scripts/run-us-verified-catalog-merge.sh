@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Midnight production merge: apply staged 8 PM scan cache to DB, Eros hub reconcile,
-# Tryst reconcile, review match, dedupe, then mirror photos Eros + Tryst → R2.
+# Midnight production merge: apply staged 8 PM scan → DB, staged photos → R2,
+# Eros/Tryst reconcile, P411+review match, dedupe, full Eros/Tryst photo refresh.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
@@ -21,6 +21,8 @@ set +a
 export NODE_PATH="$REPO_DIR/node_modules"
 # shellcheck disable=SC1091
 . "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
+export CATALOG_SCAN_CACHE_DIR="${CATALOG_SCAN_CACHE_DIR:-$(readlink -f /var/run/lboutiquevip/catalog-scan-cache/latest 2>/dev/null || cat /var/run/lboutiquevip/catalog-scan-cache/latest-path.txt 2>/dev/null || echo "")}"
+export REVIEW_MATCH_LIMIT="${REVIEW_MATCH_LIMIT:-0}"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -50,6 +52,12 @@ set +e
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog merge start ==="
 
   node "$REPO_DIR/scripts/merge-catalog-scan-cache.mjs"
+  write_flag "staged-r2-photos"
+  if [[ -n "${CATALOG_SCAN_CACHE_DIR}" && -d "${CATALOG_SCAN_CACHE_DIR}" ]]; then
+    node "$REPO_DIR/scripts/populate-r2-from-staged-cache.mjs" --cache-dir="$CATALOG_SCAN_CACHE_DIR"
+  else
+    echo "WARN: no staged cache dir; skipping populate-r2-from-staged-cache"
+  fi
   write_flag "reconcile-eros"
   node "$REPO_DIR/scripts/reconcile-eros.mjs" \
     --profiles-per-city="$PROFILES_PER_CITY" \
@@ -57,7 +65,7 @@ set +e
   write_flag "reconcile-tryst"
   node "$REPO_DIR/scripts/reconcile-tryst.mjs"
   write_flag "match-review"
-  node "$REPO_DIR/scripts/match-review-profiles.mjs" || true
+  node "$REPO_DIR/scripts/match-review-profiles.mjs" --all-sites || true
   write_flag "dedupe"
   node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
   write_flag "eros-r2-photos"
