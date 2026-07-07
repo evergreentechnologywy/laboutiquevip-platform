@@ -247,11 +247,28 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 type LocationCityRow = { slug: string; name: string; count: number };
 type LocationStateRow = { code: string; name: string; count: number; cities: LocationCityRow[] };
 
+const LOCATIONS_CACHE_TTL_MS = 60_000;
+let locationsCache: { body: { states: LocationStateRow[] }; expiresAt: number } | null = null;
+
+/** Test helper — bust in-memory locations cache after data mutations. */
+export function clearSearchLocationsCache(): void {
+  locationsCache = null;
+}
+
 /** Hierarchical state → city list derived from active public listings (query-driven, not static config). */
 export async function searchLocationsHandler(request: ApiRequest, context: SearchRouteContext): Promise<ApiResponse> {
   try {
     if (request.method !== "GET") {
       return json(405, { error: "method_not_allowed" });
+    }
+
+    const now = Date.now();
+    if (locationsCache && locationsCache.expiresAt > now) {
+      return {
+        statusCode: 200,
+        headers: publicSearchCacheHeaders(),
+        body: locationsCache.body,
+      };
     }
 
     const photoFilter = await buildPublicPhotoSearchFilter(context.prisma);
@@ -298,10 +315,13 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    const body = { states };
+    locationsCache = { body, expiresAt: now + LOCATIONS_CACHE_TTL_MS };
+
     return {
       statusCode: 200,
       headers: publicSearchCacheHeaders(),
-      body: { states },
+      body,
     };
   } catch {
     return json(500, { error: "internal_error" });

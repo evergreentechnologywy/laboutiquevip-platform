@@ -46,6 +46,12 @@ const LIMIT_RULES: LimitRule[] = [
     maxRequests: 30,
   },
   {
+    name: "search",
+    matcher: (request) => request.pathname.startsWith("/api/v1/search"),
+    windowMs: 60_000,
+    maxRequests: 120,
+  },
+  {
     name: "upload",
     matcher: (request) => request.pathname === "/api/upload",
     windowMs: 60_000,
