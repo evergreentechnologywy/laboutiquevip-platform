@@ -47,7 +47,7 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
   );
 
   assert.equal(res.statusCode, 200);
-  assert.equal(res.headers?.["cache-control"], "public, max-age=30, s-maxage=30, stale-while-revalidate=120");
+  assert.equal(res.headers?.["cache-control"], "public, max-age=60, s-maxage=60, stale-while-revalidate=300");
   assert.equal(Array.isArray(seenFindManyArgs.where.AND), true);
   assert.equal(seenFindManyArgs.where.AND.length, 5);
   assert.equal(seenFindManyArgs.where.AND[0].status, "active");
@@ -55,10 +55,7 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
   assert.ok(seenFindManyArgs.where.AND[0].NOT);
   assert.ok(Array.isArray(seenFindManyArgs.where.AND[0].NOT.OR));
   assert.deepEqual(seenFindManyArgs.where.AND[1], {
-    OR: [
-      { verification_url: { not: null } },
-      { id: { in: ["provider-with-photos"] } },
-    ],
+    id: { in: ["provider-with-photos"] },
   });
   assert.deepEqual(seenFindManyArgs.where.AND.slice(2), [
     { is_verified: true },

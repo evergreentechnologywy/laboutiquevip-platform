@@ -8,18 +8,19 @@ test("publicProviderVisibilityWhere keeps free-tier listings visible with stale 
     OR: Record<string, unknown>[];
   };
 
-  assert.deepEqual(packageVisibility.OR, [
-    { ad_package_expiry: null },
-    { ad_package_expiry: { gte: new Date().toISOString() } },
-    { ad_package: "none" },
-  ]);
+  assert.equal(packageVisibility.OR.length, 3);
+  assert.deepEqual(packageVisibility.OR[0], { ad_package_expiry: null });
+  assert.deepEqual(packageVisibility.OR[2], { ad_package: "none" });
+  const expiryBranch = packageVisibility.OR[1] as { ad_package_expiry: { gte: string } };
+  assert.ok(expiryBranch.ad_package_expiry?.gte);
+  assert.ok(Number.isFinite(Date.parse(expiryBranch.ad_package_expiry.gte)));
 });
 
-test("publicProviderVisibilityWhere restricts catalog to eros and evergreen imports", () => {
+test("publicProviderVisibilityWhere restricts catalog to imported sources", () => {
   const where = publicProviderVisibilityWhere();
-  const sourceFilter = (where.AND as Record<string, unknown>[])[1];
+  const sourceFilter = (where.AND as Record<string, unknown>[])[1] as {
+    verification_provider: { in: string[] };
+  };
 
-  assert.deepEqual(sourceFilter, {
-    verification_provider: { in: ["eros", "evergreen"] },
-  });
+  assert.deepEqual(sourceFilter.verification_provider.in.sort(), ["eros", "evergreen", "tryst"]);
 });

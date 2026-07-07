@@ -29,6 +29,13 @@ import {
 import { adminStatsHandler } from "./routes/adminStats.js";
 import { aiAssistantHandler, applyAiTourDraftHandler } from "./routes/aiAssistant.js";
 import {
+  devImportLogsHandler,
+  devImportStatusHandler,
+  devImportTriggerHandler,
+  devMaintenanceHandler,
+} from "./routes/dev.js";
+import { systemStatusHandler } from "./routes/system.js";
+import {
   createDiditSessionHandler,
   diditWebhookHandler,
 } from "./routes/didit.js";
@@ -68,6 +75,15 @@ import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 import { videoUploadHandler } from "./routes/base44Compat.js";
 import { r2PhotoProxyHandler } from "./routes/r2-photo-proxy.js";
 import { erosPhotoProxyHandler } from "./routes/eros-photo-proxy.js";
+import {
+  guardPublicCatalogMaintenance,
+  enrichPublicCatalogResponse,
+} from "./lib/importMaintenance.js";
+import {
+  adminImportMaintenanceDeleteHandler,
+  adminImportMaintenanceGetHandler,
+  adminImportMaintenancePostHandler,
+} from "./routes/adminImportMaintenance.js";
 
 
 const PORT = Number(process.env.API_PORT ?? 8787);
@@ -207,6 +223,12 @@ function resolveRequestIp(req: http.IncomingMessage): string | null {
 
 async function routeRequest(request: ApiRequest, context: { prisma: any; auditLogger: ImmutableAuditLogger }): Promise<ApiResponse> {
   console.log("routeRequest PATH:", request.pathname, "METHOD:", request.method);
+
+  const maintenanceBlock = guardPublicCatalogMaintenance(request);
+  if (maintenanceBlock) {
+    return maintenanceBlock;
+  }
+
   if (request.pathname === "/api/health" && request.method === "GET") {
     return healthHandler();
   }
@@ -325,6 +347,50 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return searchProvidersHandler(request, context);
   }
 
+  if (request.pathname === "/api/v1/system/status" && request.method === "GET") {
+    return systemStatusHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/dev/import/status" && request.method === "GET") {
+    const denied = enforceRbac(request, {
+      resource: "dev",
+      action: "read",
+      allowedRoles: ["admin", "dev"],
+    });
+    if (denied) return denied;
+    return devImportStatusHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/dev/import/trigger" && request.method === "POST") {
+    const denied = enforceRbac(request, {
+      resource: "dev",
+      action: "trigger",
+      allowedRoles: ["admin", "dev"],
+    });
+    if (denied) return denied;
+    return devImportTriggerHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/dev/maintenance" && request.method === "POST") {
+    const denied = enforceRbac(request, {
+      resource: "dev",
+      action: "maintenance",
+      allowedRoles: ["admin", "dev"],
+    });
+    if (denied) return denied;
+    return devMaintenanceHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/dev/import/logs" && request.method === "GET") {
+    const denied = enforceRbac(request, {
+      resource: "dev",
+      action: "logs",
+      allowedRoles: ["admin", "dev"],
+    });
+    if (denied) return denied;
+    return devImportLogsHandler(request, context);
+  }
+
   const providerSlug = matchProviderSlugPath(request.pathname);
   if (providerSlug && request.method === "GET") {
     return getProviderBySlugHandler(request, providerSlug, context);
@@ -391,6 +457,18 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/admin/billing/reconciliation" && request.method === "GET") {
     return adminBillingReconciliationHandler(request, context);
+  }
+
+  if (request.pathname === "/api/admin/import/maintenance" && request.method === "GET") {
+    return adminImportMaintenanceGetHandler(request);
+  }
+
+  if (request.pathname === "/api/admin/import/maintenance" && request.method === "POST") {
+    return adminImportMaintenancePostHandler(request);
+  }
+
+  if (request.pathname === "/api/admin/import/maintenance" && request.method === "DELETE") {
+    return adminImportMaintenanceDeleteHandler(request);
   }
 
   if (request.pathname === "/api/v1/seo/city-hubs" && request.method === "GET") {
@@ -538,7 +616,10 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    const response = await routeRequest(request, { prisma, auditLogger });
+    const response = enrichPublicCatalogResponse(
+      await routeRequest(request, { prisma, auditLogger }),
+      request.pathname,
+    );
     return sendResponse(res, {
       ...response,
       headers: {

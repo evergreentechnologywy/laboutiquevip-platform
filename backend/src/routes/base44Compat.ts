@@ -75,7 +75,7 @@ async function verifyClerkJwt(token: string): Promise<JwtClaims | null> {
     const verified = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
     const claims = verified as any;
     const normalizedRole =
-      typeof claims.role === "string" && ["member", "provider", "agency", "admin", "service"].includes(claims.role)
+      typeof claims.role === "string" && ["member", "provider", "agency", "admin", "dev", "service"].includes(claims.role)
         ? claims.role
         : "member";
     return {
@@ -394,7 +394,7 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
       try {
         const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
         const metadataRole = (clerkUser.publicMetadata as any)?.role;
-        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "service"].includes(metadataRole)
+        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "dev", "service"].includes(metadataRole)
           ? metadataRole
           : null;
         if (clerkRole && clerkRole !== user.role) {
@@ -410,7 +410,7 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
         const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
         const email = clerkUser.emailAddresses[0]?.emailAddress;
         const metadataRole = (clerkUser.publicMetadata as any)?.role;
-        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "service"].includes(metadataRole)
+        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "dev", "service"].includes(metadataRole)
           ? metadataRole
           : "member";
         if (email) {

@@ -1,4 +1,4 @@
-export type Role = "admin" | "provider" | "agency" | "member" | "service";
+export type Role = "admin" | "dev" | "provider" | "agency" | "member" | "service";
 
 export interface AuthContext {
   /** Internal User.id (UUID). Use this for any Prisma query against UUID columns. */

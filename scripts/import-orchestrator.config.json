@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "description": "Midnight Central import window — safe catalog refresh without breaking browse",
+  "flagPath": "/var/run/lboutiquevip/import-in-progress",
+  "logDir": "/var/log/laboutiquevip",
+  "maxWindowMinutes": 60,
+  "steps": [
+    {
+      "id": "eros-import",
+      "label": "Eros incremental import",
+      "runner": "scripts/run-eros-import.sh",
+      "enabled": false,
+      "note": "Daily eros photo update at 03:30 UTC covers incremental eros; enable for manual full refresh only"
+    },
+    {
+      "id": "tryst",
+      "label": "Tryst import + reconcile",
+      "runner": "scripts/run-tryst-import.sh",
+      "enabled": true
+    },
+    {
+      "id": "eros-reconcile",
+      "label": "Eros hub reconcile",
+      "runner": "scripts/run-eros-reconcile.sh",
+      "enabled": false,
+      "note": "Runs separately at 21:00 UTC (4 PM Central) via install-eros-only-cron.sh"
+    },
+    {
+      "id": "review-match",
+      "label": "Review site profile matching",
+      "runner": "node scripts/match-review-profiles.mjs",
+      "enabled": true,
+      "type": "command"
+    }
+  ],
+  "futureSources": [
+    {
+      "id": "example-source",
+      "label": "Template for new scrape sources",
+      "module": "scripts/sources/example.mjs",
+      "enabled": false,
+      "verificationProvider": "example",
+      "note": "Copy scripts/sources/source-template.mjs, register here, set enabled true"
+    }
+  ]
+}

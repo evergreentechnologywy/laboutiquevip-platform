@@ -5,7 +5,7 @@ import { allowHeaderAuthTrust } from "./config/security.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
-const ALLOWED_ROLES = new Set<Role>(["admin", "provider", "agency", "member", "service"]);
+const ALLOWED_ROLES = new Set<Role>(["admin", "dev", "provider", "agency", "member", "service"]);
 
 type TokenClaims = {
   sub?: string;
@@ -42,7 +42,7 @@ export async function authFromClerkJwt(headers: ApiRequest["headers"]): Promise<
     const sub = (verified as any).sub;
     if (typeof sub !== "string") return null;
     const role = (verified as any).role;
-    return { userId: sub, roles: role && ["member", "provider", "agency", "admin", "service"].includes(role) ? [role] : ["member"] };
+    return { userId: sub, roles: role && ["member", "provider", "agency", "admin", "dev", "service"].includes(role) ? [role] : ["member"] };
   } catch {
     return null;
   }

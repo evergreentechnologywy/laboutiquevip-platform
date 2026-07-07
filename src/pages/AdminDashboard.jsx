@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { SEO } from "@/components/SEO";
 import { RequireRole } from "@/components/RequireRole";
+import { fetchAdminReports, fetchAdminStats, fetchSystemStatus } from "@/api/devOps";
 
 export default function AdminDashboard() {
   const [user, setUser] = React.useState(null);
@@ -48,6 +49,25 @@ export default function AdminDashboard() {
   const { data: allReviews = [] } = useQuery({
     queryKey: ['all-reviews'],
     queryFn: () => base44.entities.Review.list('-created_date', 1000),
+    enabled: !!user,
+  });
+
+  const { data: systemStatus } = useQuery({
+    queryKey: ['system-status'],
+    queryFn: fetchSystemStatus,
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
+
+  const { data: adminStats } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: fetchAdminStats,
+    enabled: !!user,
+  });
+
+  const { data: openReports } = useQuery({
+    queryKey: ['admin-reports-open'],
+    queryFn: () => fetchAdminReports('open'),
     enabled: !!user,
   });
 
@@ -178,9 +198,40 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Read-only system status */}
+        <Card className="bg-zinc-900 border-zinc-800 mb-8">
+          <CardHeader>
+            <CardTitle className="text-zinc-100 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-sky-400" />
+              System Status (read-only)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-zinc-500">Public catalog</p>
+              <p className="text-xl font-semibold text-zinc-100">{systemStatus?.catalog?.publicCount ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-zinc-500">Maintenance</p>
+              <Badge className="mt-1 uppercase">{systemStatus?.maintenance?.mode ?? 'off'}</Badge>
+            </div>
+            <div>
+              <p className="text-zinc-500">Open reports</p>
+              <p className="text-xl font-semibold text-zinc-100">{openReports?.count ?? 0}</p>
+            </div>
+            <div>
+              <p className="text-zinc-500">Last eros import</p>
+              <p className="text-zinc-300">{systemStatus?.detailed?.imports?.eros?.lastCompletedAt ?? systemStatus?.detailed?.imports?.eros?.lastRunAt ?? '—'}</p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Provider Management Tabs */}
         <Tabs defaultValue="pending" className="space-y-6">
           <TabsList className="bg-zinc-900 border border-zinc-800">
+            <TabsTrigger value="reports" className="data-[state=active]:bg-zinc-800">
+              Reports ({openReports?.count ?? 0})
+            </TabsTrigger>
             <TabsTrigger value="pending" className="data-[state=active]:bg-zinc-800">
               Pending ({pendingProviders.length})
             </TabsTrigger>
@@ -194,6 +245,32 @@ export default function AdminDashboard() {
               All Providers ({allProviders.length})
             </TabsTrigger>
           </TabsList>
+
+          {/* Open Reports */}
+          <TabsContent value="reports">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-rose-400" />
+                  Open Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(openReports?.items ?? []).length === 0 ? (
+                  <p className="text-zinc-500 py-8 text-center">No open reports</p>
+                ) : (
+                  <div className="space-y-3">
+                    {(openReports?.items ?? []).map((report) => (
+                      <div key={report.id} className="border border-zinc-800 rounded-lg p-4">
+                        <p className="text-zinc-200 font-medium">{report.reason || report.category || 'Report'}</p>
+                        <p className="text-xs text-zinc-500 mt-1">Status: {report.status} · ID: {report.id}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Pending Providers */}
           <TabsContent value="pending">
