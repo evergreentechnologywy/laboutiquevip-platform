@@ -35,27 +35,50 @@ function buildTestDataExclusion(): Record<string, unknown> {
   };
 }
 
-/** Prisma Json filters conflict with the user_id source guard — resolve photo IDs via SQL. */
-export async function buildPublicPhotoSearchFilter(prisma: {
+const PHOTO_ID_CACHE_TTL_MS = 60_000;
+let photoProviderIdsCache: { ids: string[]; expiresAt: number } | null = null;
+
+async function loadPublicPhotoProviderIds(prisma: {
   $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
-}): Promise<Record<string, unknown>> {
+}): Promise<string[]> {
+  const now = Date.now();
+  if (photoProviderIdsCache && photoProviderIdsCache.expiresAt > now) {
+    return photoProviderIdsCache.ids;
+  }
+
   const rows = await prisma.$queryRaw`
     SELECT id FROM "Provider"
     WHERE verification_provider IN ('eros', 'evergreen')
       AND photos IS NOT NULL
       AND jsonb_typeof(photos::jsonb) = 'array'
-      AND CASE
-        WHEN jsonb_typeof(photos::jsonb) = 'array' THEN jsonb_array_length(photos::jsonb) > 0
-        ELSE false
-      END
+      AND jsonb_array_length(photos::jsonb) > 0
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(photos::jsonb) AS url
+        WHERE url LIKE '%/api/r2-photo/%'
+           OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
+           OR url ~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?|$)'
+      )
   `;
 
-  return {
-    OR: [
-      { verification_url: { not: null } },
-      { id: { in: rows.map((row) => row.id) } },
-    ],
-  };
+  const ids = rows.map((row) => row.id);
+  photoProviderIdsCache = { ids, expiresAt: now + PHOTO_ID_CACHE_TTL_MS };
+  return ids;
+}
+
+/** Public browse requires displayable photos — no verification_url-only stubs. */
+export async function buildPublicPhotoSearchFilter(prisma: {
+  $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
+}): Promise<Record<string, unknown>> {
+  const ids = await loadPublicPhotoProviderIds(prisma);
+  if (ids.length === 0) {
+    return { id: { in: ["00000000-0000-0000-0000-000000000000"] } };
+  }
+  return { id: { in: ids } };
+}
+
+/** Test helper — bust in-memory photo ID cache after data mutations. */
+export function clearPublicPhotoProviderIdsCache(): void {
+  photoProviderIdsCache = null;
 }
 
 export function publicProviderVisibilityWhere(): Record<string, unknown> {
@@ -75,12 +98,9 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
         OR: [
           { ad_package_expiry: null },
           { ad_package_expiry: { gte: new Date().toISOString() } },
-          // Free tier stays public after cleanup even if a stale expiry date remains.
           { ad_package: "none" },
         ],
       },
-      // Public catalog: current eros.com + evergreen imports only.
-      // Advertiser-owned profiles (null verification_provider) stay in DB but are hidden from browse/search.
       { verification_provider: { in: ["eros", "evergreen"] } },
     ],
     NOT: {
@@ -91,6 +111,6 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
 
 export function publicSearchCacheHeaders(): Record<string, string> {
   return {
-    "cache-control": "public, max-age=30, s-maxage=30, stale-while-revalidate=120",
+    "cache-control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
   };
 }

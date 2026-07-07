@@ -4,6 +4,7 @@ import {
   generateProfileRoutes,
   generateSitemapXml,
 } from "../services/seo.js";
+import { legacyProviderSlug } from "../lib/providerSlug.js";
 
 interface SeoContext {
   prisma: any;
@@ -108,7 +109,7 @@ export async function seoProfilesHandler(request: ApiRequest, context: SeoContex
         ],
       },
     },
-    select: { id: true, location_city: true, updated_date: true },
+    select: { id: true, location_city: true, updated_date: true, verification_username: true, verification_url: true },
     orderBy: [{ updated_date: "desc" }],
     take: limit,
   });
@@ -120,7 +121,7 @@ export async function seoProfilesHandler(request: ApiRequest, context: SeoContex
       updatedAt: p.updatedAt,
     }))),
     ...generateProfileRoutes(legacyProviders.map((p: any) => ({
-      slug: p.id,
+      slug: legacyProviderSlug(p),
       citySlug: (p.location_city || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       updatedAt: p.updated_date,
     }))),

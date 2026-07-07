@@ -34,6 +34,7 @@ import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
 import { SEO } from "@/components/SEO";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
+import { RequireRole } from "@/components/RequireRole";
 
 const emptyProfile = {
   display_name: "",
@@ -424,8 +425,9 @@ export default function ProviderDashboard() {
   const selectedProductSku = getPackageProductSku(selectedPackage, billingPeriod);
   const providerBillingBlocked = provider?.status === "rejected" || provider?.status === "suspended";
 
-  if (!user && !error) {
-    return (
+  return (
+    <RequireRole roles={["provider", "admin", "agency"]} loginNext="/providerdashboard">
+      {!user && !error ? (
       <div className="min-h-screen bg-zinc-950 p-8">
         <div className="max-w-7xl mx-auto">
           <Skeleton className="h-12 w-64 mb-8" />
@@ -436,11 +438,7 @@ export default function ProviderDashboard() {
           </div>
         </div>
       </div>
-    );
-  }
-
-  if (error && !user) {
-    return (
+      ) : error && !user ? (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-8">
         <Card className="bg-zinc-900 border-zinc-800 max-w-md">
           <CardContent className="pt-6 text-center">
@@ -449,10 +447,7 @@ export default function ProviderDashboard() {
           </CardContent>
         </Card>
       </div>
-    );
-  }
-
-  return (
+      ) : (
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
       <SEO title="Provider Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto space-y-8">
@@ -892,6 +887,8 @@ export default function ProviderDashboard() {
         </Tabs>
       </div>
     </div>
+      )}
+    </RequireRole>
   );
 }
 

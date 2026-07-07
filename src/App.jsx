@@ -6,7 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { setupIframeMessaging } from './lib/iframe-messaging';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -64,6 +64,7 @@ const AuthenticatedApp = () => {
       <Suspense fallback={<FullScreenSpinner />}>
         <Routes>
           <Route path="/" element={MainPage ? <MainPage /> : null} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
           {/* Clerk path routing needs wildcards for verify-email, SSO callback, etc. */}
           <Route path="/login/*" element={Pages.Login ? <Pages.Login /> : null} />
           <Route path="/register/*" element={Pages.Register ? <Pages.Register /> : null} />

@@ -97,9 +97,12 @@ export function Footer() {
             <div className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-stone-700">
               18+ Adults Only
             </div>
+            <p className="text-xs leading-5 text-stone-500">
+              Some outbound links may be affiliate links. We may earn a commission at no extra cost to you.
+            </p>
             <p className="text-xs leading-5">
               &copy; {currentYear} La Boutique VIP International. All rights reserved.
-              {recommendedLinks.length > 0 ? " Some links are affiliate links — we may earn a commission at no extra cost to you." : ""}
+              {recommendedLinks.length > 0 ? " Recommended links above are affiliate partnerships." : ""}
             </p>
           </div>
         </div>

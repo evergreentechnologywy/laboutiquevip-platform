@@ -16,6 +16,14 @@ import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -143,6 +151,35 @@ export default function Browse() {
         ogTitle="Browse Verified Profiles | La Boutique VIP"
         ogDescription="Discreet directory of verified listings and premium profiles."
       />
+      <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-8">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to={createPageUrl("Home")}>Home</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              {location ? (
+                <BreadcrumbLink asChild>
+                  <Link to={createPageUrl("Browse")}>Browse</Link>
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>Browse</BreadcrumbPage>
+              )}
+            </BreadcrumbItem>
+            {location ? (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{location}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            ) : null}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
       <section className="relative overflow-hidden border-b border-zinc-900/80 bg-[radial-gradient(circle_at_top,_rgba(244,63,94,0.12),_transparent_40%),linear-gradient(180deg,#09090b_0%,#121215_100%)]">
         <div className="mx-auto max-w-7xl px-6 py-20 lg:px-8 lg:py-24">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] lg:items-end">

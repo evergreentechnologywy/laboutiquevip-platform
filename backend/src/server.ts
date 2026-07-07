@@ -56,6 +56,7 @@ import {
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
+import { getProviderBySlugHandler } from "./routes/providerPublic.js";
 import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
   createOrderHandler,
@@ -189,6 +190,11 @@ function matchAgencyProfileIdPath(pathname: string): string | null {
   return matched?.[1] ?? null;
 }
 
+function matchProviderSlugPath(pathname: string): string | null {
+  const matched = pathname.match(/^\/api\/v1\/providers\/by-slug\/([^/]+)$/);
+  return matched?.[1] ? decodeURIComponent(matched[1]) : null;
+}
+
 function resolveRequestIp(req: http.IncomingMessage): string | null {
   const forwarded = req.headers["x-forwarded-for"];
   const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
@@ -313,6 +319,11 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/search/providers" && request.method === "GET") {
     return searchProvidersHandler(request, context);
+  }
+
+  const providerSlug = matchProviderSlugPath(request.pathname);
+  if (providerSlug && request.method === "GET") {
+    return getProviderBySlugHandler(request, providerSlug, context);
   }
 
   if (request.pathname === "/api/v1/webhooks/nowpayments" && request.method === "POST") {

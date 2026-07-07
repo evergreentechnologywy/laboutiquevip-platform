@@ -13,6 +13,7 @@ import { Users, UserCheck, UserX, Clock, TrendingUp, Eye, Star, Shield, AlertCir
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { SEO } from "@/components/SEO";
+import { RequireRole } from "@/components/RequireRole";
 
 export default function AdminDashboard() {
   const [user, setUser] = React.useState(null);
@@ -110,15 +111,13 @@ export default function AdminDashboard() {
   const suspendedProviders = allProviders.filter(p => p.status === 'suspended');
   const pendingReviews = allReviews.filter(r => r.status === 'pending');
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Skeleton className="w-64 h-32" />
-      </div>
-    );
-  }
-
   return (
+    <RequireRole roles={['admin']} loginNext="/admindashboard">
+      {!user ? (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+          <Skeleton className="w-64 h-32" />
+        </div>
+      ) : (
     <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
       <SEO title="Admin Dashboard | La Boutique VIP International" noindex />
       <div className="max-w-7xl mx-auto">
@@ -488,6 +487,8 @@ export default function AdminDashboard() {
         </Dialog>
       </div>
     </div>
+      )}
+    </RequireRole>
   );
 }
 

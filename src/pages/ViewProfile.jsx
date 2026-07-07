@@ -17,11 +17,33 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { SEO } from "@/components/SEO";
+import { Link } from "react-router-dom";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { createPageUrl } from "@/utils";
 
 const MAX_PROVIDER_PHOTOS = 8;
 
 function resolveProviderId(profileSlug, queryId) {
   return queryId || profileSlug || null;
+}
+
+async function fetchPublicProvider(identifier) {
+  if (!identifier) return null;
+  try {
+    const res = await fetch(`/api/v1/providers/by-slug/${encodeURIComponent(identifier)}`);
+    if (res.ok) return res.json();
+  } catch {
+    // Fall through to authenticated entity filter.
+  }
+  const providers = await base44.entities.Provider.filter({ id: identifier });
+  return providers.length > 0 ? providers[0] : null;
 }
 
 export default function ViewProfile() {
@@ -37,16 +59,15 @@ export default function ViewProfile() {
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
     queryFn: async () => {
-      const providers = await base44.entities.Provider.filter({ id: providerId });
-      if (providers.length === 0) return null;
+      const currentProvider = await fetchPublicProvider(providerId);
+      if (!currentProvider) return null;
 
-      const currentProvider = providers[0];
       const viewCount = (currentProvider.views_count || 0) + 1;
 
       // Public viewers may not be authenticated, so a failed analytics update
       // must not block rendering the actual profile.
       try {
-        await base44.entities.Provider.update(providerId, { views_count: viewCount });
+        await base44.entities.Provider.update(currentProvider.id, { views_count: viewCount });
       } catch {
         return currentProvider;
       }
@@ -57,9 +78,9 @@ export default function ViewProfile() {
   });
 
   const { data: reviews = [] } = useQuery({
-    queryKey: ['reviews', providerId],
-    queryFn: () => base44.entities.Review.filter({ provider_id: providerId, status: 'approved' }, '-created_date'),
-    enabled: !!providerId,
+    queryKey: ['reviews', provider?.id],
+    queryFn: () => base44.entities.Review.filter({ provider_id: provider.id, status: 'approved' }, '-created_date'),
+    enabled: !!provider?.id,
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
@@ -70,7 +91,7 @@ export default function ViewProfile() {
     setSending(true);
     try {
       await base44.entities.Message.create({
-        provider_id: providerId,
+        provider_id: provider?.id || providerId,
         sender_name: messageForm.name,
         sender_email: messageForm.email,
         message: messageForm.message,
@@ -126,6 +147,31 @@ export default function ViewProfile() {
         noindex={true}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Breadcrumb className="mb-6">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to={createPageUrl("Browse")}>Browse</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            {provider.location_city && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to={`${createPageUrl("Browse")}?location=${encodeURIComponent(provider.location_city)}`}>
+                      {provider.location_city}
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              </>
+            )}
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{provider.display_name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         {/* Photo Gallery */}
         <div className="mb-8">
           <div className="relative aspect-video rounded-3xl overflow-hidden bg-zinc-900 mb-4">

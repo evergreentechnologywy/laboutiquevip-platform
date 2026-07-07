@@ -15,14 +15,11 @@ test("publicProviderVisibilityWhere keeps free-tier listings visible with stale 
   ]);
 });
 
-test("publicProviderVisibilityWhere keeps advertiser-owned profiles without photos", () => {
+test("publicProviderVisibilityWhere restricts catalog to eros and evergreen imports", () => {
   const where = publicProviderVisibilityWhere();
-  const sourceFilter = (where.AND as Record<string, unknown>[])[1] as {
-    OR: Record<string, unknown>[];
-  };
+  const sourceFilter = (where.AND as Record<string, unknown>[])[1];
 
-  assert.deepEqual(sourceFilter.OR, [
-    { verification_provider: null },
-    { verification_provider: { in: ["eros", "evergreen"] } },
-  ]);
+  assert.deepEqual(sourceFilter, {
+    verification_provider: { in: ["eros", "evergreen"] },
+  });
 });

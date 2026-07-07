@@ -2,7 +2,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Search, LayoutDashboard, MessageSquare, Calendar, Megaphone, Crown, Shield, User, Sparkles } from "lucide-react";
+import { Home, Search, LayoutDashboard, MessageSquare, Calendar, Megaphone, Crown, Shield, User, Sparkles, Menu } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client";
 import { Footer } from "@/components/Footer";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home"), icon: Home },
@@ -241,6 +242,7 @@ export default function Layout({ children, currentPageName }) {
                   </Link>
 
                   <div className="flex items-center gap-3 sm:gap-6">
+                    <div className="hidden sm:flex items-center gap-3 sm:gap-6">
                     {publicNavigation.map((item) => (
                       <Link
                         key={item.title}
@@ -250,6 +252,32 @@ export default function Layout({ children, currentPageName }) {
                         {item.title}
                       </Link>
                     ))}
+                    </div>
+
+                    <Sheet>
+                      <SheetTrigger asChild className="sm:hidden">
+                        <Button variant="outline" size="icon" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+                          <Menu className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="right" className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                        <SheetHeader>
+                          <SheetTitle className="text-zinc-100">Menu</SheetTitle>
+                        </SheetHeader>
+                        <nav className="mt-6 flex flex-col gap-2">
+                          {publicNavigation.map((item) => (
+                            <Link
+                              key={item.title}
+                              to={item.url}
+                              className={`rounded-lg px-3 py-2 text-sm font-medium ${location.pathname === item.url ? "bg-zinc-900 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"}`}
+                            >
+                              {item.title}
+                            </Link>
+                          ))}
+                        </nav>
+                      </SheetContent>
+                    </Sheet>
 
                     {user ? (
                       <>
