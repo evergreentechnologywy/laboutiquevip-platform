@@ -272,7 +272,8 @@ function parseProfile(markdown, sourceUrl) {
   const imageCandidates = unique(
     [...markdown.matchAll(/https?:\/\/(?:i|[a-z0-9-]+)\.eros\.com\/(?:i|profile)\/[^\s)]+/gi)].map((m) => m[0]),
   );
-  const photos = imageCandidates.slice(0, MAX_PROVIDER_PHOTOS);
+  // Eros galleries are oldest-first; newest first for display and R2 order
+  const photos = imageCandidates.reverse().slice(0, MAX_PROVIDER_PHOTOS);
 
   const details = [];
   for (const key of ["Ethnicity", "Hair Color", "Eye color", "Availability", "Available to"]) {

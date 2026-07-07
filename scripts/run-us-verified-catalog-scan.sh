@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# US catalog scan (8 PM Mountain): crawl Eros + Tryst, verify, stage to cache only.
-# Production DB merge runs separately at midnight via run-us-verified-catalog-merge.sh
+# US catalog scan (8 PM Mountain): crawl Eros + Tryst (profiles + source photo URLs),
+# verification gate, stage to cache only. R2 mirror runs at midnight merge.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
@@ -74,7 +74,7 @@ else
 fi
 
 export NODE_PATH="$REPO_DIR/node_modules"
-export CATALOG_SCAN_SCHEDULE_NOTE="Staged for production merge at midnight America/Denver. Live site unchanged until then."
+export CATALOG_SCAN_SCHEDULE_NOTE="Staged for midnight merge (DB + Eros/Tryst photos → R2). Live site unchanged until then."
 node "$REPO_DIR/scripts/lbv-catalog-scan-notify.mjs" \
   --log="$RUN_LOG" \
   --status="$SCAN_STATUS" \

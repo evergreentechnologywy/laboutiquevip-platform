@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Midnight production merge: apply staged 8 PM scan cache to DB, Eros hub reconcile,
-# Tryst reconcile, review match, dedupe, and Eros photo → R2 refresh.
+# Tryst reconcile, review match, dedupe, then mirror photos Eros + Tryst → R2.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
@@ -62,6 +62,8 @@ set +e
   node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
   write_flag "eros-r2-photos"
   node "$REPO_DIR/scripts/populate-r2-from-eros.cjs" --delay-ms="$DELAY_MS"
+  write_flag "tryst-r2-photos"
+  node "$REPO_DIR/scripts/populate-r2-from-tryst.cjs" --delay-ms="$DELAY_MS"
 
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog merge done ==="
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
@@ -78,7 +80,7 @@ else
 fi
 
 export NODE_PATH="$REPO_DIR/node_modules"
-export CATALOG_SCAN_SCHEDULE_NOTE="Next scan 8:00 PM America/Denver; merge at midnight."
+export CATALOG_SCAN_SCHEDULE_NOTE="Next scan 8:00 PM America/Denver; merge at midnight includes Eros + Tryst photos → R2."
 node "$REPO_DIR/scripts/lbv-catalog-scan-notify.mjs" \
   --log="$RUN_LOG" \
   --status="$MERGE_STATUS" \

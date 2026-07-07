@@ -17,7 +17,8 @@
       "id": "tryst",
       "label": "Tryst import + reconcile",
       "runner": "scripts/run-tryst-import.sh",
-      "enabled": true
+      "enabled": false,
+      "note": "Production Tryst import + R2 photos run via run-us-verified-catalog-scan.sh (8 PM) and run-us-verified-catalog-merge.sh (midnight)"
     },
     {
       "id": "eros-reconcile",

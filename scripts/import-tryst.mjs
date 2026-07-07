@@ -137,6 +137,7 @@ function parseProfilePage(markdown, profileUrl) {
   const photoMatches = [
     ...markdown.matchAll(/https?:\/\/[^\s)"']+\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s)"']*)?/gi),
     ...markdown.matchAll(/https?:\/\/(?:discovery\.)?tryst[^\s)"']+\/[^\s)"']+\.(?:jpg|jpeg|png|webp)/gi),
+    ...markdown.matchAll(/https?:\/\/[^\s)]+(?:a4cdn\.(?:ch|org)|tryst\.link\/media)[^\s)]+/gi),
   ];
   const photos = [...new Set(photoMatches.map((m) => m[0]))].slice(0, 24);
 
