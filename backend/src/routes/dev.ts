@@ -6,11 +6,18 @@ import {
   readAllImportStatuses,
   readImportLogTail,
   readMaintenanceState,
+  sanitizeLogLine,
   writeMaintenanceState,
   type ImportMode,
   type ImportSource,
   type MaintenanceMode,
 } from "../lib/importControl.js";
+import {
+  MERGE_PHASES,
+  readCatalogLogTail,
+  readCatalogPipelineStatus,
+  type CatalogLogSource,
+} from "../lib/catalogPipeline.js";
 
 interface DevContext {
   prisma: any;
@@ -40,8 +47,11 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     return json(403, { error: "forbidden", message: "Dev role required" });
   }
 
-  const imports = await readAllImportStatuses();
-  const maintenance = await readMaintenanceState();
+  const [imports, maintenance, catalogPipeline] = await Promise.all([
+    readAllImportStatuses(),
+    readMaintenanceState(),
+    readCatalogPipelineStatus(),
+  ]);
 
   await context.auditLogger.append({
     actorId: request.auth?.userId ?? null,
@@ -54,11 +64,9 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
   return json(200, {
     imports,
     maintenance,
-    cron: {
-      orchestratorPoll: "* * * * *",
-      erosReconcile: "03:30 UTC daily",
-      trysImport: "04:00 UTC daily",
-    },
+    catalogPipeline,
+    mergePhases: MERGE_PHASES,
+    cron: catalogPipeline.schedule,
   });
 }
 
@@ -129,12 +137,22 @@ export async function devImportLogsHandler(request: ApiRequest, context: DevCont
     return json(403, { error: "forbidden", message: "Dev role required" });
   }
 
-  const source = (request.query.get("source") ?? "eros") as ImportSource;
-  if (!["eros", "tryst", "orchestrator"].includes(source)) {
-    return json(400, { error: "validation_error", message: "source must be eros|tryst|orchestrator" });
+  const sourceParam = request.query.get("source") ?? "scan";
+  const catalogSources: CatalogLogSource[] = ["scan", "merge", "eros", "tryst", "orchestrator"];
+  let lines: string[];
+
+  if (catalogSources.includes(sourceParam as CatalogLogSource)) {
+    lines = (await readCatalogLogTail(sourceParam as CatalogLogSource, 100)).map(sanitizeLogLine);
+  } else if (["eros", "tryst", "orchestrator"].includes(sourceParam)) {
+    lines = await readImportLogTail(sourceParam as ImportSource, 100);
+  } else {
+    return json(400, {
+      error: "validation_error",
+      message: "source must be scan|merge|eros|tryst|orchestrator",
+    });
   }
 
-  const lines = await readImportLogTail(source, 100);
+  const source = sourceParam;
 
   await context.auditLogger.append({
     actorId: request.auth?.userId ?? null,

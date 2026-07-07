@@ -5,7 +5,8 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/srv/apps/trystlike/repo}"
 LOG_DIR="${LOG_DIR:-/var/log/laboutiquevip}"
-LOCK_FILE="${LOCK_FILE:-/tmp/laboutiquevip-us-verified-scan.lock}"
+LOCK_FILE="${LOCK_FILE:-/tmp/lboutiquevip-us-verified-scan.lock}"
+SCAN_FLAG_PATH="${SCAN_FLAG_PATH:-/var/run/lboutiquevip/catalog-scan-in-progress.json}"
 LOG_FILE="${LOG_DIR}/us-verified-catalog-scan.log"
 REPORT_FILE="${LOG_DIR}/us-verified-catalog-scan-report.log"
 CACHE_ROOT="${CATALOG_SCAN_CACHE_ROOT:-/var/run/lboutiquevip/catalog-scan-cache}"
@@ -31,8 +32,20 @@ if ! flock -n 9; then
 fi
 
 RUN_LOG="$(mktemp)"
-cleanup() { rm -f "$RUN_LOG"; }
+write_scan_flag() {
+  printf '{"startedAt":"%s","source":"us-verified-catalog-scan","phase":"%s","cacheDir":"%s"}\n' \
+    "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$1" "$CATALOG_SCAN_CACHE_DIR" >"$SCAN_FLAG_PATH"
+}
+clear_scan_flag() {
+  rm -f "$SCAN_FLAG_PATH"
+}
+cleanup() {
+  clear_scan_flag
+  rm -f "$RUN_LOG"
+}
 trap cleanup EXIT
+
+write_scan_flag "eros-import"
 
 set +e
 {
@@ -49,7 +62,9 @@ set +e
     --profiles-per-city="$PROFILES_PER_CITY" \
     --profiles-per-state="$PROFILES_PER_STATE"
 
+  write_scan_flag "tryst-import"
   node "$REPO_DIR/scripts/import-tryst.mjs" --cache-only
+  write_scan_flag "finalize-cache"
 
   node -e "
     import { finalizeCacheDir } from './scripts/lib/catalog-scan-cache.mjs';

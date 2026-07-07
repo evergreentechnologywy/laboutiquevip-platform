@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Play, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
+import { AlertCircle, CalendarClock, Play, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
 import {
   fetchDevImportLogs,
   fetchDevImportStatus,
@@ -17,10 +17,37 @@ import {
   triggerDevImport,
 } from "@/api/devOps";
 
-const SOURCES = ["eros", "tryst", "orchestrator"];
+const MANUAL_SOURCES = ["eros", "tryst", "orchestrator"];
+const LOG_SOURCES = ["scan", "merge", "eros", "tryst", "orchestrator"];
+
+function StatusBadge({ active, label }) {
+  return (
+    <Badge className={active ? "bg-amber-500/20 text-amber-400 border-0" : "bg-zinc-700 text-zinc-300 border-0"}>
+      {label}
+    </Badge>
+  );
+}
+
+function PhaseList({ phases, currentPhase }) {
+  if (!phases?.length) return null;
+  return (
+    <ul className="space-y-1 text-xs">
+      {phases.map((phase) => {
+        const active = currentPhase === phase;
+        const done = currentPhase && phases.indexOf(phase) < phases.indexOf(currentPhase);
+        return (
+          <li key={phase} className={active ? "text-amber-300" : done ? "text-emerald-400/80" : "text-zinc-500"}>
+            {active ? "▸ " : done ? "✓ " : "· "}
+            {phase}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default function DevDashboard() {
-  const [logSource, setLogSource] = React.useState("eros");
+  const [logSource, setLogSource] = React.useState("scan");
   const [maintenanceMode, setMaintenanceMode] = React.useState("off");
   const queryClient = useQueryClient();
 
@@ -52,6 +79,10 @@ export default function DevDashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dev-import-status"] }),
   });
 
+  const pipeline = status?.catalogPipeline;
+  const notify = pipeline?.notify?.state;
+  const lastStats = notify?.lastStats;
+
   return (
     <RequireRole roles={["admin", "dev"]} loginNext="/devdashboard">
       <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
@@ -61,7 +92,7 @@ export default function DevDashboard() {
             <div>
               <h1 className="text-3xl font-bold text-zinc-100 mb-2">Dev Dashboard</h1>
               <p className="text-zinc-400">
-                Import control, maintenance windows, and sanitized logs. Not for external QA unless granted the <code className="text-amber-400">dev</code> role.
+                US verified catalog pipeline (8 PM scan → midnight merge), manual import triggers, and sanitized logs.
               </p>
             </div>
             <Button
@@ -74,6 +105,115 @@ export default function DevDashboard() {
               Refresh
             </Button>
           </div>
+
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="text-zinc-100 flex items-center gap-2">
+                <CalendarClock className="w-5 h-5 text-sky-400" />
+                Daily catalog pipeline (production)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-zinc-400">
+              {isLoading ? (
+                <Skeleton className="h-32" />
+              ) : (
+                <>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="rounded-lg border border-zinc-800 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-200 font-medium">8 PM scan (staging)</span>
+                        <StatusBadge
+                          active={pipeline?.scan?.inProgress}
+                          label={pipeline?.scan?.inProgress ? pipeline.scan.phase || "running" : "idle"}
+                        />
+                      </div>
+                      <p>{pipeline?.schedule?.scanCron}</p>
+                      {pipeline?.scan?.startedAt && <p>Started: {pipeline.scan.startedAt}</p>}
+                      {pipeline?.scan?.lastReportLine && (
+                        <p className="text-xs text-zinc-500 break-all">{pipeline.scan.lastReportLine}</p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-zinc-800 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-200 font-medium">Midnight merge (production)</span>
+                        <StatusBadge
+                          active={pipeline?.merge?.inProgress}
+                          label={pipeline?.merge?.inProgress ? pipeline.merge.phase || "running" : "idle"}
+                        />
+                      </div>
+                      <p>{pipeline?.schedule?.mergeCron}</p>
+                      {pipeline?.merge?.startedAt && <p>Started: {pipeline.merge.startedAt}</p>}
+                      {pipeline?.merge?.lastReportLine && (
+                        <p className="text-xs text-zinc-500 break-all">{pipeline.merge.lastReportLine}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {status?.mergePhases?.length > 0 && (
+                    <div>
+                      <p className="text-zinc-300 mb-2">Merge phases</p>
+                      <PhaseList phases={status.mergePhases} currentPhase={pipeline?.merge?.phase} />
+                    </div>
+                  )}
+
+                  <div className="grid md:grid-cols-3 gap-3 text-xs">
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">Staging cache</p>
+                      <p className="break-all">{pipeline?.staging?.latestCacheDir || "none"}</p>
+                      <p className="mt-1">
+                        Eros {pipeline?.staging?.erosRecords ?? "—"} · Tryst {pipeline?.staging?.trystRecords ?? "—"}
+                      </p>
+                    </div>
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">Caps</p>
+                      <p>
+                        {pipeline?.caps?.profilesPerCity}/city · {pipeline?.caps?.profilesPerState}/state (Eros)
+                      </p>
+                      <p>
+                        Tryst {pipeline?.caps?.trystMaxProfilesPerCity}/city · top{" "}
+                        {pipeline?.caps?.trystMaxCitiesPerState} cities/state
+                      </p>
+                      <p>
+                        Gate: {pipeline?.caps?.strictVerificationGate ? "P411/review required" : "off"} · review limit{" "}
+                        {pipeline?.caps?.reviewMatchLimit === 0 ? "∞" : pipeline?.caps?.reviewMatchLimit}
+                      </p>
+                    </div>
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">Last Hermes stats</p>
+                      {lastStats ? (
+                        <ul className="space-y-0.5">
+                          {lastStats.merge && (
+                            <li>
+                              Merge +{lastStats.merge.created ?? 0} / ~{lastStats.merge.updated ?? 0} upd
+                            </li>
+                          )}
+                          {lastStats.stagedR2 && (
+                            <li>R2 staged {lastStats.stagedR2.updated ?? 0}</li>
+                          )}
+                          {lastStats.review && (
+                            <li>
+                              Review {lastStats.review.matched}/{lastStats.review.scanned}
+                            </li>
+                          )}
+                        </ul>
+                      ) : (
+                        <p>No notify state on this host.</p>
+                      )}
+                      {notify?.lastRunAt && <p className="mt-1 text-zinc-500">Last run: {notify.lastRunAt}</p>}
+                    </div>
+                  </div>
+
+                  {status?.cron && (
+                    <div className="text-xs text-zinc-500 space-y-1 border-t border-zinc-800 pt-3">
+                      <p>Failsafe: {status.cron.failsafeCron}</p>
+                      <p>Manual triggers: {status.cron.orchestratorPoll}</p>
+                      <p>{pipeline?.legacyOrchestrator?.note}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
@@ -107,61 +247,52 @@ export default function DevDashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)
-            ) : (
-              SOURCES.map((source) => {
-                const row = status?.imports?.[source] ?? {};
-                const inProgress = Boolean(row.inProgress);
-                return (
-                  <Card key={source} className="bg-zinc-900 border-zinc-800">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-zinc-100 capitalize flex items-center justify-between">
-                        {source}
-                        <Badge className={inProgress ? "bg-amber-500/20 text-amber-400 border-0" : "bg-zinc-700 text-zinc-300 border-0"}>
-                          {inProgress ? "running" : row.state || "idle"}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-zinc-400">
-                      {row.lastRunAt && <p>Last run: {String(row.lastRunAt)}</p>}
-                      {row.finishedAt && <p>Finished: {String(row.finishedAt)}</p>}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="border-zinc-700 flex-1"
-                          disabled={triggerMutation.isPending || inProgress}
-                          onClick={() => triggerMutation.mutate({ source, mode: "pilot" })}
-                        >
-                          <Play className="w-3 h-3 mr-1" /> Pilot
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          disabled={triggerMutation.isPending || inProgress}
-                          onClick={() => triggerMutation.mutate({ source, mode: "full" })}
-                        >
-                          <Server className="w-3 h-3 mr-1" /> Full
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Manual import triggers (legacy)</h2>
+            <div className="grid md:grid-cols-3 gap-4">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)
+              ) : (
+                MANUAL_SOURCES.map((source) => {
+                  const row = status?.imports?.[source] ?? {};
+                  const inProgress = Boolean(row.inProgress);
+                  return (
+                    <Card key={source} className="bg-zinc-900 border-zinc-800">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-zinc-100 capitalize flex items-center justify-between">
+                          {source}
+                          <StatusBadge active={inProgress} label={inProgress ? "queued" : row.state || "idle"} />
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3 text-sm text-zinc-400">
+                        {row.lastRunAt && <p>Last run: {String(row.lastRunAt)}</p>}
+                        {row.finishedAt && <p>Finished: {String(row.finishedAt)}</p>}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-zinc-700 flex-1"
+                            disabled={triggerMutation.isPending || inProgress}
+                            onClick={() => triggerMutation.mutate({ source, mode: "pilot" })}
+                          >
+                            <Play className="w-3 h-3 mr-1" /> Pilot
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            disabled={triggerMutation.isPending || inProgress}
+                            onClick={() => triggerMutation.mutate({ source, mode: "full" })}
+                          >
+                            <Server className="w-3 h-3 mr-1" /> Full
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </div>
-
-          {status?.cron && (
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardContent className="pt-6 text-sm text-zinc-400">
-                <p>Orchestrator poll: {status.cron.orchestratorPoll}</p>
-                <p>Eros reconcile: {status.cron.erosReconcile}</p>
-                <p>Tryst import: {status.cron.trysImport}</p>
-              </CardContent>
-            </Card>
-          )}
 
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
@@ -172,12 +303,14 @@ export default function DevDashboard() {
             </CardHeader>
             <CardContent>
               <Tabs value={logSource} onValueChange={setLogSource}>
-                <TabsList className="bg-zinc-950 border border-zinc-800 mb-4">
-                  {SOURCES.map((source) => (
-                    <TabsTrigger key={source} value={source} className="capitalize">{source}</TabsTrigger>
+                <TabsList className="bg-zinc-950 border border-zinc-800 mb-4 flex-wrap h-auto">
+                  {LOG_SOURCES.map((source) => (
+                    <TabsTrigger key={source} value={source} className="capitalize">
+                      {source}
+                    </TabsTrigger>
                   ))}
                 </TabsList>
-                {SOURCES.map((source) => (
+                {LOG_SOURCES.map((source) => (
                   <TabsContent key={source} value={source}>
                     {logsLoading ? (
                       <Skeleton className="h-48" />
@@ -195,8 +328,10 @@ export default function DevDashboard() {
           <div className="flex items-start gap-2 text-sm text-zinc-500">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
-              Triggers write request files under <code>/var/run/lboutiquevip/</code>; the orchestrator cron picks them up within one minute.
-              Do not trigger full imports during active Eros cron unless intentional.
+              Production catalog updates run automatically: <strong className="text-zinc-400">8 PM</strong> cache-only
+              scan (Eros + Tryst, P411/review gate) then <strong className="text-zinc-400">midnight</strong> merge to
+              DB, staged R2, reconcile, review match, dedupe, and full Eros/Tryst photo refresh. Manual triggers below
+              write request files under <code>/var/run/lboutiquevip/</code> for the orchestrator poller.
             </p>
           </div>
         </div>
