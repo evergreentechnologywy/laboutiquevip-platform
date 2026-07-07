@@ -13,6 +13,10 @@ import {
 } from "./lib/eros-location.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
 import {
+  extractContactAndSocialFromMarkdown,
+  mergeImportedSocial,
+} from "./lib/extract-social-links.mjs";
+import {
   mergeVerificationFields,
   passesImportGate,
   resolveProviderVerification,
@@ -294,12 +298,11 @@ function buildProviderPayload(profile, existing = null) {
     photos: mergedPhotos,
     verification_provider: "eros",
     verification_url: profile.sourceUrl,
-    social_media: {
-      ...existingSocial,
+    social_media: mergeImportedSocial(existingSocial, profile.socialExtract, {
       eros_profile: profile.sourceUrl,
       eros_source: "r.jina.ai",
       eros_state_wide,
-    },
+    }),
     ad_headline: profile.tagline ?? existing?.ad_headline ?? profile.display_name ?? null,
     ad_body: profile.bio ?? existing?.ad_body ?? null,
     status: existing?.status ?? "active",
@@ -320,6 +323,11 @@ async function importProfile(profile, markdown = "") {
     return;
   }
   if (!prisma) throw new Error("DATABASE_URL is required for live import.");
+
+  const contactExtract = extractContactAndSocialFromMarkdown(markdown);
+  profile.phone = profile.phone || contactExtract.phone;
+  profile.email = profile.email || contactExtract.email;
+  profile.socialExtract = contactExtract.social_media;
 
   const existing = await findExistingByErosUrl(profile.sourceUrl);
   profile.verification = await resolveProviderVerification({

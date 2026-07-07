@@ -32,6 +32,13 @@ import { knownHostAffiliateUrl, stripeAffiliateUrl } from "@/lib/affiliateLinks"
 import { adPackages, getAdPackageById, formatPackagePrice, getPackageProductSku } from "@/lib/adPackages";
 import { getPackageLifecycleDisplay } from "@/lib/packageLifecycle";
 import { normalizeOptionalUrl } from "@/lib/providerPresentation";
+import {
+  DIRECTORY_LINK_FIELDS,
+  buildSocialMediaPayload,
+  emptySocialMedia,
+  SOCIAL_LINK_FIELDS,
+  socialMediaFromProvider,
+} from "@/lib/socialLinks";
 import { SEO } from "@/components/SEO";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 import { RequireRole } from "@/components/RequireRole";
@@ -53,6 +60,12 @@ const emptyProfile = {
   review_username: "",
   review_url: "",
   video_url: "",
+  p411_url: "",
+  p411_id: "",
+  ter_url: "",
+  pd_url: "",
+  tob_url: "",
+  social_media: emptySocialMedia(),
   rate_hourly: "",
   ad_package: "none",
 };
@@ -179,6 +192,7 @@ export default function ProviderDashboard() {
           setFormData({
             ...emptyProfile,
             ...currentProvider,
+            social_media: socialMediaFromProvider(currentProvider),
             age: currentProvider.age ?? "",
             rate_hourly: currentProvider.rate_hourly ?? "",
           });
@@ -209,6 +223,7 @@ export default function ProviderDashboard() {
     setFormData({
       ...emptyProfile,
       ...savedProvider,
+      social_media: socialMediaFromProvider(savedProvider),
       age: savedProvider.age ?? "",
       rate_hourly: savedProvider.rate_hourly ?? "",
     });
@@ -305,6 +320,16 @@ export default function ProviderDashboard() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleSocialChange = (key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      social_media: {
+        ...(prev.social_media && typeof prev.social_media === "object" ? prev.social_media : emptySocialMedia()),
+        [key]: value,
+      },
+    }));
+  };
+
   const handleSaveProfile = () => {
     if (!user) return;
 
@@ -333,6 +358,12 @@ export default function ProviderDashboard() {
       review_username: normalizeOptionalString(formData.review_username),
       review_url: normalizeOptionalUrl(formData.review_url),
       video_url: normalizeOptionalUrl(formData.video_url),
+      p411_url: normalizeOptionalUrl(formData.p411_url),
+      p411_id: normalizeOptionalString(formData.p411_id),
+      ter_url: normalizeOptionalUrl(formData.ter_url),
+      pd_url: normalizeOptionalUrl(formData.pd_url),
+      tob_url: normalizeOptionalUrl(formData.tob_url),
+      social_media: buildSocialMediaPayload(formData.social_media, provider?.social_media),
       rate_hourly: normalizeOptionalNumber(formData.rate_hourly),
       photos: Array.isArray(formData.photos) ? formData.photos.filter(Boolean).slice(0, MAX_PROVIDER_PHOTOS) : [],
       pending_photos: Array.isArray(formData.pending_photos)
@@ -701,6 +732,51 @@ export default function ProviderDashboard() {
 
                 <div className="grid md:grid-cols-1 gap-6">
                   <Field label="Video URL (YouTube, Vimeo, etc.)"><Input value={formData.video_url || ""} onChange={(e) => handleChange("video_url", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="https://www.youtube.com/watch?v=..." /></Field>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5 space-y-6">
+                  <div>
+                    <h3 className="font-medium text-zinc-100">Social & messaging links</h3>
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      Add public social profiles and messaging links shown on your listing — Instagram, OnlyFans, WhatsApp, Telegram, Linktree, and similar.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {SOCIAL_LINK_FIELDS.map(({ key, label, placeholder }) => (
+                      <Field key={key} label={label}>
+                        <Input
+                          value={formData.social_media?.[key] || ""}
+                          onChange={(e) => handleSocialChange(key, e.target.value)}
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder={placeholder}
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5 space-y-4">
+                  <div>
+                    <h3 className="font-medium text-zinc-100">Directory profile links</h3>
+                    <p className="mt-1 text-sm leading-6 text-zinc-400">
+                      Optional links to review or verification directories (P411, TER, PrivateDelights, TheOtherBoard).
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="P411 profile ID">
+                      <Input value={formData.p411_id || ""} onChange={(e) => handleChange("p411_id", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="P123456" />
+                    </Field>
+                    {DIRECTORY_LINK_FIELDS.map(({ key, label, placeholder }) => (
+                      <Field key={key} label={label}>
+                        <Input
+                          value={formData[key] || ""}
+                          onChange={(e) => handleChange(key, e.target.value)}
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder={placeholder}
+                        />
+                      </Field>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">

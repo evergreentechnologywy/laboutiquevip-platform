@@ -20,6 +20,10 @@ import {
   titleCaseWords,
 } from "./lib/tryst-location.mjs";
 import {
+  extractContactAndSocialFromMarkdown,
+  mergeImportedSocial,
+} from "./lib/extract-social-links.mjs";
+import {
   mergeVerificationFields,
   passesImportGate,
   resolveProviderVerification,
@@ -169,6 +173,10 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
   const location_city = profile.location_city ?? cityMeta.cityName;
   const location_state = profile.location_state ?? cityMeta.stateAbbrev;
 
+  const contactExtract = extractContactAndSocialFromMarkdown(markdown);
+  profile.phone = profile.phone || contactExtract.phone;
+  profile.email = profile.email || contactExtract.email;
+
   const existing = await prisma.provider.findFirst({
     where: {
       OR: [
@@ -201,11 +209,14 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     verification_provider: "tryst",
     verification_url: profile.sourceUrl,
     verification_username: profile.slug,
-    social_media: {
-      ...(existing?.social_media && typeof existing.social_media === "object" ? existing.social_media : {}),
-      tryst_profile: profile.sourceUrl,
-      tryst_slug: profile.slug,
-    },
+    social_media: mergeImportedSocial(
+      existing?.social_media && typeof existing.social_media === "object" ? existing.social_media : {},
+      contactExtract.social_media,
+      {
+        tryst_profile: profile.sourceUrl,
+        tryst_slug: profile.slug,
+      },
+    ),
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,

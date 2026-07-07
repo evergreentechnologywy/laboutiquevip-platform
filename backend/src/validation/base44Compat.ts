@@ -36,6 +36,13 @@ const providerEditableFields = {
   verification_documents: z.array(z.string().max(2000)).max(25).optional(),
   photos: z.array(z.string().max(2000)).max(50).optional(),
   pending_photos: z.array(z.string().max(2000)).max(50).optional(),
+  video_url: z.string().url().max(2000).optional().nullable(),
+  social_media: z.record(z.string().max(500)).optional().nullable(),
+  ter_url: z.string().url().max(2000).optional().nullable(),
+  pd_url: z.string().url().max(2000).optional().nullable(),
+  tob_url: z.string().url().max(2000).optional().nullable(),
+  p411_url: z.string().url().max(2000).optional().nullable(),
+  p411_id: z.string().max(50).optional().nullable(),
   status: z.string().max(80).optional(),
   is_premium: z.boolean().optional(),
 };

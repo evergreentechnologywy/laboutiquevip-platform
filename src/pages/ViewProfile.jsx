@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Phone, Mail, Globe, Check, Instagram, Twitter, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video } from "lucide-react";
+import { Star, Shield, Crown, MapPin, Check, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
+import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
 import { SEO } from "@/components/SEO";
 import { Link } from "react-router-dom";
 import {
@@ -133,9 +134,6 @@ export default function ViewProfile() {
       </div>
     );
   }
-
-  const maskedPhone = provider.phone ? provider.phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2") : "";
-  const maskedEmail = provider.email ? provider.email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -467,34 +465,7 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact Details */}
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardHeader>
-                <CardTitle className="text-zinc-100">Contact Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {provider.phone && (
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Phone className="w-4 h-4" />
-                    <span className="text-sm">{maskedPhone} (Masked for privacy)</span>
-                  </div>
-                )}
-                {provider.email && (
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Mail className="w-4 h-4" />
-                    <span className="text-sm">{maskedEmail} (Masked for privacy)</span>
-                  </div>
-                )}
-                {provider.website && (
-                  <div className="flex items-center gap-2 text-zinc-400">
-                    <Globe className="w-4 h-4" />
-                    <a href={provider.website} target="_blank" rel="noopener noreferrer" className="text-sm hover:text-rose-400 transition-colors">
-                      Website
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ProviderContactAndSocial provider={provider} />
 
             {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
               <Card className="bg-zinc-900 border-zinc-800">
@@ -564,38 +535,6 @@ export default function ViewProfile() {
               </Card>
             )}
 
-            {/* Social Media */}
-            {(provider.social_media?.instagram || provider.social_media?.twitter) && (
-              <Card className="bg-zinc-900 border-zinc-800">
-                <CardHeader>
-                  <CardTitle className="text-zinc-100">Social Media</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {provider.social_media.instagram && (
-                    <a
-                      href={`https://instagram.com/${provider.social_media.instagram}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      <span className="text-sm">@{provider.social_media.instagram}</span>
-                    </a>
-                  )}
-                  {provider.social_media.twitter && (
-                    <a
-                      href={`https://twitter.com/${provider.social_media.twitter}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-zinc-400 hover:text-rose-400 transition-colors"
-                    >
-                      <Twitter className="w-4 h-4" />
-                      <span className="text-sm">@{provider.social_media.twitter}</span>
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
