@@ -132,13 +132,21 @@ function parseProfilePage(markdown, profileUrl) {
   ];
   const photos = [...new Set(photoMatches.map((m) => m[0]))].slice(0, 24);
 
-  const locationLine = markdown.match(/(?:located in|based in|location)[:\s]*([^\n|]+)/i);
+  const locationLine = markdown.match(
+    /(?:located in|based in|location)\s*[:\-]?\s*([A-Za-z][A-Za-z\s.'-]{1,48},\s*[A-Za-z]{2,24})\b/i,
+  );
   let location_city = null;
   let location_state = null;
   if (locationLine) {
     const parts = locationLine[1].split(",").map((p) => cleanText(p));
-    location_city = parts[0] || null;
-    location_state = parts[1]?.toUpperCase() ?? null;
+    const maybeCity = parts[0] || null;
+    const maybeState = parts[1] ? parts[1].trim().toUpperCase() : null;
+    if (maybeCity && maybeCity.length <= 48 && !/https?:\/\//i.test(maybeCity)) {
+      location_city = maybeCity;
+    }
+    if (maybeState && /^[A-Z]{2}$/.test(maybeState)) {
+      location_state = maybeState;
+    }
   }
 
   return {
@@ -160,8 +168,15 @@ async function upsertTrystProvider(profile, cityMeta) {
     return;
   }
 
-  const location_city = profile.location_city ?? cityMeta.cityName;
-  const location_state = profile.location_state ?? cityMeta.stateAbbrev;
+  const parsedState =
+    profile.location_state && /^[A-Z]{2}$/.test(profile.location_state) ? profile.location_state : null;
+  const parsedCity =
+    profile.location_city && profile.location_city.length <= 48 && !/https?:\/\//i.test(profile.location_city)
+      ? profile.location_city
+      : null;
+
+  const location_city = parsedCity ?? cityMeta.cityName;
+  const location_state = parsedState ?? cityMeta.stateAbbrev;
 
   const existing = await prisma.provider.findFirst({
     where: {

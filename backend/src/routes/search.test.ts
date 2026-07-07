@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchProvidersHandler, searchLocationsHandler } from "./search.js";
+import { searchProvidersHandler, searchLocationsHandler, clearSearchLocationsCache } from "./search.js";
 
 function makeReq(
   pathname: string,
@@ -96,4 +96,27 @@ test("searchLocationsHandler returns hierarchical states with cities", async () 
   assert.equal(florida.cities.length, 2);
   const miami = florida.cities.find((c) => c.slug === "miami");
   assert.equal(miami?.count, 2);
+});
+
+test("searchLocationsHandler drops invalid Tryst-scraped state garbage", async () => {
+  clearSearchLocationsCache();
+  const prisma = {
+    $queryRaw: async () => [{ id: "p1" }],
+    provider: {
+      findMany: async () => [
+        { location_state: "FL", location_city: "Miami" },
+        {
+          location_state: "AND VERY EASY TO TEMPT ONTO A PLANE",
+          location_city: "London",
+        },
+        { location_state: "CA", location_city: "Los Angeles" },
+      ],
+    },
+  };
+
+  const res = await searchLocationsHandler(makeReq("/api/v1/search/locations"), { prisma });
+  const body = res.body as { states: Array<{ code: string }> };
+  assert.equal(body.states.length, 2);
+  assert.ok(body.states.some((s) => s.code === "FL"));
+  assert.ok(body.states.some((s) => s.code === "CA"));
 });

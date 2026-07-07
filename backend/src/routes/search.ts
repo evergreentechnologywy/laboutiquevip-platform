@@ -3,7 +3,14 @@ import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders, buildPublicPhotoSearchFilter } from "./providerVisibility.js";
-import { buildLocationFilter, suggestLocationQueries, resolveStateAbbrev, slugify, stateDisplayName } from "../lib/locationMatch.js";
+import {
+  buildLocationFilter,
+  suggestLocationQueries,
+  normalizeUsStateAbbrev,
+  slugify,
+  stateDisplayName,
+  titleCaseWords,
+} from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
 
 interface SearchRouteContext {
@@ -292,10 +299,14 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
       const rawCity = String(row.location_city || "").trim();
       if (!rawState || !rawCity) continue;
 
-      const code = resolveStateAbbrev(rawState) ?? rawState.toUpperCase();
+      const code = normalizeUsStateAbbrev(rawState);
+      if (!code) continue;
+      if (rawCity.length > 80 || /https?:\/\//i.test(rawCity)) continue;
+
       const stateName = stateDisplayName(code);
       const citySlug = slugify(rawCity);
-      const cityName = rawCity;
+      if (!citySlug || citySlug.length > 80) continue;
+      const cityName = titleCaseWords(rawCity);
 
       const stateEntry = stateMap.get(code) ?? { name: stateName, count: 0, cities: new Map<string, LocationCityRow>() };
       stateEntry.count += 1;
