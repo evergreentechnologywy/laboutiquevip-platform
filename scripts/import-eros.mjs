@@ -25,6 +25,12 @@ import {
   providerHasVerificationBadge,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
+import {
+  appendCacheRecord,
+  defaultDatedCacheDir,
+  initCacheDir,
+  resolveCacheDir,
+} from "./lib/catalog-scan-cache.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
@@ -37,8 +43,22 @@ const args = new Map(
   }),
 );
 
+const cacheOnly =
+  args.has("cache-only") ||
+  Boolean(process.env.CATALOG_SCAN_CACHE_DIR || process.env.LBV_CATALOG_SCAN_CACHE);
+const cacheDir = cacheOnly
+  ? resolveCacheDir(
+      args.get("cache-dir") ??
+        process.env.CATALOG_SCAN_CACHE_DIR ??
+        process.env.LBV_CATALOG_SCAN_CACHE ??
+        defaultDatedCacheDir(),
+    )
+  : null;
+
 const options = {
   dryRun: args.has("dry-run"),
+  cacheOnly,
+  cacheDir,
   delayMs: Number(args.get("delay-ms") ?? "600"),
   maxPages: parseImportLimit(args.get("max-pages") ?? process.env.EROS_MAX_PAGES, 15000),
   maxProfiles: parseImportLimit(args.get("max-profiles"), 0),
@@ -77,6 +97,7 @@ const stats = {
   profilesParsed: 0,
   created: 0,
   updated: 0,
+  cached: 0,
   skipped: 0,
   skippedNoVerification: 0,
   verificationCacheHits: 0,
@@ -354,17 +375,31 @@ async function importProfile(profile, markdown = "") {
     return;
   }
 
+  const data = buildProviderPayload(profile, existing ?? null);
+
+  if (options.cacheOnly && options.cacheDir) {
+    appendCacheRecord(options.cacheDir, "eros", {
+      source: "eros",
+      sourceUrl: profile.sourceUrl,
+      existingId: existing?.id ?? null,
+      payload: data,
+      scrapedAt: new Date().toISOString(),
+    });
+    stats.cached += 1;
+    if (existing) stats.updated += 1;
+    else stats.created += 1;
+    return;
+  }
+
   if (existing) {
     stats.updated += 1;
     if (options.dryRun) return;
-    const data = buildProviderPayload(profile, existing);
     await prisma.provider.update({ where: { id: existing.id }, data });
     return;
   }
 
   stats.created += 1;
   if (options.dryRun) return;
-  const data = buildProviderPayload(profile, null);
   await prisma.provider.create({
     data: {
       ...data,
@@ -581,7 +616,13 @@ async function run() {
       `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} db=${hasDatabaseUrl ? "on" : "off"}`,
   );
 
-  if (!prisma && !options.dryRun) throw new Error("DATABASE_URL is required for live import mode.");
+  if (!prisma && !options.dryRun && !options.cacheOnly) {
+    throw new Error("DATABASE_URL is required for live import mode.");
+  }
+  if (options.cacheOnly && options.cacheDir) {
+    initCacheDir(options.cacheDir);
+    console.log(`[import-eros] cache-only mode dir=${options.cacheDir}`);
+  }
 
   const profileUrls = await crawlProfileUrls();
   let toProcess = profileUrls;

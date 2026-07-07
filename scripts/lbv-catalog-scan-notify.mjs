@@ -57,8 +57,22 @@ function parseReviewMatch(text) {
   return { scanned: Number(m[1]), matched: Number(m[2]) };
 }
 
+function parseMergeBlock(text) {
+  const idx = text.lastIndexOf("[merge-cache] complete");
+  if (idx < 0) return null;
+  const slice = text.slice(idx);
+  const match = slice.match(/\{[\s\S]*?\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
 function summarizeLog(text) {
   const eros = parseImportBlock(text, "[import-eros] complete");
+  const merge = parseMergeBlock(text);
   const trystLine = text.split("\n").reverse().find((l) => l.includes("skippedNoVerification"));
   let tryst = null;
   if (trystLine) {
@@ -73,6 +87,7 @@ function summarizeLog(text) {
   }
   return {
     eros,
+    merge,
     tryst,
     review: parseReviewMatch(text),
   };
@@ -80,6 +95,11 @@ function summarizeLog(text) {
 
 function formatStats(stats) {
   const lines = [];
+  if (stats.merge) {
+    lines.push(
+      `Merge: +${stats.merge.created ?? 0} new, ${stats.merge.updated ?? 0} updated, ${stats.merge.errors ?? 0} errors`,
+    );
+  }
   if (stats.eros) {
     lines.push(
       `Eros: +${stats.eros.created ?? 0} new, ${stats.eros.updated ?? 0} updated, ${stats.eros.skippedNoVerification ?? 0} gate-skip`,
@@ -113,25 +133,38 @@ async function main() {
   };
 
   let headline;
-  if (ok && !prior.firstFullScanNotified) {
-    headline = "✅ <b>LBV first full US verified catalog scan complete</b>";
+  const phase = args.get("phase") ?? "scan";
+
+  if (!ok) {
+    headline =
+      phase === "merge"
+        ? "⚠️ <b>LBV production catalog merge failed</b>"
+        : "⚠️ <b>LBV catalog scan failed</b>";
+  } else if (phase === "merge" && !prior.firstFullScanNotified) {
+    headline = "✅ <b>LBV first full US verified catalog merge complete</b>";
     next.firstFullScanNotified = true;
     next.firstFullScanCompletedAt = now;
-  } else if (ok) {
-    headline = "🔄 <b>LBV catalog scan cycle complete</b>";
+  } else if (phase === "merge") {
+    headline = "🌙 <b>LBV production catalog merge complete</b>";
+  } else if (phase === "scan") {
+    headline = "📡 <b>LBV catalog scan staged (8 PM)</b>";
   } else {
-    headline = "⚠️ <b>LBV catalog scan failed</b>";
+    headline = "🔄 <b>LBV catalog scan cycle complete</b>";
   }
 
   const scheduleNote =
     process.env.CATALOG_SCAN_SCHEDULE_NOTE ??
-    "Next scan daily ~00:30 America/Denver (after site midnight maintenance).";
+    (phase === "scan"
+      ? "Staged for production merge at midnight America/Denver. Live site unchanged until then."
+      : "Next scan 8:00 PM America/Denver; production merge at midnight.");
   const msg =
     `${headline}\n` +
     `⏱️ ${now.replace("T", " ").slice(0, 19)} UTC\n` +
     `Run #${next.runCount} · exit ${exitCode}\n\n` +
     `${formatStats(stats)}\n\n` +
-    (ok ? `${scheduleNote} Incremental verification cache on reruns.` : "Check /var/log/laboutiquevip/us-verified-catalog-scan.log");
+    (ok ? `${scheduleNote} Incremental verification cache on reruns.` : phase === "merge"
+      ? "Check /var/log/laboutiquevip/us-verified-catalog-merge.log"
+      : "Check /var/log/laboutiquevip/us-verified-catalog-scan.log");
 
   writeState(next);
   const sent = await hermesTelegramNotify(msg);

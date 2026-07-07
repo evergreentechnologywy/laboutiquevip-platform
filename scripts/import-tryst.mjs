@@ -25,6 +25,12 @@ import {
   resolveTrystTargetCities,
 } from "./lib/tryst-crawl.mjs";
 import {
+  appendCacheRecord,
+  defaultDatedCacheDir,
+  initCacheDir,
+  resolveCacheDir,
+} from "./lib/catalog-scan-cache.mjs";
+import {
   mergeVerificationFields,
   passesImportGate,
   providerHasVerificationBadge,
@@ -35,6 +41,23 @@ const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
 const pilotOnly = process.argv.includes("--pilot-only");
+const args = new Map(
+  process.argv.slice(2).map((arg) => {
+    const [k, v = "true"] = arg.replace(/^--/, "").split("=");
+    return [k, v];
+  }),
+);
+const cacheOnly =
+  args.has("cache-only") ||
+  Boolean(process.env.CATALOG_SCAN_CACHE_DIR || process.env.LBV_CATALOG_SCAN_CACHE);
+const cacheDir = cacheOnly
+  ? resolveCacheDir(
+      args.get("cache-dir") ??
+        process.env.CATALOG_SCAN_CACHE_DIR ??
+        process.env.LBV_CATALOG_SCAN_CACHE ??
+        defaultDatedCacheDir(),
+    )
+  : null;
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -58,6 +81,7 @@ const stats = {
   profilesParsed: 0,
   created: 0,
   updated: 0,
+  cached: 0,
   skipped: 0,
   skippedNoVerification: 0,
   verificationCacheHits: 0,
@@ -200,8 +224,22 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     ...mergeVerificationFields(existing, verification),
   };
 
-  if (dryRun) {
+  if (dryRun && !cacheOnly) {
     stats.skipped += 1;
+    return;
+  }
+
+  if (cacheOnly && cacheDir) {
+    appendCacheRecord(cacheDir, "tryst", {
+      source: "tryst",
+      sourceUrl: profile.sourceUrl,
+      existingId: existing?.id ?? null,
+      payload,
+      scrapedAt: new Date().toISOString(),
+    });
+    stats.cached += 1;
+    if (existing) stats.updated += 1;
+    else stats.created += 1;
     return;
   }
 
@@ -251,8 +289,12 @@ async function importCity(stateSlug, citySlug) {
 }
 
 async function main() {
+  if (cacheOnly && cacheDir) {
+    initCacheDir(cacheDir);
+    console.log(`Tryst import cache-only dir=${cacheDir}`);
+  }
   console.log(
-    `Tryst import start pilotOnly=${pilotOnly} dryRun=${dryRun} ` +
+    `Tryst import start pilotOnly=${pilotOnly} dryRun=${dryRun} cacheOnly=${cacheOnly} ` +
       `profilesPerCity=${formatCap(crawlLimits.maxProfilesPerCity)} ` +
       `citiesPerState=${formatCap(crawlLimits.maxCitiesPerState)}`,
   );

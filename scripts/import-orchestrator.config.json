@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Midnight Central import window — safe catalog refresh without breaking browse",
+  "description": "Legacy midnight orchestrator — production merge now runs via run-us-verified-catalog-merge.sh at midnight America/Denver",
   "flagPath": "/var/run/lboutiquevip/import-in-progress",
   "logDir": "/var/log/laboutiquevip",
   "maxWindowMinutes": 180,
