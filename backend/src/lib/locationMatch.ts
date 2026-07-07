@@ -156,6 +156,19 @@ export function resolveStateAbbrev(raw: string): string | null {
   return SLUG_TO_ABBREV[slug] ?? SLUG_TO_ABBREV[text.toLowerCase()] ?? null;
 }
 
+/** True when value resolves to a known US state/DC abbrev (excludes garbage scraped into location_state). */
+export function isValidUsStateAbbrev(raw: string): boolean {
+  const code = resolveStateAbbrev(raw);
+  return Boolean(code && ABBREV_TO_NAMES[code]);
+}
+
+/** Normalize to a 2-letter US state code, or null when not recognizable. */
+export function normalizeUsStateAbbrev(raw: string): string | null {
+  const code = resolveStateAbbrev(raw);
+  if (!code || !ABBREV_TO_NAMES[code]) return null;
+  return code;
+}
+
 export function resolveStateFromCity(city: string): string | null {
   const key = String(city || "")
     .toLowerCase()
