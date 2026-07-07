@@ -19,6 +19,11 @@ import {
   parseTrystProfileUrl,
   titleCaseWords,
 } from "./lib/tryst-location.mjs";
+import {
+  mergeVerificationFields,
+  passesImportGate,
+  resolveProviderVerification,
+} from "./lib/verification-match.mjs";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
 const MAX_PROFILES_PER_CITY = Number(process.env.TRYST_MAX_PROFILES_PER_CITY ?? "25");
@@ -50,6 +55,7 @@ const stats = {
   created: 0,
   updated: 0,
   skipped: 0,
+  skippedNoVerification: 0,
   errors: 0,
 };
 
@@ -154,7 +160,7 @@ function parseProfilePage(markdown, profileUrl) {
   };
 }
 
-async function upsertTrystProvider(profile, cityMeta) {
+async function upsertTrystProvider(profile, cityMeta, markdown = "") {
   if (!prisma) {
     stats.skipped += 1;
     return;
@@ -171,6 +177,17 @@ async function upsertTrystProvider(profile, cityMeta) {
       ],
     },
   });
+
+  const verification = await resolveProviderVerification({
+    phone: profile.phone,
+    email: profile.email,
+    markdown,
+  });
+
+  if (!passesImportGate(existing, verification)) {
+    stats.skippedNoVerification += 1;
+    return;
+  }
 
   const payload = {
     display_name: profile.displayName || existing?.display_name || "Tryst Provider",
@@ -192,6 +209,7 @@ async function upsertTrystProvider(profile, cityMeta) {
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,
+    ...mergeVerificationFields(existing, verification),
   };
 
   if (dryRun) {
@@ -237,7 +255,7 @@ async function importCity(stateSlug, citySlug) {
     }
     stats.profilesParsed += 1;
     try {
-      await upsertTrystProvider(profile, cityMeta);
+      await upsertTrystProvider(profile, cityMeta, profileText);
     } catch {
       stats.errors += 1;
     }
@@ -278,6 +296,7 @@ async function main() {
   console.log(`created: ${stats.created}`);
   console.log(`updated: ${stats.updated}`);
   console.log(`skipped: ${stats.skipped}`);
+  console.log(`skippedNoVerification: ${stats.skippedNoVerification}`);
   console.log(`errors: ${stats.errors}`);
   console.log(`elapsedSeconds: ${Math.round(process.uptime())}`);
 }

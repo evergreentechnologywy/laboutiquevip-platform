@@ -379,6 +379,10 @@ model Provider {
   review_site_rating     Float?
   review_site_count      Int?
   review_matched_at      DateTime?
+  p411_url               String?
+  p411_id                String?
+  p411_verified_at       DateTime?
+  review_verified_at     DateTime?
   ad_package             String?  @default("none")
   ad_package_expiry      String?
   ad_package_started_at  String?

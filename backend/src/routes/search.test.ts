@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { searchProvidersHandler, searchLocationsHandler } from "./search.js";
+import { browseVerifiedFilterWhere } from "../lib/verificationBadges.js";
 
 function makeReq(
   pathname: string,
@@ -58,7 +59,7 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
     id: { in: ["provider-with-photos"] },
   });
   assert.deepEqual(seenFindManyArgs.where.AND.slice(2), [
-    { is_verified: true },
+    browseVerifiedFilterWhere(),
     { OR: [{ is_premium: true }, { ad_package: "elite" }] },
     { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
   ]);

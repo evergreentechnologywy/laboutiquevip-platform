@@ -12,6 +12,11 @@ import {
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
+import {
+  mergeVerificationFields,
+  passesImportGate,
+  resolveProviderVerification,
+} from "./lib/verification-match.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -60,6 +65,7 @@ const stats = {
   created: 0,
   updated: 0,
   skipped: 0,
+  skippedNoVerification: 0,
   errors: 0,
 };
 
@@ -299,10 +305,11 @@ function buildProviderPayload(profile, existing = null) {
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,
+    ...mergeVerificationFields(existing, profile.verification),
   };
 }
 
-async function importProfile(profile) {
+async function importProfile(profile, markdown = "") {
   if (!profile.display_name || (!profile.phone && !profile.email)) {
     stats.skipped += 1;
     return;
@@ -315,6 +322,17 @@ async function importProfile(profile) {
   if (!prisma) throw new Error("DATABASE_URL is required for live import.");
 
   const existing = await findExistingByErosUrl(profile.sourceUrl);
+  profile.verification = await resolveProviderVerification({
+    phone: profile.phone,
+    email: profile.email,
+    markdown,
+  });
+
+  if (!passesImportGate(existing, profile.verification)) {
+    stats.skippedNoVerification += 1;
+    return;
+  }
+
   if (existing) {
     stats.updated += 1;
     if (options.dryRun) return;
@@ -554,7 +572,7 @@ async function run() {
       stats.profilePages += 1;
       const profile = parseProfile(markdown, profileUrl);
       stats.profilesParsed += 1;
-      await importProfile(profile);
+      await importProfile(profile, markdown);
     } catch (err) {
       stats.errors += 1;
       console.error(`[import-eros] error ${profileUrl}: ${String(err)}`);

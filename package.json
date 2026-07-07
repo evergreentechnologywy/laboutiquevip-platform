@@ -27,7 +27,10 @@
     "import:tryst": "node ./scripts/import-tryst.mjs",
     "import:tryst:dry": "node ./scripts/import-tryst.mjs --dry-run",
     "reconcile:tryst": "node ./scripts/reconcile-tryst.mjs",
-    "match:reviews": "node ./scripts/match-review-profiles.mjs"
+    "match:reviews": "node ./scripts/match-review-profiles.mjs",
+    "enforce:verification-gate": "node ./scripts/enforce-verification-gate.mjs",
+    "enforce:verification-gate:dry": "node ./scripts/enforce-verification-gate.mjs --dry-run",
+    "test:verification-match": "node --test scripts/lib/verification-match.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1020.0",

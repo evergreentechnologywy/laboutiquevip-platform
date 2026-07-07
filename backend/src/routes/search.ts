@@ -3,6 +3,7 @@ import { ZodError, z } from "zod";
 import { formatValidationErrors, searchModelsQuerySchema } from "../validation/models.js";
 import { buildSearchModelFilters } from "./searchFilters.js";
 import { publicProviderVisibilityWhere, publicSearchCacheHeaders, buildPublicPhotoSearchFilter } from "./providerVisibility.js";
+import { browseVerifiedFilterWhere } from "../lib/verificationBadges.js";
 import { buildLocationFilter, suggestLocationQueries, resolveStateAbbrev, slugify, stateDisplayName } from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
 
@@ -130,7 +131,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       if (locationFilter) andFilters.push(locationFilter);
     }
 
-    if (query.verified) andFilters.push({ is_verified: true });
+    if (query.verified) andFilters.push(browseVerifiedFilterWhere());
     if (query.premium) {
       andFilters.push({
         OR: [{ is_premium: true }, { ad_package: "elite" }],
@@ -178,6 +179,13 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           review_provider: true,
           review_username: true,
           review_url: true,
+          p411_url: true,
+          p411_id: true,
+          p411_verified_at: true,
+          ter_url: true,
+          tob_url: true,
+          pd_url: true,
+          review_verified_at: true,
           photos: true,
           tour_plan: true,
           ad_headline: true,

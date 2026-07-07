@@ -1,3 +1,5 @@
+import { publicVerificationBadgeWhere } from "../lib/verificationBadges.js";
+
 /** Sources shown on public browse (import pipelines set verification_provider). */
 export const PUBLIC_VERIFICATION_PROVIDERS = ["eros", "evergreen", "tryst"] as const;
 
@@ -94,19 +96,24 @@ export function publicProviderVisibilityWhere(): Record<string, unknown> {
     ...((buildTestDataExclusion().OR as Record<string, unknown>[]) ?? []),
   ];
 
+  const andFilters: Record<string, unknown>[] = [
+    {
+      OR: [
+        { ad_package_expiry: null },
+        { ad_package_expiry: { gte: new Date().toISOString() } },
+        { ad_package: "none" },
+      ],
+    },
+    { verification_provider: { in: [...PUBLIC_VERIFICATION_PROVIDERS] } },
+  ];
+
+  const badgeFilter = publicVerificationBadgeWhere();
+  if (badgeFilter) andFilters.push(badgeFilter);
+
   return {
     status: "active",
     is_profile_approved: true,
-    AND: [
-      {
-        OR: [
-          { ad_package_expiry: null },
-          { ad_package_expiry: { gte: new Date().toISOString() } },
-          { ad_package: "none" },
-        ],
-      },
-      { verification_provider: { in: [...PUBLIC_VERIFICATION_PROVIDERS] } },
-    ],
+    AND: andFilters,
     NOT: {
       OR: exclusionBranches,
     },

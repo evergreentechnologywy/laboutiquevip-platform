@@ -4,7 +4,8 @@ import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 test("publicProviderVisibilityWhere keeps free-tier listings visible with stale expiry", () => {
   const where = publicProviderVisibilityWhere();
-  const packageVisibility = (where.AND as Record<string, unknown>[])[0] as {
+  const andFilters = where.AND as Record<string, unknown>[];
+  const packageVisibility = andFilters[0] as {
     OR: Record<string, unknown>[];
   };
 
@@ -18,9 +19,20 @@ test("publicProviderVisibilityWhere keeps free-tier listings visible with stale 
 
 test("publicProviderVisibilityWhere restricts catalog to imported sources", () => {
   const where = publicProviderVisibilityWhere();
-  const sourceFilter = (where.AND as Record<string, unknown>[])[1] as {
+  const andFilters = where.AND as Record<string, unknown>[];
+  const sourceFilter = andFilters[1] as {
     verification_provider: { in: string[] };
   };
 
   assert.deepEqual(sourceFilter.verification_provider.in.sort(), ["eros", "evergreen", "tryst"]);
+});
+
+test("publicProviderVisibilityWhere requires verification badge by default", () => {
+  const prev = process.env.STRICT_VERIFICATION_GATE;
+  delete process.env.STRICT_VERIFICATION_GATE;
+  const where = publicProviderVisibilityWhere();
+  const andFilters = where.AND as Record<string, unknown>[];
+  const badgeFilter = andFilters[2] as { OR: Record<string, unknown>[] };
+  assert.ok(badgeFilter.OR.some((row) => row.verification_provider === "evergreen"));
+  if (prev !== undefined) process.env.STRICT_VERIFICATION_GATE = prev;
 });

@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Match imported LBV providers to review sites by phone/email.
- *
- * Phase C skeleton — TER first (VPS ter-bot), TOB + PrivateDelights stubbed.
- * Copies link + aggregate stats only (no full review text scrape).
- *
- * Scarlet client boundary: emails are matched but never logged to stdout.
+ * Match imported LBV providers to review sites + P411 by phone/email/page links.
+ * Sets review_verified_at / p411_verified_at for public badge display.
  */
+
+import {
+  extractP411FromMarkdown,
+  extractReviewUrlsFromMarkdown,
+  mergeVerificationFields,
+  resolveProviderVerification,
+  searchTerByPhone,
+} from "./lib/verification-match.mjs";
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -16,14 +20,8 @@ async function createPrismaClient() {
 }
 
 const dryRun = process.argv.includes("--dry-run");
-const terOnly = !process.argv.includes("--all-sites");
+const allSites = process.argv.includes("--all-sites");
 const prisma = await createPrismaClient();
-
-function normalizePhone(raw) {
-  const digits = String(raw ?? "").replace(/\D/g, "");
-  if (digits.length < 10) return null;
-  return digits.slice(-10);
-}
 
 function maskEmail(email) {
   const [user, domain] = String(email ?? "").split("@");
@@ -31,79 +29,55 @@ function maskEmail(email) {
   return `${user.slice(0, 2)}***@${domain}`;
 }
 
-async function searchTerByPhone(phone) {
-  // TER bot on VPS exposes internal lookup — wire via TER_LOOKUP_URL when deployed.
-  const lookupUrl = process.env.TER_LOOKUP_URL;
-  if (!lookupUrl) return null;
-
-  const response = await fetch(`${lookupUrl}?phone=${encodeURIComponent(phone)}`, {
-    headers: { authorization: `Bearer ${process.env.TER_LOOKUP_TOKEN ?? ""}` },
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  if (!data?.profileUrl) return null;
-  return {
-    provider: "ter",
-    url: data.profileUrl,
-    rating: data.rating ?? null,
-    count: data.reviewCount ?? null,
-  };
-}
-
 async function searchTobStub(_phone, _email) {
-  return null; // Phase C2 — TheOtherBoard matcher
+  return null;
 }
 
 async function searchPdStub(_phone, _email) {
-  return null; // Phase C2 — PrivateDelights matcher
+  return null;
 }
 
-async function applyMatch(provider, match) {
-  const reviewUrls = Array.isArray(provider.review_urls) ? [...provider.review_urls] : [];
-  const existingIdx = reviewUrls.findIndex((row) => row?.provider === match.provider);
-  const entry = {
-    provider: match.provider,
-    url: match.url,
-    rating: match.rating,
-    count: match.count,
-    matched_at: new Date().toISOString(),
-  };
-  if (existingIdx >= 0) reviewUrls[existingIdx] = entry;
-  else reviewUrls.push(entry);
-
-  const data = {
-    review_urls: reviewUrls,
-    review_matched_at: new Date(),
-    review_site_rating: match.rating ?? provider.review_site_rating,
-    review_site_count: match.count ?? provider.review_site_count,
-  };
-
-  if (match.provider === "ter") data.ter_url = match.url;
-  if (match.provider === "tob") data.tob_url = match.url;
-  if (match.provider === "pd") data.pd_url = match.url;
+async function applyVerification(provider, verification) {
+  const data = mergeVerificationFields(provider, verification);
+  if (!Object.keys(data).length) return false;
 
   if (dryRun) {
-    console.log(`[dry-run] match ${provider.id} → ${match.provider}`);
-    return;
+    console.log(
+      `[dry-run] ${provider.id} p411=${Boolean(data.p411_url)} review=${Boolean(data.review_verified_at)}`,
+    );
+    return true;
   }
+
   await prisma.provider.update({ where: { id: provider.id }, data });
+  return true;
 }
 
 async function main() {
   const providers = await prisma.provider.findMany({
     where: {
       status: "active",
+      verification_provider: { in: ["eros", "tryst"] },
       OR: [{ phone: { not: null } }, { email: { not: null } }],
     },
     select: {
       id: true,
       phone: true,
       email: true,
+      bio: true,
+      ad_body: true,
+      p411_url: true,
+      p411_id: true,
+      p411_verified_at: true,
+      ter_url: true,
+      tob_url: true,
+      pd_url: true,
       review_urls: true,
       review_site_rating: true,
       review_site_count: true,
+      review_verified_at: true,
+      review_matched_at: true,
     },
-    take: 500,
+    take: Number(process.env.REVIEW_MATCH_LIMIT ?? "500"),
   });
 
   let matched = 0;
@@ -111,27 +85,72 @@ async function main() {
 
   for (const provider of providers) {
     scanned += 1;
-    const phone = normalizePhone(provider.phone);
-    const email = provider.email ? String(provider.email).trim().toLowerCase() : null;
+    const markdown = `${provider.bio ?? ""}\n${provider.ad_body ?? ""}`;
+    const pageSignals = {
+      ...extractP411FromMarkdown(markdown),
+      ...extractReviewUrlsFromMarkdown(markdown),
+    };
 
-    if (email) {
-      console.log(`Scanning provider ${provider.id} email=${maskEmail(email)}`);
+    let verification = await resolveProviderVerification({
+      phone: provider.phone,
+      email: provider.email,
+      markdown,
+      includeApiLookup: true,
+    });
+
+    if (allSites) {
+      const phone = verification.normalizedPhone;
+      const email = verification.normalizedEmail;
+      const extraMatchers = await Promise.all([
+        phone && !verification.ter_url ? searchTerByPhone(phone) : null,
+        phone || email ? searchTobStub(phone, email) : null,
+        phone || email ? searchPdStub(phone, email) : null,
+      ]);
+
+      for (const match of extraMatchers.filter(Boolean)) {
+        if (match.provider === "ter" && !verification.ter_url) {
+          verification = {
+            ...verification,
+            ter_url: match.url,
+            review_site_rating: match.rating,
+            review_site_count: match.count,
+            importAllowed: true,
+            review_verified_at: new Date(),
+            review_matched_at: new Date(),
+            review_urls: [
+              ...(verification.review_urls ?? []),
+              {
+                provider: "ter",
+                url: match.url,
+                rating: match.rating,
+                count: match.count,
+                matched_at: new Date().toISOString(),
+              },
+            ],
+          };
+        }
+        if (match.provider === "tob") verification = { ...verification, tob_url: match.url, importAllowed: true };
+        if (match.provider === "pd") verification = { ...verification, pd_url: match.url, importAllowed: true };
+      }
     }
 
-    const matchers = [];
-    if (terOnly || process.argv.includes("--all-sites")) {
-      if (phone) matchers.push(searchTerByPhone(phone));
-    }
-    if (process.argv.includes("--all-sites")) {
-      if (phone || email) matchers.push(searchTobStub(phone, email));
-      if (phone || email) matchers.push(searchPdStub(phone, email));
+    if (pageSignals.p411_url && !verification.p411_url) {
+      verification = {
+        ...verification,
+        p411_url: pageSignals.p411_url,
+        p411_id: pageSignals.p411_id,
+        p411_verified_at: new Date(),
+        importAllowed: true,
+      };
     }
 
-    const results = (await Promise.all(matchers)).filter(Boolean);
-    for (const match of results) {
-      await applyMatch(provider, match);
-      matched += 1;
+    if (!verification.importAllowed) {
+      if (provider.email) console.log(`No match ${provider.id} email=${maskEmail(provider.email)}`);
+      continue;
     }
+
+    const applied = await applyVerification(provider, verification);
+    if (applied) matched += 1;
   }
 
   console.log(`Review match complete scanned=${scanned} matched=${matched} dryRun=${dryRun}`);

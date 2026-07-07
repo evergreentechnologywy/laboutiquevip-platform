@@ -14,6 +14,7 @@ import { searchProviders } from "@/api/providerSearch";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
+import { VerificationBadges } from "@/components/VerificationBadges";
 import { SEO } from "@/components/SEO";
 import { LocationPicker } from "@/components/LocationPicker";
 import {
@@ -44,8 +45,8 @@ function useDebounce(value, delay) {
 }
 
 const trustNotes = [
-  "Verification badges appear after external identity checks and internal approval.",
-  "Reviews only appear after moderation and may be limited while rollout continues.",
+  "P411 Verified and Review Verified badges are earned from external signals — not sold with placement.",
+  "Imported listings require a P411 or review-site match before they appear in browse.",
   "Rates and contact methods are supplied by advertisers and can change after publication.",
 ];
 
@@ -497,12 +498,7 @@ function ProviderCard({ provider }) {
                 Just joined
               </Badge>
             )}
-            {provider.is_verified && (
-              <Badge className="rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-semibold shadow-sm">
-                <Shield className="mr-1 h-3 w-3" />
-                Verified
-              </Badge>
-            )}
+            <VerificationBadges provider={provider} />
             {provider.is_premium && (
               <Badge className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold shadow-sm">
                 <Crown className="mr-1 h-3 w-3" />

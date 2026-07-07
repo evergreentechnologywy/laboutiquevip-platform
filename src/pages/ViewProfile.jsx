@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
+import { VerificationBadges } from "@/components/VerificationBadges";
 import { SEO } from "@/components/SEO";
 import { Link } from "react-router-dom";
 import {
@@ -225,14 +226,9 @@ export default function ViewProfile() {
             <div>
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
                     <h1 className="text-4xl font-bold text-zinc-100">{provider.display_name}</h1>
-                    {provider.is_verified && (
-                      <Badge className="bg-rose-500/20 border-rose-500 text-rose-400">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
+                    <VerificationBadges provider={provider} size="md" />
                     {provider.is_premium && (
                       <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0">
                         <Crown className="w-3 h-3 mr-1" />
@@ -260,9 +256,9 @@ export default function ViewProfile() {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
                   <div>
-                    <p className="font-medium text-amber-100 mb-1">Verified Profile</p>
+                    <p className="font-medium text-amber-100 mb-1">Verification badges</p>
                     <p className="leading-6">
-                      Verification badges reflect checks completed through external identity providers and internal moderation. Reviews are published only after approval.
+                      P411 Verified and Review Verified reflect matches to Preferred411 and review sites (TER, PrivateDelights, TheOtherBoard). Badges are not sold — premium placement is labeled separately. La Boutique VIP is not affiliated with Preferred411.
                     </p>
                   </div>
                 </div>
@@ -500,12 +496,43 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {(provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
+            {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider || provider.verification_username || provider.verification_url || provider.review_provider || provider.review_username || provider.review_url) && (
               <Card className="bg-zinc-900 border-zinc-800">
                 <CardHeader>
                   <CardTitle className="text-zinc-100">External trust references</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
+                  {provider.p411_url && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Preferred411</p>
+                      {provider.p411_id && <p className="mt-1 text-zinc-400">{provider.p411_id}</p>}
+                      <a href={provider.p411_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex text-sky-300 transition-colors hover:text-sky-200">
+                        View P411 profile
+                      </a>
+                    </div>
+                  )}
+                  {(provider.ter_url || provider.pd_url || provider.tob_url) && (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
+                      <p className="font-medium text-zinc-100">Review sites</p>
+                      <div className="mt-2 space-y-2">
+                        {provider.ter_url && (
+                          <a href={provider.ter_url} target="_blank" rel="noopener noreferrer" className="block text-emerald-300 transition-colors hover:text-emerald-200">
+                            The Erotic Review
+                          </a>
+                        )}
+                        {provider.pd_url && (
+                          <a href={provider.pd_url} target="_blank" rel="noopener noreferrer" className="block text-emerald-300 transition-colors hover:text-emerald-200">
+                            PrivateDelights
+                          </a>
+                        )}
+                        {provider.tob_url && (
+                          <a href={provider.tob_url} target="_blank" rel="noopener noreferrer" className="block text-emerald-300 transition-colors hover:text-emerald-200">
+                            TheOtherBoard
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {(provider.verification_provider || provider.verification_username || provider.verification_url) && (
                     <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
                       <p className="font-medium text-zinc-100">Verification account</p>
