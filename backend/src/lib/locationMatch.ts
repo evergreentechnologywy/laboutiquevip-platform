@@ -148,10 +148,18 @@ export function parseCityStateCombo(raw: string): { city: string | null; state: 
   };
 }
 
+export function isValidUsStateAbbrev(raw: string): boolean {
+  const code = String(raw || "").trim().toUpperCase();
+  return Boolean(code && ABBREV_TO_NAMES[code]);
+}
+
 export function resolveStateAbbrev(raw: string): string | null {
   const text = String(raw || "").trim();
   if (!text) return null;
-  if (/^[A-Za-z]{2}$/.test(text)) return text.toUpperCase();
+  if (/^[A-Za-z]{2}$/.test(text)) {
+    const upper = text.toUpperCase();
+    return ABBREV_TO_NAMES[upper] ? upper : null;
+  }
   const slug = slugify(text);
   return SLUG_TO_ABBREV[slug] ?? SLUG_TO_ABBREV[text.toLowerCase()] ?? null;
 }

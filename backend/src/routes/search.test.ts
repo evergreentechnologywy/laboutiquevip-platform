@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { searchProvidersHandler, searchLocationsHandler } from "./search.js";
-import { browseVerifiedFilterWhere } from "../lib/verificationBadges.js";
+import { searchProvidersHandler, searchLocationsHandler, clearSearchLocationsCache } from "./search.js";
 
 function makeReq(
   pathname: string,
@@ -59,14 +58,42 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
     id: { in: ["provider-with-photos"] },
   });
   assert.deepEqual(seenFindManyArgs.where.AND.slice(2), [
-    browseVerifiedFilterWhere(),
+    { is_verified: true },
     { OR: [{ is_premium: true }, { ad_package: "elite" }] },
     { OR: [{ rate_hourly: null }, { rate_hourly: { gte: 0, lte: 2000 } }] },
   ]);
   assert.deepEqual(seenCountArgs.where, seenFindManyArgs.where);
 });
 
+test("searchLocationsHandler skips invalid state rows from bad imports", async () => {
+  clearSearchLocationsCache();
+  const prisma = {
+    $queryRaw: async () => [{ id: "p1" }],
+    provider: {
+      findMany: async () => [
+        { location_state: "FL", location_city: "Miami" },
+        {
+          location_state: "AND VERY EASY TO TEMPT ONTO A PLANE",
+          location_city: "London",
+        },
+        { location_state: "ZZ", location_city: "Nowhere" },
+      ],
+    },
+  };
+
+  const res = await searchLocationsHandler(
+    makeReq("/api/v1/search/locations"),
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  const body = res.body as { states: Array<{ code: string }> };
+  assert.equal(body.states.length, 1);
+  assert.equal(body.states[0].code, "FL");
+});
+
 test("searchLocationsHandler returns hierarchical states with cities", async () => {
+  clearSearchLocationsCache();
   const prisma = {
     $queryRaw: async () => [{ id: "p1" }, { id: "p2" }],
     provider: {

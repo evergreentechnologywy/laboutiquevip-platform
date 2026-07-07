@@ -21,8 +21,8 @@ set -a
 . ./.env
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
-# shellcheck disable=SC1091
-. "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
+export TRYST_MAX_PROFILES_PER_CITY="${TRYST_MAX_PROFILES_PER_CITY:-25}"
+export TRYST_MAX_CITIES_PER_STATE="${TRYST_MAX_CITIES_PER_STATE:-5}"
 
 for eros_lock in "${EROS_LOCKS[@]}"; do
   exec 8>"$eros_lock"
@@ -48,6 +48,11 @@ set +e
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst import start ==="
   node "$REPO_DIR/scripts/import-tryst.mjs"
   node "$REPO_DIR/scripts/reconcile-tryst.mjs"
+  if [[ "${TRYST_POPULATE_R2:-1}" == "1" ]]; then
+    R2_LIMIT="${TRYST_R2_LIMIT:-50}"
+    echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst r2 populate (limit=$R2_LIMIT) ==="
+    node "$REPO_DIR/scripts/populate-r2-from-tryst.cjs" --limit="$R2_LIMIT" || true
+  fi
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst import done ==="
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
 RUN_EXIT=${PIPESTATUS[0]}
