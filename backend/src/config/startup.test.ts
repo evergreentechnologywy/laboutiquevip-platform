@@ -32,6 +32,8 @@ test("validateStartupOrThrow requires a NOWPayments IPN secret in production", (
     {
       NODE_ENV: "production",
       DATABASE_URL: "postgresql://user:pass@localhost:5432/app",
+      JWT_SECRET: "test-jwt-secret",
+      CLERK_SECRET_KEY: "sk_test_clerk",
       NOWPAYMENTS_API_KEY: "np-api-key",
       NOWPAYMENTS_IPN_SECRET: undefined,
       NOWPAYMENTS_WEBHOOK_SECRET: undefined,
@@ -55,6 +57,8 @@ test("validateStartupOrThrow accepts NOWPAYMENTS_IPN_SECRET in production", () =
     {
       NODE_ENV: "production",
       DATABASE_URL: "postgresql://user:pass@localhost:5432/app",
+      JWT_SECRET: "test-jwt-secret",
+      CLERK_SECRET_KEY: "sk_test_clerk",
       NOWPAYMENTS_API_KEY: "np-api-key",
       NOWPAYMENTS_IPN_SECRET: "np-ipn-secret",
       NOWPAYMENTS_WEBHOOK_SECRET: undefined,
