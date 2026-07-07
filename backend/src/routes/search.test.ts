@@ -80,21 +80,22 @@ test("searchLocationsHandler returns hierarchical states with cities", async () 
 
   const res = await searchLocationsHandler(
     {
-      method: "GET",
+      ...makeReq(),
       pathname: "/api/v1/search/locations",
-      query: new URLSearchParams(),
+      path: "/api/v1/search/locations",
     },
     { prisma },
   );
 
   assert.equal(res.statusCode, 200);
-  assert.ok(Array.isArray(res.body.states));
-  assert.equal(res.body.states.length, 2);
+  const body = res.body as { states: Array<{ code: string; count: number; cities: Array<{ slug: string; count: number }> }> };
+  assert.ok(Array.isArray(body.states));
+  assert.equal(body.states.length, 2);
 
-  const florida = res.body.states.find((s: { code: string }) => s.code === "FL");
+  const florida = body.states.find((s) => s.code === "FL");
   assert.ok(florida);
   assert.equal(florida.count, 3);
   assert.equal(florida.cities.length, 2);
-  const miami = florida.cities.find((c: { slug: string }) => c.slug === "miami");
+  const miami = florida.cities.find((c) => c.slug === "miami");
   assert.equal(miami?.count, 2);
 });
