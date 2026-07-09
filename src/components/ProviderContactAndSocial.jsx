@@ -165,5 +165,3 @@ export function ProviderContactAndSocial({ provider }) {
     </>
   );
 }
-
-export { SOCIAL_LINK_FIELDS, DIRECTORY_LINK_FIELDS };
