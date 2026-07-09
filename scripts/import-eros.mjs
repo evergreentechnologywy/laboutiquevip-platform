@@ -198,11 +198,20 @@ async function fetchDirectText(url, timeoutMs = 30000) {
 }
 
 async function fetchMirrorText(url, timeoutMs = 30000, attempts = 5) {
+  return _fetchMirrorText(url, timeoutMs, attempts, false);
+}
+
+async function fetchSitemapMirrorText(url, timeoutMs = 30000, attempts = 5) {
+  return _fetchMirrorText(url, timeoutMs, attempts, true);
+}
+
+async function _fetchMirrorText(url, timeoutMs, attempts, isSitemap) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(toMirrorUrl(url), {
+      const fetchUrl = isSitemap ? url : toMirrorUrl(url);
+      const response = await fetch(fetchUrl, {
         method: "GET",
         signal: controller.signal,
         headers: {
