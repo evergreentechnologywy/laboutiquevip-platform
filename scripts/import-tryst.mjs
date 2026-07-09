@@ -30,6 +30,8 @@ import {
   initCacheDir,
   resolveCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
+import { uploadSourcePhotosToR2 } from "./lib/r2-photo-upload.mjs";
+import pkgS3 from "@aws-sdk/client-s3";
 import {
   mergeVerificationFields,
   passesImportGate,
@@ -93,8 +95,36 @@ const stats = {
   skipped: 0,
   skippedNoVerification: 0,
   verificationCacheHits: 0,
+  photosUploaded: 0,
+  photosFailed: 0,
   errors: 0,
 };
+
+let _s3Client = null;
+function getS3Client() {
+  if (_s3Client) return _s3Client;
+  const endpoint = process.env.S3_ENDPOINT || process.env.CF_R2_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.CF_R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.CF_R2_SECRET_ACCESS_KEY;
+  if (!endpoint || !accessKeyId) return null;
+  _s3Client = new pkgS3.S3Client({
+    region: "auto", endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: false,
+  });
+  return _s3Client;
+}
+
+async function uploadPhotos(providerId, sourceUrls) {
+  const s3 = getS3Client();
+  if (!s3 || !sourceUrls?.length) return [];
+  try {
+    return await uploadSourcePhotosToR2({
+      s3, bucket: process.env.S3_BUCKET || "laboutiquevip", providerId, sourceUrls,
+      maxPhotos: 48,
+    });
+  } catch { return []; }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -378,8 +408,17 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
   }
 
   if (existing) {
-    await prisma.provider.update({ where: { id: existing.id }, data: payload });
+    const providerId = existing.id;
+    await prisma.provider.update({ where: { id: providerId }, data: payload });
     stats.updated += 1;
+    // Upload photos if source URLs are new
+    if (profile.photos?.length && profile.photos !== existing.photos) {
+      const r2Urls = await uploadPhotos(providerId, profile.photos);
+      if (r2Urls.length) {
+        try { await prisma.provider.update({ where: { id: providerId }, data: { photos: r2Urls } }); } catch {}
+        stats.photosUploaded += r2Urls.length;
+      }
+    }
   } else {
     const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
       verification_provider: "tryst",
@@ -396,8 +435,15 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
       });
       return;
     }
-    await prisma.provider.create({ data: payload });
+    const created = await prisma.provider.create({ data: payload });
     stats.created += 1;
+    if (profile.photos?.length) {
+      const r2Urls = await uploadPhotos(created.id, profile.photos);
+      if (r2Urls.length) {
+        try { await prisma.provider.update({ where: { id: created.id }, data: { photos: r2Urls } }); } catch {}
+        stats.photosUploaded += r2Urls.length;
+      }
+    }
   }
 }
 
