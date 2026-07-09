@@ -51,7 +51,8 @@ async function loadPublicPhotoProviderIds(prisma: {
     return photoProviderIdsCache.ids;
   }
 
-  const rows = await prisma.$queryRaw`
+  try {
+    const rows = await prisma.$queryRaw`
     SELECT id FROM "Provider"
     WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
       AND photos IS NOT NULL
@@ -66,9 +67,14 @@ async function loadPublicPhotoProviderIds(prisma: {
       )
   `;
 
-  const ids = rows.map((row) => row.id);
-  photoProviderIdsCache = { ids, expiresAt: now + PHOTO_ID_CACHE_TTL_MS };
-  return ids;
+    const ids = rows.map((row) => row.id);
+    photoProviderIdsCache = { ids, expiresAt: now + PHOTO_ID_CACHE_TTL_MS };
+    return ids;
+  } catch (err) {
+    // Fallback: return empty — let browse work without photo filter on DB errors
+    console.warn("[providerVisibility] Photo filter query failed, showing all:", (err as Error).message);
+    return [];
+  }
 }
 
 /** Public browse requires displayable photos — no verification_url-only stubs. */
@@ -77,7 +83,7 @@ export async function buildPublicPhotoSearchFilter(prisma: {
 }): Promise<Record<string, unknown>> {
   const ids = await loadPublicPhotoProviderIds(prisma);
   if (ids.length === 0) {
-    return { id: { in: ["00000000-0000-0000-0000-000000000000"] } };
+    return {}; // No-op — don't restrict when photo filter fails or no photos exist
   }
   return { id: { in: ids } };
 }
