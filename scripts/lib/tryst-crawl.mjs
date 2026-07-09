@@ -101,11 +101,20 @@ export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits)
   return sliceToLimit([...profileLinks], profileLimit);
 }
 
-export async function resolveTrystTargetCities({ fullUs, fetchPageText, delayMs, limits, onState }) {
-  if (!fullUs) return TRYST_PILOT_CITIES;
+export async function resolveTrystTargetCities({ fullUs, stateFilter, fetchPageText, delayMs, limits, onState }) {
+  if (!fullUs && !stateFilter) return TRYST_PILOT_CITIES;
 
+  // Filter to specified states only
+  const allStateSlugs = Object.keys(TRYST_STATE_SLUGS);
+  const stateSlugs = stateFilter
+    ? allStateSlugs.filter(s => stateFilter.includes(s.toLowerCase()))
+    : allStateSlugs;
+
+  if (stateSlugs.length === 0) {
+    console.warn("[tryst-crawl] No states matched filter, falling back to pilot cities");
+    return TRYST_PILOT_CITIES;
+  }
   const targets = [];
-  const stateSlugs = Object.keys(TRYST_STATE_SLUGS);
   for (const stateSlug of stateSlugs) {
     const stateUrl = `https://tryst.link/us/escorts/${stateSlug}`;
     if (typeof onState === "function") onState(stateSlug);

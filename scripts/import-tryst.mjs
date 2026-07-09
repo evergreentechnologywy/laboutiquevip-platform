@@ -47,6 +47,8 @@ const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
 const pilotOnly = process.argv.includes("--pilot-only");
+const statesArg = args.get("states") ?? process.env.TRYST_STATES ?? null;
+const filteredStates = statesArg ? statesArg.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : null;
 const args = new Map(
   process.argv.slice(2).map((arg) => {
     const [k, v = "true"] = arg.replace(/^--/, "").split("=");
@@ -441,13 +443,14 @@ async function main() {
     console.log(`Tryst import cache-only dir=${cacheDir}`);
   }
   console.log(
-    `Tryst import start pilotOnly=${pilotOnly} dryRun=${dryRun} cacheOnly=${cacheOnly} ` +
+    `Tryst import start pilotOnly=${pilotOnly} states=${filteredStates?.length || "all"} dryRun=${dryRun} cacheOnly=${cacheOnly} ` +
       `profilesPerCity=${formatCap(crawlLimits.maxProfilesPerCity)} ` +
       `citiesPerState=${formatCap(crawlLimits.maxCitiesPerState)}`,
   );
 
   const cities = await resolveTrystTargetCities({
-    fullUs: !pilotOnly,
+    fullUs: !pilotOnly && !filteredStates,
+    stateFilter: filteredStates,
     fetchPageText,
     delayMs: crawlLimits.delayMs,
     limits: crawlLimits,
