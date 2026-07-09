@@ -149,6 +149,39 @@ async function grantEntitlementIfMissing(
   });
 }
 
+function resolvePaidAmountCents(payload: NowpaymentsWebhookPayload, rawBody: unknown): number | null {
+  if (typeof payload.data.amount_cents === "number") {
+    return payload.data.amount_cents;
+  }
+
+  if (!rawBody || typeof rawBody !== "object") {
+    return null;
+  }
+
+  const raw = rawBody as Record<string, unknown>;
+  const priceAmount = raw.price_amount ?? raw.actually_paid_at_fiat;
+  if (typeof priceAmount === "number" && Number.isFinite(priceAmount)) {
+    return Math.round(priceAmount * 100);
+  }
+  if (typeof priceAmount === "string") {
+    const parsed = Number(priceAmount);
+    if (Number.isFinite(parsed)) {
+      return Math.round(parsed * 100);
+    }
+  }
+
+  return null;
+}
+
+function paymentAmountSatisfiesInvoice(
+  payload: NowpaymentsWebhookPayload,
+  rawBody: unknown,
+  invoiceAmountCents: number,
+): boolean {
+  const paidCents = resolvePaidAmountCents(payload, rawBody);
+  return paidCents !== null && paidCents >= invoiceAmountCents;
+}
+
 export async function nowpaymentsWebhookHandler(
   request: ApiRequest,
   context: NowpaymentsWebhookContext,
@@ -247,6 +280,30 @@ export async function nowpaymentsWebhookHandler(
   let invoiceStatus = invoice.status;
 
   if (shouldGrantEntitlement(paymentStatus)) {
+    if (!paymentAmountSatisfiesInvoice(payload, request.body, invoice.amountCents)) {
+      invoiceStatus = "pending_manual";
+      await context.prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: invoiceStatus },
+      });
+      await context.prisma.order.update({
+        where: { id: invoice.orderId },
+        data: { status: invoiceStatus },
+      });
+      await context.auditLogger.append({
+        actorId: null,
+        action: "nowpayments.webhook.underpaid",
+        resourceType: "invoice",
+        resourceId: invoice.id,
+        metadata: {
+          eventKey,
+          expectedAmountCents: invoice.amountCents,
+          paidAmountCents: resolvePaidAmountCents(payload, request.body),
+          paymentStatus,
+          requestId: request.requestId,
+        },
+      });
+    } else {
     const paidAt = new Date();
     invoiceStatus = "paid";
     const paidUpdate = await context.prisma.invoice.updateMany({
@@ -269,6 +326,7 @@ export async function nowpaymentsWebhookHandler(
       });
       entitlementGranted = true;
       providerPackageUpgraded = await applyProviderPackageUpgrade(context.prisma, invoice, paidAt);
+    }
     }
   } else if (isPartialPayment(paymentStatus)) {
     invoiceStatus = "pending_manual";

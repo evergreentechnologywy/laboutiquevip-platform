@@ -43,3 +43,8 @@ export function adminIpAllowlist(): string[] {
 
   return raw.split(",").map((ip) => ip.trim()).filter(Boolean);
 }
+
+/** When false (default), X-Forwarded-For is ignored and socket IP is used for rate limits / anti-spam. */
+export function trustProxyForwardedIp(): boolean {
+  return envFlag(process.env.TRUST_PROXY_FORWARDED_IP, false);
+}

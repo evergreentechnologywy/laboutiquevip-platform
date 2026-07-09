@@ -179,11 +179,12 @@ export async function createOrderHandler(
     return json(404, { error: "not_found", message: "Product not found" });
   }
 
-  const amountCents = product.amountCents ?? payload.amountCents;
-  const currency = product.currency ?? payload.currency ?? "USD";
-  if (typeof amountCents !== "number") {
+  if (typeof product.amountCents !== "number") {
     return json(400, { error: "validation_error", message: "Product amount is required" });
   }
+
+  const amountCents = product.amountCents;
+  const currency = product.currency ?? "USD";
 
   const order = await context.prisma.order.create({
     data: {

@@ -36,6 +36,11 @@ import {
   providerHasVerificationBadge,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
+import {
+  catalogSeenTouchFields,
+  findCatalogDuplicateInCity,
+  shouldSkipCatalogInsert,
+} from "./lib/catalog-sync-policy.mjs";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
@@ -223,6 +228,7 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,
     ...mergeVerificationFields(existing, verification),
+    ...catalogSeenTouchFields(existing),
   };
 
   if (dryRun && !cacheOnly) {
@@ -248,6 +254,21 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     await prisma.provider.update({ where: { id: existing.id }, data: payload });
     stats.updated += 1;
   } else {
+    const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
+      verification_provider: "tryst",
+      verification_url: profile.sourceUrl,
+      display_name: payload.display_name,
+      location_city: payload.location_city,
+      location_state: payload.location_state,
+    });
+    if (duplicateInCity && shouldSkipCatalogInsert(payload, duplicateInCity)) {
+      stats.skipped += 1;
+      await prisma.provider.update({
+        where: { id: duplicateInCity.id },
+        data: catalogSeenTouchFields(duplicateInCity),
+      });
+      return;
+    }
     await prisma.provider.create({ data: payload });
     stats.created += 1;
   }

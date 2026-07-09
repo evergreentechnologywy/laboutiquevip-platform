@@ -144,8 +144,6 @@ export const publicProviderProfileSelect = {
   service_type: true,
   services_offered: true,
   social_media: true,
-  phone: true,
-  email: true,
   verification_provider: true,
   verification_username: true,
   verification_url: true,

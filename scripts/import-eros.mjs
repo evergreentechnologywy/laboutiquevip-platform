@@ -15,6 +15,7 @@ import {
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
+import { parseErosProfileDetails } from "./lib/eros-profile-parse.mjs";
 import {
   extractContactAndSocialFromMarkdown,
   mergeImportedSocial,
@@ -32,6 +33,11 @@ import {
   resolveCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
+import {
+  catalogSeenTouchFields,
+  findCatalogDuplicateInCity,
+  shouldSkipCatalogInsert,
+} from "./lib/catalog-sync-policy.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -282,13 +288,16 @@ function parseProfile(markdown, sourceUrl) {
     if (val) details.push(cleanText(`${key}: ${val}`));
   }
 
-  const bioParts = [tagline, ...details].filter(Boolean);
-  const bio = bioParts.length ? bioParts.join(" | ") : null;
+  const parsedDetails = parseErosProfileDetails(markdown);
+  const bio = parsedDetails.bio ?? (() => {
+    const bioParts = [tagline, ...details].filter(Boolean);
+    return bioParts.length ? bioParts.join(" | ") : null;
+  })();
 
   return {
     sourceUrl,
     display_name: displayName,
-    tagline: tagline ?? null,
+    tagline: parsedDetails.tagline ?? tagline ?? null,
     bio,
     location_city,
     location_state,
@@ -297,6 +306,11 @@ function parseProfile(markdown, sourceUrl) {
     phone,
     email,
     photos,
+    ethnicity: parsedDetails.ethnicity,
+    hair_color: parsedDetails.hair_color,
+    eye_color: parsedDetails.eye_color,
+    height: parsedDetails.height,
+    service_type: parsedDetails.service_type,
   };
 }
 
@@ -325,6 +339,11 @@ function buildProviderPayload(profile, existing = null) {
       : (profile.location_city ?? existing?.location_city ?? null),
     location_state: profile.location_state ?? existing?.location_state ?? null,
     age: profile.age ?? existing?.age ?? null,
+    ethnicity: profile.ethnicity ?? existing?.ethnicity ?? null,
+    hair_color: profile.hair_color ?? existing?.hair_color ?? null,
+    eye_color: profile.eye_color ?? existing?.eye_color ?? null,
+    height: profile.height ?? existing?.height ?? null,
+    service_type: profile.service_type ?? existing?.service_type ?? null,
     phone: profile.phone ?? existing?.phone ?? null,
     email: profile.email ?? existing?.email ?? null,
     photos: mergedPhotos,
@@ -341,6 +360,7 @@ function buildProviderPayload(profile, existing = null) {
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,
     ...mergeVerificationFields(existing, profile.verification),
+    ...catalogSeenTouchFields(existing),
   };
 }
 
@@ -396,6 +416,24 @@ async function importProfile(profile, markdown = "") {
     stats.updated += 1;
     if (options.dryRun) return;
     await prisma.provider.update({ where: { id: existing.id }, data });
+    return;
+  }
+
+  const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
+    verification_provider: "eros",
+    verification_url: profile.sourceUrl,
+    display_name: data.display_name,
+    location_city: data.location_city,
+    location_state: data.location_state,
+  });
+  if (duplicateInCity && shouldSkipCatalogInsert(data, duplicateInCity)) {
+    stats.skipped += 1;
+    if (!options.dryRun) {
+      await prisma.provider.update({
+        where: { id: duplicateInCity.id },
+        data: catalogSeenTouchFields(duplicateInCity),
+      });
+    }
     return;
   }
 

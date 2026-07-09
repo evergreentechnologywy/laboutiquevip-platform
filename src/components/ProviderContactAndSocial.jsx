@@ -62,8 +62,8 @@ export function ProviderContactAndSocial({ provider }) {
                 <Phone className="w-4 h-4 shrink-0" />
                 {imported ? (
                   <a
-                    href={contactActions.find((a) => a.key === "call")?.href}
-                    className="text-sm hover:text-rose-400 transition-colors"
+                    href={contactActions.find((a) => a.key === "text")?.href ?? contactActions.find((a) => a.key === "call")?.href}
+                    className="text-base font-semibold text-rose-300 hover:text-rose-200 transition-colors"
                   >
                     {formatPhoneDisplay(provider.phone)}
                   </a>

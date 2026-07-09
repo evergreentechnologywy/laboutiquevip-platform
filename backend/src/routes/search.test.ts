@@ -49,6 +49,8 @@ test("searchProvidersHandler applies public guardrails and cache headers", async
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers?.["cache-control"], "public, max-age=60, s-maxage=60, stale-while-revalidate=300");
   assert.equal(Array.isArray(seenFindManyArgs.where.AND), true);
+  assert.equal(seenFindManyArgs.select.phone, undefined);
+  assert.equal(seenFindManyArgs.select.email, undefined);
   assert.equal(seenFindManyArgs.where.AND.length, 5);
   assert.equal(seenFindManyArgs.where.AND[0].status, "active");
   assert.equal(seenFindManyArgs.where.AND[0].is_profile_approved, true);

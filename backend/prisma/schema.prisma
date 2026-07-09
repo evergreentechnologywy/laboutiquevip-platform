@@ -403,6 +403,7 @@ model Provider {
   rate_hourly            Int?
   created_date           DateTime @default(now())
   updated_date           DateTime @updatedAt
+  last_seen_at           DateTime? @map("last_seen_at")
 
   @@index([user_id])
   @@index([status])
@@ -416,6 +417,7 @@ model Provider {
   @@index([is_premium])
   @@index([rate_hourly])
   @@index([created_date])
+  @@index([last_seen_at])
   @@index([display_name])
   @@index([status, is_profile_approved, location_state, location_city, created_date])
 }

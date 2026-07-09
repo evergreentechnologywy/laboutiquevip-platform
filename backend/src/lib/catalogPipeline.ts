@@ -11,6 +11,7 @@ export const MERGE_PHASES = [
   "staged-r2-photos",
   "reconcile-eros",
   "reconcile-tryst",
+  "hide-stale-catalog",
   "match-review",
   "dedupe",
   "evergreen-models",

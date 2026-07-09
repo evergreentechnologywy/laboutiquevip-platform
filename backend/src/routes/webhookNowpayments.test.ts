@@ -152,6 +152,7 @@ test("nowpaymentsWebhookHandler upgrades provider package after paid package inv
   const body: Record<string, unknown> = {
     payment_id: 456789,
     payment_status: "finished",
+    price_amount: 39,
     order_id: "lbv-order-upgrade",
   };
   const request = makeRequest({
@@ -368,6 +369,7 @@ test("nowpaymentsWebhookHandler processes later successful status for the same p
     const body: Record<string, unknown> = {
       payment_id: "same-payment-progressive",
       payment_status: paymentStatus,
+      price_amount: 69,
       order_id: "lbv-progressive-order",
     };
     const response = await nowpaymentsWebhookHandler(makeRequest({
@@ -460,6 +462,7 @@ test("nowpaymentsWebhookHandler does not grant twice when success statuses repea
     const body: Record<string, unknown> = {
       payment_id: "same-invoice-repeat",
       payment_status: paymentStatus,
+      price_amount: 69,
       order_id: "lbv-repeat-order",
     };
     const response = await nowpaymentsWebhookHandler(makeRequest({
@@ -482,4 +485,83 @@ test("nowpaymentsWebhookHandler does not grant twice when success statuses repea
 
   assert.equal(entitlementCreates.length, 1);
   assert.equal(providerRawUpdates.length, 1);
+});
+
+test("nowpaymentsWebhookHandler withholds entitlement when paid amount is below invoice", async () => {
+  const previousSecret = process.env.NOWPAYMENTS_IPN_SECRET;
+  process.env.NOWPAYMENTS_IPN_SECRET = "topsecret";
+
+  const body: Record<string, unknown> = {
+    payment_id: 999001,
+    invoice_id: "invoice-underpaid",
+    payment_status: "finished",
+    price_amount: 1,
+    price_currency: "usd",
+    order_id: "lbv-underpaid-order",
+  };
+  const request = makeRequest({
+    rawBody: JSON.stringify(body),
+    body,
+    headers: {
+      "x-nowpayments-sig": signNowpaymentsPayload(body),
+    },
+  });
+
+  const entitlementCreates: Array<Record<string, unknown>> = [];
+  const auditEvents: Array<Record<string, unknown>> = [];
+  let updatedInvoiceStatus: string | undefined;
+
+  const prisma = {
+    webhookEventReceipt: {
+      create: async () => ({ id: "receipt-underpaid" }),
+    },
+    invoice: {
+      findFirst: async () => ({
+        id: "invoice-underpaid",
+        orderId: "order-underpaid",
+        status: "issued",
+        amountCents: 12500,
+        currency: "USD",
+        order: {
+          user: { email: null },
+          product: { profile: { displayName: "Ava" }, sku: null },
+        },
+      }),
+      updateMany: async () => ({ count: 0 }),
+      update: async ({ data }: any) => {
+        updatedInvoiceStatus = data.status;
+        return { id: "invoice-underpaid", ...data };
+      },
+    },
+    order: {
+      update: async ({ data }: any) => data,
+    },
+    invoiceEvent: {
+      create: async () => ({ id: "event-underpaid" }),
+    },
+    entitlement: {
+      findFirst: async () => null,
+      create: async ({ data }: any) => {
+        entitlementCreates.push(data);
+        return { id: "entitlement-underpaid" };
+      },
+    },
+  };
+
+  const response = await nowpaymentsWebhookHandler(request, {
+    prisma,
+    auditLogger: {
+      append: async (entry: Record<string, unknown>) => {
+        auditEvents.push(entry);
+      },
+    },
+  } as any);
+
+  if (previousSecret === undefined) delete process.env.NOWPAYMENTS_IPN_SECRET;
+  else process.env.NOWPAYMENTS_IPN_SECRET = previousSecret;
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(entitlementCreates.length, 0);
+  assert.equal(updatedInvoiceStatus, "pending_manual");
+  assert.equal(auditEvents.some((entry) => entry.action === "nowpayments.webhook.underpaid"), true);
 });

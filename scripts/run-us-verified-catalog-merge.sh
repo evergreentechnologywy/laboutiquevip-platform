@@ -64,6 +64,8 @@ set +e
     --profiles-per-state="$PROFILES_PER_STATE"
   write_flag "reconcile-tryst"
   node "$REPO_DIR/scripts/reconcile-tryst.mjs"
+  write_flag "hide-stale-catalog"
+  node "$REPO_DIR/scripts/hide-stale-catalog-providers.mjs"
   write_flag "match-review"
   node "$REPO_DIR/scripts/match-review-profiles.mjs" --all-sites || true
   write_flag "dedupe"

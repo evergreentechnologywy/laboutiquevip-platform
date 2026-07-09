@@ -1,10 +1,17 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
+import { sanitizeProviderContactForAudience } from "../lib/importedCatalog.js";
 import { isUuid, legacyProviderSlug } from "../lib/providerSlug.js";
 import {
   publicProviderProfileSelect,
   publicProviderVisibilityWhere,
   publicSearchCacheHeaders,
 } from "./providerVisibility.js";
+
+const publicProviderDetailSelect = {
+  ...publicProviderProfileSelect,
+  phone: true,
+  email: true,
+} as const;
 
 interface ProviderPublicContext {
   prisma: any;
@@ -26,7 +33,7 @@ export async function getProviderBySlugHandler(
   }
 
   const visibility = publicProviderVisibilityWhere();
-  const select = publicProviderProfileSelect;
+  const select = publicProviderDetailSelect;
 
   let provider = null;
 
@@ -78,10 +85,13 @@ export async function getProviderBySlugHandler(
 
   return json(
     200,
-    {
-      ...provider,
-      public_slug: legacyProviderSlug(provider),
-    },
+    sanitizeProviderContactForAudience(
+      {
+        ...provider,
+        public_slug: legacyProviderSlug(provider),
+      },
+      { exposeImportedContact: true },
+    ),
     publicSearchCacheHeaders(),
   );
 }
