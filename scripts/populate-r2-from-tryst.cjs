@@ -31,6 +31,7 @@ const offset = Number(process.argv.find((a) => a.startsWith("--offset="))?.split
 const onlyId = process.argv.find((a) => a.startsWith("--id="))?.split("=")[1];
 const idsFile = process.argv.find((a) => a.startsWith("--ids-file="))?.split("=")[1];
 const dryRun = process.argv.includes("--dry-run");
+const missingOnly = process.argv.includes("--missing-only");
 
 const PUBLIC_BASE = process.env.S3_PUBLIC_BASE_URL || "https://www.laboutiquevip.net/api/r2-photo";
 const KEY_PREFIX = process.env.S3_KEY_PREFIX || "laboutiquevip/providers";
@@ -75,7 +76,17 @@ async function fetchTrystMarkdown(trystUrl) {
       headers: { "user-agent": "Mozilla/5.0 (compatible; lbv-tryst-r2/1.0)" },
     });
     if (!res.ok) return null;
-    return await res.text();
+    const text = await res.text();
+    // r.jina.ai proxies upstream errors as 200; Tryst 404 pages still embed
+    // OTHER profiles' thumbnails — harvesting those attaches wrong photos.
+    if (
+      /^Title: Page not found/m.test(text) ||
+      /couldn't be found/i.test(text) ||
+      /^Warning: Target URL returned error \d+/m.test(text)
+    ) {
+      return null;
+    }
+    return text;
   } catch {
     return null;
   } finally {
@@ -142,6 +153,12 @@ async function uploadPhotos(s3, bucket, providerId, sourceUrls) {
   return stored;
 }
 
+function needsTrystPhotoRefresh(photos) {
+  const list = Array.isArray(photos) ? photos : [];
+  if (list.length === 0) return true;
+  return !list.some((p) => String(p).includes("/api/r2-photo/"));
+}
+
 async function main() {
   const prisma = new PrismaClient();
   const s3 = getS3Client();
@@ -175,8 +192,15 @@ async function main() {
     orderBy: { updated_date: "asc" },
   });
 
-  const slice = (limit > 0 ? providers.slice(offset, offset + limit) : providers.slice(offset));
-  console.log(`tryst_r2_targets=${providers.length} processing=${slice.length} dryRun=${dryRun}`);
+  const hasNoPhotos = (p) => !Array.isArray(p.photos) || p.photos.length === 0;
+  // Filter before slicing so --limit consumes real work; zero-photo rows
+  // (invisible on the site) always go first. --missing-only restricts to them.
+  const targets = (missingOnly ? providers.filter(hasNoPhotos) : providers.filter((p) => needsTrystPhotoRefresh(p.photos)))
+    .sort((a, b) => Number(hasNoPhotos(b)) - Number(hasNoPhotos(a)));
+  const slice = limit > 0 ? targets.slice(offset, offset + limit) : targets.slice(offset);
+  console.log(
+    `tryst_r2_targets=${providers.length} needs_refresh=${targets.length} no_photos=${providers.filter(hasNoPhotos).length} processing=${slice.length} dryRun=${dryRun} missingOnly=${missingOnly}`,
+  );
 
   let updated = 0;
   let skipped = 0;
