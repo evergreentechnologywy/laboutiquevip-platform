@@ -39,6 +39,8 @@ import {
   initCacheDir,
   resolveCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
+import { uploadSourcePhotosToR2, getPublicBase, getKeyPrefix } from "./lib/r2-photo-upload.mjs";
+import pkgS3 from "@aws-sdk/client-s3";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
 import {
   catalogSeenTouchFields,
@@ -120,8 +122,44 @@ const stats = {
   skipped: 0,
   skippedNoVerification: 0,
   verificationCacheHits: 0,
+  photosUploaded: 0,
+  photosFailed: 0,
   errors: 0,
 };
+
+let _s3Client = null;
+function getS3Client() {
+  if (_s3Client) return _s3Client;
+  const endpoint = process.env.S3_ENDPOINT || process.env.CF_R2_ENDPOINT;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.CF_R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.CF_R2_SECRET_ACCESS_KEY;
+  if (!endpoint || !accessKeyId) return null;
+  _s3Client = new pkgS3.S3Client({
+    region: "auto",
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: false,
+  });
+  return _s3Client;
+}
+
+async function uploadPhotos(providerId, sourceUrls, dryRun = false) {
+  const s3 = getS3Client();
+  if (!s3 || !sourceUrls?.length) return [];
+  const bucket = process.env.S3_BUCKET || process.env.CF_R2_BUCKET || "laboutiquevip";
+  try {
+    const r2Urls = await uploadSourcePhotosToR2({
+      s3, bucket, providerId, sourceUrls,
+      maxPhotos: MAX_PROVIDER_PHOTOS, dryRun,
+    });
+    stats.photosUploaded += r2Urls.length;
+    return r2Urls;
+  } catch (err) {
+    stats.photosFailed += sourceUrls.length;
+    console.warn(`[import-eros] R2 upload failed for ${providerId}: ${err.message}`);
+    return [];
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -484,7 +522,15 @@ async function importProfile(profile, markdown = "") {
   if (existing) {
     stats.updated += 1;
     if (options.dryRun) return;
-    await prisma.provider.update({ where: { id: existing.id }, data });
+    const providerId = existing.id;
+    await prisma.provider.update({ where: { id: providerId }, data });
+    // Upload photos on update if source URLs changed
+    if (profile.photos?.length && profile.photos !== existing.photos) {
+      const r2Urls = await uploadPhotos(providerId, profile.photos, false);
+      if (r2Urls.length) {
+        await prisma.provider.update({ where: { id: providerId }, data: { photos: r2Urls } });
+      }
+    }
     return;
   }
 
@@ -508,12 +554,19 @@ async function importProfile(profile, markdown = "") {
 
   stats.created += 1;
   if (options.dryRun) return;
-  await prisma.provider.create({
+  const created = await prisma.provider.create({
     data: {
       ...data,
       is_premium: false,
     },
   });
+  // Upload photos immediately on creation
+  if (profile.photos?.length) {
+    const r2Urls = await uploadPhotos(created.id, profile.photos, false);
+    if (r2Urls.length) {
+      await prisma.provider.update({ where: { id: created.id }, data: { photos: r2Urls } });
+    }
+  }
 }
 
 async function fetchCityHubs() {
