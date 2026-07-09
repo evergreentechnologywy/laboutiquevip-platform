@@ -11,9 +11,6 @@
  *   2. sitemap-sections.xml section pages (~96 links each) on www/trans/massage
  *   3. Hub listing seeds + ?page=N pagination + ?cat=N category pages
  *
- * Hub catalog: all Eros sitemap hubs (~68) plus Census top-5 cities per US state/DC
- * (mapped to matching Eros hub slugs; deduped by state/city key).
- *
  * Caps: --profiles-per-city / --profiles-per-state / --max-pages use 0 for unlimited
  * (default). Pre-import gate skips profiles without P411 or review match.
  */
@@ -43,14 +40,13 @@ import {
   resolveCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
-import { hubKey, mergeHubCatalog } from "./lib/eros-hub-resolve.mjs";
 import {
   catalogSeenTouchFields,
   findCatalogDuplicateInCity,
   shouldSkipCatalogInsert,
 } from "./lib/catalog-sync-policy.mjs";
 
-const MAX_PROVIDER_PHOTOS = 32;
+const MAX_PROVIDER_PHOTOS = 48;
 const JINA_PREFIX = "https://r.jina.ai/http://";
 
 const args = new Map(
@@ -81,12 +77,7 @@ const options = {
   maxPages: parseImportLimit(args.get("max-pages") ?? process.env.EROS_MAX_PAGES, 15000),
   maxProfiles: parseImportLimit(args.get("max-profiles"), 0),
   profilesPerCity: parseImportLimit(args.get("profiles-per-city") ?? process.env.PROFILES_PER_CITY, 250),
-  profilesPerTop5City: parseImportLimit(
-    args.get("profiles-per-top5-city") ?? process.env.EROS_TOP5_PROFILES_PER_CITY,
-    500,
-  ),
   profilesPerState: parseImportLimit(args.get("profiles-per-state") ?? process.env.PROFILES_PER_STATE, 1250),
-  includeTop5Cities: !args.has("no-top5-cities"),
   startUrl: args.get("start-url") ?? null,
   fromCities: args.has("from-cities"),
   // --hubs=florida/miami,carolinas/carolinas — bound a --from-cities run to specific hubs
@@ -169,8 +160,6 @@ function normalizePhone(phone) {
 }
 
 function parseLocationFromTitle(titleLine) {
-  // Examples:
-  // "Bianca, Age:  25, blonde | Female Elite Escort Near You in Miami Florida, FL - Eros.com"
   const inMatch = titleLine.match(/\bin\s+([A-Za-z\s'.-]+?)\s+([A-Za-z]{2})(?:\s|-|$)/i);
   if (!inMatch) return { city: null, state: null };
   return {
@@ -208,18 +197,6 @@ async function fetchDirectText(url, timeoutMs = 30000) {
   }
 }
 
-function jina429WaitMs(rawBody, attempt, baseMs = 9000) {
-  let waitMs = baseMs + attempt * 2000;
-  try {
-    const parsed = JSON.parse(rawBody);
-    const retrySec = Number(parsed?.retryAfter ?? 0);
-    if (Number.isFinite(retrySec) && retrySec > 0) waitMs = Math.max(waitMs, retrySec * 1000 + 500);
-  } catch {
-    // keep computed wait
-  }
-  return waitMs;
-}
-
 async function fetchMirrorText(url, timeoutMs = 30000, attempts = 5) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const controller = new AbortController();
@@ -235,7 +212,15 @@ async function fetchMirrorText(url, timeoutMs = 30000, attempts = 5) {
 
       if (response.status === 429) {
         const raw = await response.text();
-        await sleep(jina429WaitMs(raw, attempt));
+        let waitMs = 9000;
+        try {
+          const parsed = JSON.parse(raw);
+          const retrySec = Number(parsed?.retryAfter ?? 8);
+          if (Number.isFinite(retrySec) && retrySec > 0) waitMs = retrySec * 1000 + 500;
+        } catch {
+          // keep default wait
+        }
+        await sleep(waitMs);
         continue;
       }
 
@@ -244,60 +229,15 @@ async function fetchMirrorText(url, timeoutMs = 30000, attempts = 5) {
       if (mirrorResponseLooksBad(text)) break;
       return text;
     } catch {
-      // retry
       await sleep(1200 * attempt);
     } finally {
       clearTimeout(timer);
     }
   }
 
+  // Fallback: try direct fetch when Jina mirror fails
   const direct = await fetchDirectText(url, timeoutMs);
   if (direct && !mirrorResponseLooksBad(direct)) return direct;
-  return null;
-}
-
-/** Sitemap shards are large; serialize with long backoff — concurrent imports exhaust Jina IP quota. */
-async function fetchSitemapMirrorText(url, timeoutMs = 45000) {
-  const attempts = Number(process.env.EROS_SITEMAP_FETCH_ATTEMPTS ?? "12");
-  const base429Ms = Number(process.env.EROS_SITEMAP_429_BASE_MS ?? "15000");
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(toMirrorUrl(url), {
-        method: "GET",
-        signal: controller.signal,
-        headers: {
-          "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-eros-full-import/1.0)",
-        },
-      });
-
-      if (response.status === 429) {
-        const raw = await response.text();
-        const waitMs = jina429WaitMs(raw, attempt, base429Ms);
-        console.warn(`[import-eros] sitemap 429 ${url} attempt=${attempt}/${attempts} waitMs=${waitMs}`);
-        await sleep(waitMs);
-        continue;
-      }
-
-      if (!response.ok) {
-        console.warn(`[import-eros] sitemap HTTP ${response.status} ${url}`);
-        break;
-      }
-      const text = await response.text();
-      if (mirrorResponseLooksBad(text) || /RateLimitTriggeredError/i.test(text)) {
-        console.warn(`[import-eros] sitemap bad body ${url} attempt=${attempt}/${attempts}`);
-        await sleep(base429Ms);
-        continue;
-      }
-      return text;
-    } catch (err) {
-      console.warn(`[import-eros] sitemap fetch error ${url}: ${err?.message ?? err}`);
-      await sleep(2000 * attempt);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
   return null;
 }
 
@@ -354,8 +294,11 @@ function parseProfile(markdown, sourceUrl) {
   const tagline =
     lines.find((line) => /^###\s+/.test(line))?.replace(/^###\s+/, "").trim() ?? null;
 
+  // Phone: broader patterns including spaced formats and label:value
   const phoneRaw =
-    markdown.match(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/)?.[0] ?? null;
+    markdown.match(/\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/)?.[0] ??
+    markdown.match(/(?:phone|call|text|tel)[:\s]*([+()0-9.\-\s]{10,})/i)?.[1] ??
+    null;
   const phone = normalizePhone(phoneRaw);
 
   const email = markdown.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() ?? null;
@@ -380,24 +323,26 @@ function parseProfile(markdown, sourceUrl) {
   const ageNum = ageRaw ? Number(ageRaw) : null;
   const age = ageNum && ageNum >= 18 && ageNum <= 99 ? ageNum : null;
 
-  const imageCandidates = unique(
-    [...markdown.matchAll(/https?:\/\/(?:i|[a-z0-9-]+)\.eros\.com\/(?:i|profile)\/[^\s)]+/gi)].map((m) => m[0]),
-  );
+  // Photos: broader CDN patterns — i.eros.com, cdne, dimension URLs
+  const imageCandidates = unique([
+    ...markdown.matchAll(/https?:\/\/(?:i|[a-z0-9-]+)\.eros\.com\/(?:i|profile|img|images)\/[^\s)]+/gi),
+    ...markdown.matchAll(/https?:\/\/cdne\.eros\.com\/[^\s)]+/gi),
+    ...markdown.matchAll(/https?:\/\/[^\s)]+\.eros\.com\/\d+x\d+\/[^\s)]+/gi),
+  ].map((m) => m[0]));
   // Eros galleries are oldest-first; newest first for display and R2 order
   const photos = imageCandidates.reverse().slice(0, MAX_PROVIDER_PHOTOS);
 
-  const details = [];
-  for (const key of ["Ethnicity", "Hair Color", "Eye color", "Availability", "Available to"]) {
-    const rx = new RegExp(`\\b${key}\\s*\\n\\s*([^\\n]+)`, "i");
-    const val = markdown.match(rx)?.[1];
-    if (val) details.push(cleanText(`${key}: ${val}`));
-  }
+  // Rate extraction from profile text
+  const rateMatches = [...markdown.matchAll(/(?:rate|hour|hr|donation|incall|outcall)[:\s]*\$?(\d{2,4})/gi)];
+  const rates = rateMatches.map(m => Number(m[1])).filter(n => n >= 50 && n <= 5000);
+  const rate_hourly = rates.length > 0 ? Math.min(...rates) : null;
 
+  // Parse structured details via the profile parser (bio, tags, stats)
   const parsedDetails = parseErosProfileDetails(markdown);
-  const bio = parsedDetails.bio ?? (() => {
-    const bioParts = [tagline, ...details].filter(Boolean);
-    return bioParts.length ? bioParts.join(" | ") : null;
-  })();
+
+  // Bio: prefer the parsed description (real body text).
+  // Fall back to tagline only — never concatenate stats as a bio.
+  const bio = parsedDetails.description ?? tagline ?? null;
 
   return {
     sourceUrl,
@@ -415,7 +360,10 @@ function parseProfile(markdown, sourceUrl) {
     hair_color: parsedDetails.hair_color,
     eye_color: parsedDetails.eye_color,
     height: parsedDetails.height,
+    body_type: parsedDetails.body_type,
     service_type: parsedDetails.service_type,
+    services_offered: parsedDetails.services_offered,
+    rate_hourly,
   };
 }
 
@@ -448,10 +396,13 @@ function buildProviderPayload(profile, existing = null) {
     hair_color: profile.hair_color ?? existing?.hair_color ?? null,
     eye_color: profile.eye_color ?? existing?.eye_color ?? null,
     height: profile.height ?? existing?.height ?? null,
+    body_type: profile.body_type ?? existing?.body_type ?? null,
     service_type: profile.service_type ?? existing?.service_type ?? null,
+    services_offered: profile.services_offered ?? existing?.services_offered ?? null,
     phone: profile.phone ?? existing?.phone ?? null,
     email: profile.email ?? existing?.email ?? null,
     photos: mergedPhotos,
+    rate_hourly: profile.rate_hourly ?? existing?.rate_hourly ?? null,
     verification_provider: "eros",
     verification_url: profile.sourceUrl,
     social_media: mergeImportedSocial(existingSocial, profile.socialExtract, {
@@ -499,7 +450,6 @@ async function importProfile(profile, markdown = "") {
   });
 
   if (!passesImportGate(existing, profile.verification)) {
-    // Soft gate: import anyway but flag as unverified
     if (!shouldSoftGate(profile.verification)) {
       stats.skippedNoVerification += 1;
       return;
@@ -589,9 +539,6 @@ const MAX_PROFILE_SITEMAP_SHARDS = 20;
 const LISTING_PAGINATION_MAX = Number(process.env.EROS_LISTING_PAGINATION_MAX ?? "40");
 const LISTING_CAT_MAX = Number(process.env.EROS_LISTING_CAT_MAX ?? "12");
 
-/**
- * Hub key ("state/city") for any eros.com URL, or null.
- */
 function hubKeyForUrl(url) {
   const m = String(url).toLowerCase().match(
     /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\//i,
@@ -628,7 +575,7 @@ function fetchSitemapProfileUrls() {
     }
     console.log(`[import-eros] sitemap profile inventory: ${urls.size} urls`);
     if (urls.size === 0) {
-      console.error("[import-eros] WARNING: sitemap profile inventory is 0 — crawl depth will stay ~12/hub (Jina rate limit?)");
+      console.error("[import-eros] WARNING: sitemap profile inventory is 0");
     }
     return [...urls];
   })();
@@ -654,9 +601,6 @@ function fetchSectionPagesByHub() {
     }
     const total = [...byHub.values()].reduce((sum, set) => sum + set.size, 0);
     console.log(`[import-eros] sitemap section pages: ${total} across ${byHub.size} hubs`);
-    if (total === 0) {
-      console.error("[import-eros] WARNING: sitemap section inventory is 0 — section discovery disabled");
-    }
     return byHub;
   })();
   return sectionSitemapPromise;
@@ -672,9 +616,7 @@ function synthesizedPaginationUrls(url, maxPage = LISTING_PAGINATION_MAX) {
       next.searchParams.set("page", String(page));
       extras.push(next.toString());
     }
-  } catch {
-    // unparsable url
-  }
+  } catch { /* unparsable */ }
   return extras;
 }
 
@@ -688,9 +630,7 @@ function synthesizedCategoryUrls(url, maxCat = LISTING_CAT_MAX) {
       next.searchParams.set("cat", String(cat));
       extras.push(next.toString());
     }
-  } catch {
-    // unparsable url
-  }
+  } catch { /* unparsable */ }
   return extras;
 }
 
@@ -702,9 +642,7 @@ function extractCategoryListingUrls(markdown, hub) {
     try {
       const parsed = new URL(link);
       if (parsed.searchParams.has("cat")) urls.push(parsed.toString());
-    } catch {
-      // skip
-    }
+    } catch { /* skip */ }
   }
   return unique(urls);
 }
@@ -738,7 +676,6 @@ async function crawlProfilesForHub(hub, profileLimit, maxPagesBudget, globalProf
     return true;
   }
 
-  // 1) Primary: sitemap-profiles-N.xml (mirror listing galleries are JS-only ~10 links).
   const sitemapProfiles = await fetchSitemapProfileUrls();
   for (const url of sitemapProfiles) {
     if (profileUrls.size >= profileLimit) break;
@@ -748,7 +685,6 @@ async function crawlProfilesForHub(hub, profileLimit, maxPagesBudget, globalProf
 
   if (profileUrls.size >= profileLimit) return [...profileUrls];
 
-  // 2) Secondary: section pages + listing BFS with ?page=N and ?cat=N pagination.
   const sectionsByHub = await fetchSectionPagesByHub();
   const hubSections = sectionsByHub.get(`${hub.state}/${hub.city}`) ?? new Set();
   const queue = unique(
@@ -766,23 +702,17 @@ async function crawlProfilesForHub(hub, profileLimit, maxPagesBudget, globalProf
 
     const text = await fetchMirrorText(url);
     stats.pagesFetched += 1;
-    if (!text) {
-      stats.errors += 1;
-      continue;
-    }
+    if (!text) { stats.errors += 1; continue; }
 
     const links = extractAllLinks(text);
     let newProfilesOnPage = 0;
     for (const link of links) {
       if (!urlBelongsToHub(link, hub) && !isProfileUrl(link)) continue;
-
       if (isProfileUrl(link)) {
         if (registerProfileUrl(link)) newProfilesOnPage += 1;
         continue;
       }
-      if (isListingLikeUrl(link) && !visited.has(link)) {
-        queue.push(link);
-      }
+      if (isListingLikeUrl(link) && !visited.has(link)) queue.push(link);
     }
 
     for (const catUrl of extractCategoryListingUrls(text, hub)) {
@@ -800,11 +730,8 @@ async function crawlProfilesForHub(hub, profileLimit, maxPagesBudget, globalProf
       }
     }
 
-    if (isProfileUrl(url)) {
-      stats.profilePages += 1;
-    } else {
-      stats.listingPages += 1;
-    }
+    if (isProfileUrl(url)) stats.profilePages += 1;
+    else stats.listingPages += 1;
 
     await sleep(options.delayMs);
   }
@@ -815,10 +742,17 @@ async function crawlProfilesForHub(hub, profileLimit, maxPagesBudget, globalProf
 async function fetchCityListingSeeds() {
   const hubs = await fetchCityHubs();
   const seeds = [];
-  for (const hub of hubs) {
-    seeds.push(...listingUrlsForHub(hub));
-  }
+  for (const hub of hubs) seeds.push(...listingUrlsForHub(hub));
   return seeds;
+}
+
+function hubKey(hub) { return `${hub.state}/${hub.city}`; }
+
+function top5HubKeys() {
+  return new Set([
+    "florida/miami", "new_york/new_york", "california/los_angeles",
+    "nevada/las_vegas", "illinois/chicago",
+  ]);
 }
 
 async function crawlProfileUrls() {
@@ -829,113 +763,61 @@ async function crawlProfileUrls() {
   if (options.fromCities) {
     const sitemapHubs = await fetchCityHubs();
     let hubs = sitemapHubs;
-    let top5Matched = 0;
-    let top5Unmatched = 0;
 
     if (options.hubs.length > 0) {
       hubs = sitemapHubs.filter((hub) => options.hubs.includes(hubKey(hub)));
-      if (hubs.length === 0) {
-        console.error(`[import-eros] no city hubs matched --hubs=${options.hubs.join(",")}`);
-        return [];
-      }
-    } else if (sitemapHubs.length === 0) {
-      return crawlProfilesLegacy([
-        "https://www.eros.com/",
-        "https://trans.eros.com/",
-        "https://massage.eros.com/",
-      ]);
-    } else {
-      const merged = mergeHubCatalog(sitemapHubs, { includeTop5: options.includeTop5Cities });
-      hubs = merged.hubs;
-      top5Matched = merged.top5Matched;
-      top5Unmatched = merged.top5Unmatched;
     }
 
-    const priorityCount = hubs.filter((h) => h.priority).length;
-    console.log(
-      `[import-eros] hubs: ${hubs.length} sitemap=${sitemapHubs.length} top5Priority=${priorityCount} ` +
-        `(top5 matched=${top5Matched} unmatched=${top5Unmatched}; cap city=${formatCap(options.profilesPerCity)} ` +
-        `top5=${formatCap(options.profilesPerTop5City)} state=${formatCap(options.profilesPerState)})`,
-    );
+    const top5 = top5HubKeys();
+    hubs = hubs.map((hub) => ({
+      ...hub,
+      priority: top5.has(hubKey(hub)),
+    }));
+    hubs.sort((a, b) => Number(b.priority) - Number(a.priority));
 
-    const allProfileUrls = new Set();
-    const totalPageBudget = maxPagesBudget();
+    const globalUrls = new Set();
+    const allProfiles = [];
 
     for (const hub of hubs) {
-      const remainingPages =
-        totalPageBudget === Number.POSITIVE_INFINITY
-          ? Number.POSITIVE_INFINITY
-          : Math.max(0, options.maxPages - stats.pagesFetched);
-      if (remainingPages !== Number.POSITIVE_INFINITY && remainingPages <= 0) break;
-
       const limit = profileLimitForHub(hub);
-      const profiles = await crawlProfilesForHub(hub, limit, remainingPages, allProfileUrls);
-      for (const url of profiles) allProfileUrls.add(url);
-      if (profiles.length > 0) {
-        const limitLabel = Number.isFinite(limit) ? String(limit) : "unlimited";
-        const tag = hub.priority ? " [top5]" : "";
-        console.log(
-          `[import-eros] hub ${hub.state}/${hub.city}${tag}: ${profiles.length}/${limitLabel} profiles`,
-        );
-      }
+      const profiles = await crawlProfilesForHub(hub, limit, maxPagesBudget(), globalUrls);
+      console.log(`[import-eros] hub ${hubKey(hub)}: ${profiles.length}/${limit} profiles`);
+      allProfiles.push(...profiles);
+      if (options.maxProfiles > 0 && allProfiles.length >= options.maxProfiles) break;
     }
 
-    return [...allProfileUrls];
+    return allProfiles;
   }
 
-  return crawlProfilesLegacy([
-    "https://www.eros.com/",
-    "https://trans.eros.com/",
-    "https://massage.eros.com/",
-  ]);
+  const seeds = await fetchCityListingSeeds();
+  return crawlProfilesLegacy(seeds);
 }
 
-async function crawlProfilesLegacy(seeds) {
-  const queue = [];
-  const visited = new Set();
+async function crawlProfilesLegacy(seedUrls) {
   const profileUrls = new Set();
+  const queue = [...seedUrls.map((s) => normalizeUrl(s)).filter(Boolean)];
+  const visited = new Set();
 
-  console.log(`[import-eros] crawl seeds: ${seeds.length}`);
-
-  for (const seed of seeds) {
-    const normalized = normalizeUrl(seed);
-    if (normalized) queue.push(normalized);
-  }
-
-  while (queue.length > 0 && visited.size < maxPagesBudget()) {
+  while (queue.length > 0 && visited.size < maxPagesBudget() && profileUrls.size < (options.maxProfiles || Infinity)) {
     const url = queue.shift();
     if (!url || visited.has(url)) continue;
     visited.add(url);
 
     const text = await fetchMirrorText(url);
     stats.pagesFetched += 1;
-    if (!text) {
-      stats.errors += 1;
-      continue;
-    }
+    if (!text) { stats.errors += 1; continue; }
 
-    const links = extractAllLinks(text);
-    for (const link of links) {
-      if (isProfileUrl(link)) {
-        if (!profileUrls.has(link)) {
-          profileUrls.add(link);
-          stats.profileLinksDiscovered += 1;
-        }
-        if (!visited.has(link)) {
-          queue.push(link);
-        }
-        continue;
-      }
-      if (isListingLikeUrl(link) && !visited.has(link)) {
+    for (const link of extractAllLinks(text)) {
+      if (isProfileUrl(link) && !profileUrls.has(link)) {
+        profileUrls.add(link);
+        stats.profileLinksDiscovered += 1;
+      } else if (isListingLikeUrl(link) && !visited.has(link)) {
         queue.push(link);
       }
     }
 
-    if (isProfileUrl(url)) {
-      stats.profilePages += 1;
-    } else {
-      stats.listingPages += 1;
-    }
+    if (isProfileUrl(url)) stats.profilePages += 1;
+    else stats.listingPages += 1;
 
     await sleep(options.delayMs);
   }
@@ -943,61 +825,40 @@ async function crawlProfilesLegacy(seeds) {
   return [...profileUrls];
 }
 
-async function run() {
-  const startedAt = Date.now();
-  console.log(
-    `[import-eros] start dryRun=${options.dryRun} maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
-      `profilesPerCity=${formatCap(options.profilesPerCity)} top5=${formatCap(options.profilesPerTop5City)} ` +
-      `profilesPerState=${formatCap(options.profilesPerState)} top5Cities=${options.includeTop5Cities} db=${hasDatabaseUrl ? "on" : "off"}`,
-  );
+async function main() {
+  console.log(`[import-eros] start fromCities=${options.fromCities} hubs=${options.hubs.length || "all"} ` +
+    `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} ` +
+    `maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
+    `dryRun=${options.dryRun} cacheOnly=${options.cacheOnly} photos=${MAX_PROVIDER_PHOTOS}`);
 
-  if (!prisma && !options.dryRun && !options.cacheOnly && !options.discoverOnly) {
-    throw new Error("DATABASE_URL is required for live import mode.");
-  }
-  if (options.cacheOnly && options.cacheDir) {
-    initCacheDir(options.cacheDir);
-    console.log(`[import-eros] cache-only mode dir=${options.cacheDir}`);
-  }
+  if (options.cacheOnly && options.cacheDir) initCacheDir(options.cacheDir);
 
-  const profileUrls = await crawlProfileUrls();
-  let toProcess = profileUrls;
-  if (options.maxProfiles > 0) toProcess = toProcess.slice(0, options.maxProfiles);
+  let profileUrls = await crawlProfileUrls();
+  if (options.maxProfiles > 0) profileUrls = profileUrls.slice(0, options.maxProfiles);
 
-  console.log(`[import-eros] profile URLs discovered: ${profileUrls.length}; processing: ${toProcess.length}`);
+  console.log(`[import-eros] profile URLs to import: ${profileUrls.length}`);
 
   if (options.discoverOnly) {
-    const elapsed = Math.round((Date.now() - startedAt) / 1000);
-    console.log("[import-eros] discover-only complete", { ...stats, elapsedSeconds: elapsed });
+    for (const url of profileUrls) console.log(url);
     return;
   }
 
-  for (const profileUrl of toProcess) {
-    try {
-      const markdown = await fetchMirrorText(profileUrl);
-      if (!markdown) {
-        stats.errors += 1;
-        continue;
-      }
-      stats.profilePages += 1;
-      const profile = parseProfile(markdown, profileUrl);
-      stats.profilesParsed += 1;
-      await importProfile(profile, markdown);
-    } catch (err) {
-      stats.errors += 1;
-      console.error(`[import-eros] error ${profileUrl}: ${String(err)}`);
-    }
+  for (const profileUrl of profileUrls) {
     await sleep(options.delayMs);
+    const text = await fetchMirrorText(profileUrl);
+    if (!text) { stats.errors += 1; continue; }
+
+    const profile = parseProfile(text, profileUrl);
+    if (!profile || !profile.display_name) { stats.skipped += 1; continue; }
+    stats.profilesParsed += 1;
+
+    await importProfile(profile, text);
   }
 
-  const elapsed = Math.round((Date.now() - startedAt) / 1000);
-  console.log("[import-eros] complete", { ...stats, elapsedSeconds: elapsed });
+  console.log("[import-eros] complete:", stats);
 }
 
-run()
-  .catch((err) => {
-    console.error("[import-eros] fatal", err);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    if (prisma) await prisma.$disconnect();
-  });
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

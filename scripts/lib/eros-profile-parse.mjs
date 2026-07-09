@@ -92,6 +92,14 @@ export function parseErosProfileDetails(markdown) {
   const eyeColor = titleCase(parseErosDetailValue(markdown, "Eye color"));
   const height = parseErosDetailValue(markdown, "Height");
 
+  const bodyType = parseErosDetailValue(markdown, "Body Type") ?? parseErosDetailValue(markdown, "Build");
+  const availability = parseErosDetailValue(markdown, "Availability");
+
+  // Services: look for listed services in the description text
+  const servicesPatterns = ["GFE", "PSE", "DATY", "BBBJ", "CIM", "COF", "Greek", "MSOG", "DFK", "LFK", "FK", "Duo", "Fetish", "BDSM", "Roleplay"];
+  const desc = (description ?? "").toLowerCase();
+  const services_offered = servicesPatterns.filter(s => desc.includes(s.toLowerCase()));
+
   const detailLabels = [];
   if (gender) detailLabels.push(`Gender: ${titleCase(gender)}`);
   if (ethnicityRaw) detailLabels.push(`Ethnicity: ${titleCase(ethnicityRaw)}`);
@@ -111,5 +119,8 @@ export function parseErosProfileDetails(markdown) {
     hair_color: hairColor,
     eye_color: eyeColor,
     height,
+    body_type: bodyType ? titleCase(bodyType) : null,
+    services_offered: services_offered.length ? services_offered : null,
+    availability,
   };
 }
