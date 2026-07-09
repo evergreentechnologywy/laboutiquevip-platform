@@ -24,24 +24,48 @@ function buildLocationValue({ stateCode, stateName, cityName }) {
   return "";
 }
 
-export function LocationPicker({ value, onChange, className = "" }) {
-  const parsed = React.useMemo(() => parseLocationValue(value), [value]);
-  const [selectedState, setSelectedState] = React.useState(parsed.stateCode || parsed.stateName || "");
-  const [selectedCity, setSelectedCity] = React.useState(parsed.cityName || "");
+/**
+ * Resolve a free-form location value (deep links like ?location=Miami or
+ * /city/miami) against the loaded state/city catalog so the pickers
+ * pre-select instead of showing "Pick a state first".
+ */
+function resolveSelection(value, states) {
+  const parsed = parseLocationValue(value);
+  if (parsed.cityName && parsed.stateCode) {
+    return { state: parsed.stateCode, city: parsed.cityName };
+  }
+  const text = String(parsed.stateName || parsed.stateCode || "").trim().toLowerCase();
+  if (!text) return { state: "", city: "" };
+  const stateMatch = states.find(
+    (state) => state.code.toLowerCase() === text || state.name.toLowerCase() === text,
+  );
+  if (stateMatch) return { state: stateMatch.code, city: "" };
+  for (const state of states) {
+    const cityMatch = (state.cities ?? []).find((city) => city.name.toLowerCase() === text);
+    if (cityMatch) return { state: state.code, city: cityMatch.name };
+  }
+  // Keep the raw text as state so a match can resolve once data loads.
+  return { state: parsed.stateName || parsed.stateCode || "", city: parsed.cityName || "" };
+}
 
+export function LocationPicker({ value, onChange, className = "" }) {
   const { data, isLoading } = useQuery({
     queryKey: ["search-locations"],
     queryFn: fetchSearchLocations,
     staleTime: 60_000,
   });
 
-  const states = data?.states ?? [];
+  const states = React.useMemo(() => data?.states ?? [], [data]);
+
+  const initial = React.useMemo(() => resolveSelection(value, states), [value, states]);
+  const [selectedState, setSelectedState] = React.useState(initial.state);
+  const [selectedCity, setSelectedCity] = React.useState(initial.city);
 
   React.useEffect(() => {
-    const next = parseLocationValue(value);
-    setSelectedState(next.stateCode || next.stateName || "");
-    setSelectedCity(next.cityName || "");
-  }, [value]);
+    const next = resolveSelection(value, states);
+    setSelectedState(next.state);
+    setSelectedCity(next.city);
+  }, [value, states]);
 
   const activeState = states.find(
     (state) => state.code === selectedState || state.name.toLowerCase() === String(selectedState).toLowerCase(),

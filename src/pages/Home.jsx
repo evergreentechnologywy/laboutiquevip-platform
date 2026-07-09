@@ -4,12 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Star, Shield, Crown, ArrowRight, BadgeCheck, Gem, MessageCircleMore, Sparkles } from "lucide-react";
+import { Search, MapPin, Star, Shield, Crown, ArrowRight, BadgeCheck, Gem, MessageCircleMore } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { searchProviders } from "@/api/providerSearch";
-import { getProviderRatingMeta } from "@/lib/providerPresentation";
-import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
-import { ProfileImage } from "@/components/ProfileImage";
+import { ProviderListingCard } from "@/components/ProviderListingCard";
 import { SEO } from "@/components/SEO";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 
@@ -161,65 +159,7 @@ export default function Home() {
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {featuredProviders.slice(0, 6).map((provider) => (
-              <Link key={provider.id} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift">
-                <article className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative">
-                  <div className="aspect-[4/5] overflow-hidden bg-zinc-950 relative">
-                    <ProfileImage
-                      src={getPrimaryProfilePhoto(provider)}
-                      alt={provider.display_name}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-80" />
-                  </div>
-
-                  <div className="p-6 relative">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-xl font-semibold text-zinc-100 transition group-hover:text-amber-400">
-                          {provider.display_name}
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-1 text-sm text-zinc-500">
-                          <MapPin className="h-3.5 w-3.5" />
-                          <span>{provider.location_city}, {provider.location_state}</span>
-                        </div>
-                      </div>
-                      {provider.is_verified && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 border border-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-400 shadow-sm">
-                          <Shield className="h-3.5 w-3.5" />
-                          Verified
-                        </span>
-                      )}
-                    </div>
-
-                    {provider.tagline && (
-                      <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-400 font-light">{provider.tagline}</p>
-                    )}
-
-                    <div className="mt-6 flex items-center justify-between text-sm border-t border-zinc-900 pt-4">
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                        {(() => {
-                          const ratingMeta = getProviderRatingMeta(provider);
-                          return (
-                            <>
-                              <span className="font-semibold text-zinc-300">{ratingMeta.value}</span>
-                              <span className="text-zinc-500">{ratingMeta.detail}</span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                      {provider.rate_hourly && (
-                        <span className="font-semibold text-zinc-100">${provider.rate_hourly}/hr</span>
-                      )}
-                    </div>
-
-                    <div className="mt-6 inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-zinc-300 group-hover:text-amber-400 transition-colors">
-                      View Profile
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </div>
-                  </div>
-                </article>
-              </Link>
+              <ProviderListingCard key={provider.id} provider={provider} />
             ))}
           </div>
         </section>

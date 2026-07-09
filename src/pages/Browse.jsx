@@ -8,13 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Star, Shield, Crown, Filter, X, ArrowRight, Sparkles, CheckCircle2, LifeBuoy, Megaphone } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Search, Shield, Crown, Filter, X, ArrowRight, Sparkles, CheckCircle2, LifeBuoy, Megaphone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { searchProviders } from "@/api/providerSearch";
-import { getProviderRatingMeta } from "@/lib/providerPresentation";
-import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
-import { ProfileImage } from "@/components/ProfileImage";
-import { VerificationBadges } from "@/components/VerificationBadges";
+import { ProviderListingCard } from "@/components/ProviderListingCard";
 import { SEO } from "@/components/SEO";
 import { LocationPicker } from "@/components/LocationPicker";
 import {
@@ -100,6 +98,7 @@ export default function Browse() {
   const [sortBy, setSortBy] = React.useState("newest");
   const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
   const [page, setPage] = React.useState(1);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   React.useEffect(() => {
     setPage(1);
@@ -144,6 +143,12 @@ export default function Browse() {
     setPage(1);
   };
 
+  const activeFilterCount =
+    (location ? 1 : 0) +
+    (selectedFilters.verified ? 1 : 0) +
+    (selectedFilters.premium ? 1 : 0) +
+    (priceRange[0] > 0 || priceRange[1] < 2000 ? 1 : 0);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
       <SEO
@@ -152,9 +157,9 @@ export default function Browse() {
         ogTitle="Browse Verified Profiles | La Boutique VIP"
         ogDescription="Discreet directory of verified listings and premium profiles."
       />
-      <div className="mx-auto max-w-7xl px-6 pt-6 lg:px-8">
-        <Breadcrumb>
-          <BreadcrumbList>
+      <div className="mx-auto max-w-7xl px-6 pt-6 pb-2 lg:px-8">
+        <Breadcrumb className="py-2">
+          <BreadcrumbList className="text-muted-foreground">
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link to={createPageUrl("Home")}>Home</Link>
@@ -213,68 +218,76 @@ export default function Browse() {
                   className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 pl-11 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20"
                 />
               </div>
-              <LocationPicker value={location} onChange={setLocation} />
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-12 rounded-2xl border-zinc-850 bg-zinc-950/70 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20" aria-label="Sort results by">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
-                  <SelectItem value="newest">Newest</SelectItem>
-                  <SelectItem value="rating">Highest rated</SelectItem>
-                  <SelectItem value="price_low">Price: low to high</SelectItem>
-                  <SelectItem value="price_high">Price: high to low</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="hidden md:block">
+                <LocationPicker value={location} onChange={setLocation} />
+              </div>
+              <div className="flex gap-3">
+                {/* Mobile: full filters live in a drawer so listings stay above the fold */}
+                <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="md:hidden h-12 flex-1 rounded-2xl border-zinc-800 bg-zinc-950/70 text-zinc-200 hover:bg-zinc-900 hover:text-white"
+                    >
+                      <Filter className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl border-zinc-800 bg-zinc-950 text-zinc-100">
+                    <SheetHeader>
+                      <SheetTitle className="text-zinc-100">Filters</SheetTitle>
+                    </SheetHeader>
+                    <div className="mt-5 space-y-6 pb-4">
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Location</p>
+                        <LocationPicker value={location} onChange={setLocation} />
+                      </div>
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-500">Trust</p>
+                        <FilterChips selectedFilters={selectedFilters} toggleFilter={toggleFilter} />
+                      </div>
+                      <RateSlider priceRange={priceRange} setPriceRange={setPriceRange} maxAllowedPrice={maxAllowedPrice} />
+                      <div className="flex gap-3 pt-1">
+                        <Button variant="ghost" onClick={clearFilters} className="h-11 flex-1 rounded-full text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200">
+                          <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                          Clear all
+                        </Button>
+                        <Button onClick={() => setFiltersOpen(false)} className="h-11 flex-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold border-0 hover:opacity-95">
+                          Show results
+                        </Button>
+                      </div>
+                    </div>
+                  </SheetContent>
+                </Sheet>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-12 flex-1 rounded-2xl border-zinc-850 bg-zinc-950/70 text-zinc-100 focus:border-amber-500 focus:ring-amber-500/20" aria-label="Sort results by">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-100">
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="rating">Highest rated</SelectItem>
+                    <SelectItem value="price_low">Price: low to high</SelectItem>
+                    <SelectItem value="price_high">Price: high to low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="mt-5 flex flex-col gap-4 border-t border-zinc-800 pt-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="mt-5 hidden flex-col gap-4 border-t border-zinc-800 pt-5 md:flex xl:flex-row xl:items-end xl:justify-between">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Filter className="h-4 w-4" />
                   <span>Filters</span>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => toggleFilter("verified")} 
-                  aria-pressed={selectedFilters.verified}
-                  className={selectedFilters.verified 
-                    ? "rounded-full border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 shadow-sm" 
-                    : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}
-                >
-                  <Shield className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                  Verified only
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => toggleFilter("premium")} 
-                  aria-pressed={selectedFilters.premium}
-                  className={selectedFilters.premium 
-                    ? "rounded-full border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 shadow-sm" 
-                    : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}
-                >
-                  <Crown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-                  Premium only
-                </Button>
+                <FilterChips selectedFilters={selectedFilters} toggleFilter={toggleFilter} />
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200">
                   <X className="mr-1 h-3.5 w-3.5" />
                   Clear all
                 </Button>
               </div>
 
-              <div className="w-full max-w-sm">
-                <div className="mb-2 flex items-center justify-between text-xs text-zinc-450 uppercase tracking-wider">
-                  <span>Hourly rate</span>
-                  <span className="font-semibold text-amber-400">${priceRange[0]} - ${priceRange[1]}</span>
-                </div>
-                <Slider 
-                  value={priceRange} 
-                  onValueChange={setPriceRange} 
-                  max={maxAllowedPrice} 
-                  step={50} 
-                  className="[&_[role=slider]]:border-zinc-700 [&_[role=slider]]:bg-zinc-800 [&_.relative_div]:bg-amber-500" 
-                />
+              <div className="w-full xl:max-w-sm">
+                <RateSlider priceRange={priceRange} setPriceRange={setPriceRange} maxAllowedPrice={maxAllowedPrice} />
               </div>
             </div>
           </div>
@@ -423,14 +436,14 @@ export default function Browse() {
                   </Badge>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {cityProviders.map((provider) => <ProviderCard key={provider.id} provider={provider} />)}
+                  {cityProviders.map((provider) => <ProviderListingCard key={provider.id} provider={provider} />)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {providers.map((provider) => <ProviderCard key={provider.id} provider={provider} />)}
+            {providers.map((provider) => <ProviderListingCard key={provider.id} provider={provider} />)}
           </div>
         )}
 
@@ -479,81 +492,54 @@ function StatCard({ label, value, helper }) {
   );
 }
 
-function ProviderCard({ provider }) {
-  const ratingMeta = getProviderRatingMeta(provider);
-
+function FilterChips({ selectedFilters, toggleFilter }) {
   return (
-    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift">
-      <article className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative">
-        <div className="relative aspect-[4/5] overflow-hidden bg-zinc-950">
-          <ProfileImage
-            src={getPrimaryProfilePhoto(provider)}
-            alt={provider.display_name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent opacity-80" />
-          <div className="absolute left-4 top-4 flex flex-wrap gap-2 z-10">
-            {(provider.is_new || (new Date() - new Date(provider.created_date) < 7 * 24 * 60 * 60 * 1000)) && (
-              <Badge className="rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold shadow-sm">
-                Just joined
-              </Badge>
-            )}
-            <VerificationBadges provider={provider} />
-            {provider.is_premium && (
-              <Badge className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-semibold shadow-sm">
-                <Crown className="mr-1 h-3 w-3" />
-                Premium
-              </Badge>
-            )}
-            {provider.tour_plan?.cities?.length > 0 && (
-              <Badge className="rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-400 text-[10px] font-semibold shadow-sm">
-                <MapPin className="mr-1 h-3 w-3" />
-                Touring
-              </Badge>
-            )}
-          </div>
-        </div>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => toggleFilter("verified")}
+        aria-pressed={selectedFilters.verified}
+        className={`min-h-11 sm:min-h-0 ${selectedFilters.verified
+          ? "rounded-full border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 shadow-sm"
+          : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}`}
+      >
+        <Shield className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+        Verified only
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => toggleFilter("premium")}
+        aria-pressed={selectedFilters.premium}
+        className={`min-h-11 sm:min-h-0 ${selectedFilters.premium
+          ? "rounded-full border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 shadow-sm"
+          : "rounded-full border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"}`}
+      >
+        <Crown className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+        Premium only
+      </Button>
+    </>
+  );
+}
 
-        <div className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-semibold text-zinc-100 transition group-hover:text-amber-400">
-                {provider.display_name}
-              </h3>
-              <p className="mt-1 text-sm text-zinc-550">
-                {provider.location_city}, {provider.location_state}
-              </p>
-            </div>
-            {provider.rate_hourly && (
-              <span className="rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1 text-sm font-medium text-zinc-200">
-                ${provider.rate_hourly}/hr
-              </span>
-            )}
-          </div>
-
-          {provider.tagline && (
-            <p className="mt-4 line-clamp-2 text-sm leading-6 text-zinc-400 font-light">{provider.ad_headline || provider.tagline}</p>
-          )}
-
-          {provider.tour_plan?.cities?.length > 0 && (
-            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-rose-450">
-              Next: {provider.tour_plan.cities[0].city}   {provider.tour_plan.cities[0].startsAt}
-            </p>
-          )}
-
-          <div className="mt-6 flex items-center justify-between gap-4 text-xs uppercase tracking-wider font-semibold border-t border-zinc-900 pt-4">
-            <div className="flex items-center gap-2 text-zinc-400">
-              <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-zinc-700"}`} />
-              <span className="font-semibold text-zinc-300">{ratingMeta.value}</span>
-              <span className="text-zinc-500 font-normal">{ratingMeta.detail}</span>
-            </div>
-            <span className="inline-flex items-center gap-2 text-zinc-300 group-hover:text-amber-400 transition-colors">
-              View profile
-              <ArrowRight className="h-3.5 w-3.5" />
-            </span>
-          </div>
-        </div>
-      </article>
-    </Link>
+function RateSlider({ priceRange, setPriceRange, maxAllowedPrice }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between text-xs text-zinc-500 uppercase tracking-wider">
+        <span>Hourly rate</span>
+        <span className="font-semibold text-amber-400">${priceRange[0]} - ${priceRange[1]}</span>
+      </div>
+      <Slider
+        value={priceRange}
+        onValueChange={setPriceRange}
+        max={maxAllowedPrice}
+        step={50}
+        aria-label="Hourly rate range"
+        trackClassName="bg-zinc-800"
+        rangeClassName="bg-gradient-to-r from-amber-500 to-amber-400"
+        thumbClassName="border-amber-500/60 bg-zinc-900"
+      />
+    </div>
   );
 }

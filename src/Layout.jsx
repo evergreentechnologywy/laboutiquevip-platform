@@ -50,6 +50,22 @@ export default function Layout({ children, currentPageName }) {
   const [ageGateAccepted, setAgeGateAccepted] = React.useState(() => sessionStorage.getItem("lbv_age_gate_accepted") === "yes");
   const [agreementAccepted, setAgreementAccepted] = React.useState(false);
   const [copilotOpen, setCopilotOpen] = React.useState(false);
+  const [fabHidden, setFabHidden] = React.useState(false);
+  const lastScrollTopRef = React.useRef(0);
+
+  // Hide the copilot FAB while scrolling down so it never blocks card CTAs
+  // or the profile Rates/enquiry sidebar; reveal it again on scroll up.
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const current = window.scrollY;
+      const delta = current - lastScrollTopRef.current;
+      if (current > 160 && delta > 4) setFabHidden(true);
+      else if (delta < -4 || current <= 160) setFabHidden(false);
+      lastScrollTopRef.current = current;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -69,7 +85,18 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   const isProviderPage = currentPageName?.startsWith("Provider") || currentPageName?.startsWith("Admin");
+  // Auth screens render Clerk's own card — showing the age gate on top of it
+  // creates a double overlay, so the gate is deferred to the rest of the site.
+  const isAuthPage = currentPageName === "Login" || currentPageName === "Register";
   const fullPath = `${location.pathname}${location.search}`;
+
+  const isNavActive = (item) => {
+    if (location.pathname === item.url) return true;
+    if (item.title === "Browse") {
+      return location.pathname.startsWith("/city/") || location.pathname.toLowerCase().startsWith("/viewprofile") || location.pathname.startsWith("/profile/");
+    }
+    return false;
+  };
 
   const acceptAgeGate = () => {
     sessionStorage.setItem("lbv_age_gate_accepted", "yes");
@@ -98,7 +125,7 @@ export default function Layout({ children, currentPageName }) {
         }
       `}</style>
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
-        {!isProviderPage && (
+        {!isProviderPage && !isAuthPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
             <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 [&>button]:hidden p-4 sm:p-6 max-w-md">
               <DialogHeader>
@@ -247,7 +274,8 @@ export default function Layout({ children, currentPageName }) {
                       <Link
                         key={item.title}
                         to={item.url}
-                        className={`text-xs sm:text-sm font-medium transition-colors ${location.pathname === item.url ? "text-amber-400" : "text-zinc-400 hover:text-zinc-100"} ${item.title === "Home" ? "hidden sm:block" : ""}`}
+                        aria-current={isNavActive(item) ? "page" : undefined}
+                        className={`text-xs sm:text-sm font-medium transition-colors ${isNavActive(item) ? "text-amber-400" : "text-zinc-400 hover:text-zinc-100"} ${item.title === "Home" ? "hidden sm:block" : ""}`}
                       >
                         {item.title}
                       </Link>
@@ -256,7 +284,7 @@ export default function Layout({ children, currentPageName }) {
 
                     <Sheet>
                       <SheetTrigger asChild className="sm:hidden">
-                        <Button variant="outline" size="icon" className="border-zinc-700 bg-zinc-900 text-zinc-200">
+                        <Button variant="outline" size="icon" className="h-11 w-11 border-zinc-700 bg-zinc-900 text-zinc-200">
                           <Menu className="h-4 w-4" />
                           <span className="sr-only">Open menu</span>
                         </Button>
@@ -270,7 +298,8 @@ export default function Layout({ children, currentPageName }) {
                             <Link
                               key={item.title}
                               to={item.url}
-                              className={`rounded-lg px-3 py-2 text-sm font-medium ${location.pathname === item.url ? "bg-zinc-900 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"}`}
+                              aria-current={isNavActive(item) ? "page" : undefined}
+                              className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium ${isNavActive(item) ? "bg-zinc-900 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"}`}
                             >
                               {item.title}
                             </Link>
@@ -288,10 +317,10 @@ export default function Layout({ children, currentPageName }) {
                           Logout
                         </button>
                       </>
-                    ) : (
+                    ) : !isAuthPage && (
                       <button
                         onClick={() => base44.auth.redirectToLogin()}
-                        className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+                        className="min-h-11 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
                       >
                         Sign In
                       </button>
@@ -319,13 +348,13 @@ export default function Layout({ children, currentPageName }) {
             {!isProviderPage && <Footer />}
           </div>
 
-          {!isProviderPage && ageGateAccepted && (
+          {!isProviderPage && !isAuthPage && ageGateAccepted && (
             <>
               <Button
                 type="button"
                 onClick={() => setCopilotOpen(true)}
                 aria-label="Open AI ad copilot"
-                className="fixed bottom-4 right-4 z-40 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-3 sm:px-5 py-2 text-white shadow-lg hover:opacity-95 border-0 text-xs sm:text-sm opacity-90 hover:opacity-100"
+                className={`fixed bottom-4 right-4 z-40 h-11 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-3 sm:px-5 py-2 text-white shadow-lg hover:opacity-95 border-0 text-xs sm:text-sm opacity-90 hover:opacity-100 transition-all duration-300 ${fabHidden && !copilotOpen ? "pointer-events-none translate-y-20 opacity-0" : ""}`}
               >
                 <Sparkles className="h-4 w-4" />
                 <span className="hidden sm:inline">AI ad copilot</span>

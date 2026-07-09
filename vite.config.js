@@ -6,6 +6,12 @@ import { errorOverlayPlugin } from './vite-plugins/error-overlay-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
+  // Opt-in API proxy for local UI work / e2e runs without a local backend:
+  // LBV_API_PROXY=https://www.laboutiquevip.net npm run dev|preview
+  const apiProxy = process.env.LBV_API_PROXY
+    ? { '/api': { target: process.env.LBV_API_PROXY, changeOrigin: true } }
+    : undefined;
+
   return {
     plugins: [
       mode === 'development' && visualEditPlugin(),
@@ -38,7 +44,11 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    preview: {
+      proxy: apiProxy,
+    },
     server: {
+      proxy: apiProxy,
       host: '0.0.0.0', // Bind to all interfaces for container access
       port: 5173,
       strictPort: true,

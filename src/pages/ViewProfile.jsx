@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Star, Shield, Crown, MapPin, Check, AlertTriangle, MessageSquare, Send, CheckCircle2, Loader2, Video } from "lucide-react";
+import { Star, MapPin, Check, AlertTriangle, Send, CheckCircle2, Loader2, Video } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,9 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
+import { PremiumBadge } from "@/components/PremiumBadge";
 import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
+import { renderTextWithLinks } from "@/lib/linkify";
 import { SEO } from "@/components/SEO";
 import { Link } from "react-router-dom";
 import {
@@ -146,10 +148,10 @@ export default function ViewProfile() {
         noindex={true}
       />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Breadcrumb className="mb-6">
-          <BreadcrumbList>
+        <Breadcrumb className="mb-6 py-2">
+          <BreadcrumbList className="text-muted-foreground">
             <BreadcrumbItem>
-              <BreadcrumbLink asChild>
+              <BreadcrumbLink asChild className="inline-flex min-h-11 items-center sm:min-h-0">
                 <Link to={createPageUrl("Browse")}>Browse</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -157,7 +159,7 @@ export default function ViewProfile() {
               <>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
+                  <BreadcrumbLink asChild className="inline-flex min-h-11 items-center sm:min-h-0">
                     <Link to={`${createPageUrl("Browse")}?location=${encodeURIComponent(provider.location_city)}`}>
                       {provider.location_city}
                     </Link>
@@ -167,7 +169,7 @@ export default function ViewProfile() {
             )}
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{provider.display_name}</BreadcrumbPage>
+              <BreadcrumbPage aria-current="page">{provider.display_name}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -222,28 +224,23 @@ export default function ViewProfile() {
           <div className="md:col-span-2 space-y-6">
             {/* Header */}
             <div>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h1 className="text-4xl font-bold text-zinc-100">{provider.display_name}</h1>
+              <div className="mb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-2">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-zinc-100">{provider.display_name}</h1>
+                  <div className="flex flex-wrap items-center gap-2" data-testid="profile-badge-row">
                     <VerificationBadges provider={provider} size="md" />
-                    {provider.is_premium && (
-                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0">
-                        <Crown className="w-3 h-3 mr-1" />
-                        Premium
-                      </Badge>
-                    )}
+                    {provider.is_premium && <PremiumBadge variant="solid" size="md" />}
                   </div>
-                  <p className="text-xl text-zinc-400 mb-2">{provider.tagline}</p>
-                  <div className="flex items-center gap-4 text-zinc-500">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      <span>{provider.location_city}, {provider.location_state}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      <span>{ratingMeta.value} · {ratingMeta.detail}</span>
-                    </div>
+                </div>
+                <p className="text-xl text-zinc-400 mb-2">{renderTextWithLinks(provider.tagline)}</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-zinc-500">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{provider.location_city}, {provider.location_state}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    <span>{ratingMeta.value} · {ratingMeta.detail}</span>
                   </div>
                 </div>
               </div>
@@ -269,7 +266,7 @@ export default function ViewProfile() {
                 <CardTitle className="text-zinc-100">About Me</CardTitle>
               </CardHeader>
               <CardContent className="text-zinc-400">
-                <p className="whitespace-pre-wrap">{provider.bio || 'No bio available.'}</p>
+                <p className="whitespace-pre-wrap">{provider.bio ? renderTextWithLinks(provider.bio) : 'No bio available.'}</p>
               </CardContent>
             </Card>
 
