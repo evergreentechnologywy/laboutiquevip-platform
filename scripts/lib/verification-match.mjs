@@ -60,53 +60,18 @@ export function extractReviewUrlsFromMarkdown(markdown) {
   };
 }
 
-export async function searchTerByPhone(phone) {
-  const lookupUrl = process.env.TER_LOOKUP_URL;
-  if (!lookupUrl || !phone) return null;
-
-  const response = await fetch(`${lookupUrl}?phone=${encodeURIComponent(phone)}`, {
-    headers: { authorization: `Bearer ${process.env.TER_LOOKUP_TOKEN ?? ""}` },
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  if (!data?.profileUrl) return null;
-  return {
-    provider: "ter",
-    url: data.profileUrl,
-    rating: data.rating ?? null,
-    count: data.reviewCount ?? null,
-  };
+/** @deprecated Hosted TER_LOOKUP_URL APIs — use review-site-search.mjs instead */
+export async function searchTerByPhone(_phone) {
+  return null;
 }
 
-export async function searchP411ByPhone(phone) {
-  const lookupUrl = process.env.P411_LOOKUP_URL;
-  if (!lookupUrl || !phone) return null;
-
-  const response = await fetch(`${lookupUrl}?phone=${encodeURIComponent(phone)}`, {
-    headers: { authorization: `Bearer ${process.env.P411_LOOKUP_TOKEN ?? ""}` },
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  if (!data?.profileUrl && !data?.p411Id) return null;
-  const id = data.p411Id ?? data.profileId ?? null;
-  return {
-    p411_id: id ? String(id).toUpperCase() : null,
-    p411_url: data.profileUrl ?? (id ? canonicalP411Url(id) : null),
-  };
+/** @deprecated Hosted P411_LOOKUP_URL APIs — use review-site-search.mjs instead */
+export async function searchP411ByPhone(_phone) {
+  return null;
 }
 
 function hasReviewMatch(fields) {
   return Boolean(fields.ter_url || fields.pd_url || fields.tob_url);
-}
-
-function buildReviewUrlsEntry(match) {
-  return {
-    provider: match.provider,
-    url: match.url,
-    rating: match.rating ?? null,
-    count: match.count ?? null,
-    matched_at: new Date().toISOString(),
-  };
 }
 
 export function importGateEnabled() {
@@ -132,9 +97,17 @@ export function passesImportGate(existing, verification) {
 }
 
 /**
- * Resolve P411 + review signals from page markdown and optional phone lookup APIs.
+ * Resolve P411 + review signals from page markdown and web search (TER/TOB/PD/Google).
  */
-export async function resolveProviderVerification({ phone, email, markdown, includeApiLookup = true }) {
+export async function resolveProviderVerification({
+  phone,
+  email,
+  markdown,
+  includeApiLookup = true,
+  displayName = null,
+  city = null,
+  state = null,
+}) {
   const normalizedPhone = normalizePhone(phone);
   const normalizedEmail = normalizeEmail(email);
   const now = new Date();
@@ -147,25 +120,59 @@ export async function resolveProviderVerification({ phone, email, markdown, incl
   let ter_url = reviewFromPage.ter_url;
   let pd_url = reviewFromPage.pd_url;
   let tob_url = reviewFromPage.tob_url;
+  let review_url = null;
+  let social_media = null;
   let review_site_rating = null;
   let review_site_count = null;
   const review_urls = [];
 
-  if (includeApiLookup && normalizedPhone) {
-    if (!p411_url) {
-      const p411Lookup = await searchP411ByPhone(normalizedPhone);
-      if (p411Lookup?.p411_url) {
-        p411_id = p411Lookup.p411_id ?? p411_id;
-        p411_url = p411Lookup.p411_url;
-      }
-    }
-    if (!ter_url) {
-      const terMatch = await searchTerByPhone(normalizedPhone);
-      if (terMatch) {
-        ter_url = terMatch.url;
-        review_site_rating = terMatch.rating;
-        review_site_count = terMatch.count;
-        review_urls.push(buildReviewUrlsEntry(terMatch));
+  const needsSearch =
+    includeApiLookup &&
+    (!p411_url || !ter_url || !pd_url || !tob_url) &&
+    (normalizedPhone || normalizedEmail || displayName);
+
+  if (needsSearch) {
+    const { searchReviewSitesBySignals, applySearchResultsToVerification } = await import(
+      "./review-site-search.mjs"
+    );
+    const searchResults = await searchReviewSitesBySignals({
+      phone: normalizedPhone,
+      email: normalizedEmail,
+      displayName,
+      city,
+      state,
+    });
+    const searched = applySearchResultsToVerification(
+      {
+        importAllowed: false,
+        p411_id,
+        p411_url,
+        p411_verified_at: p411_url ? now : null,
+        ter_url,
+        pd_url,
+        tob_url,
+        review_verified_at: null,
+        review_urls,
+        review_site_rating,
+        review_site_count,
+        review_matched_at: null,
+        normalizedPhone,
+        normalizedEmail,
+      },
+      searchResults,
+    );
+    p411_id = searched.p411_id ?? p411_id;
+    p411_url = searched.p411_url ?? p411_url;
+    ter_url = searched.ter_url ?? ter_url;
+    pd_url = searched.pd_url ?? pd_url;
+    tob_url = searched.tob_url ?? tob_url;
+    review_url = searched.review_url ?? review_url;
+    social_media = searched.social_media ?? social_media;
+    review_site_rating = searched.review_site_rating ?? review_site_rating;
+    review_site_count = searched.review_site_count ?? review_site_count;
+    if (searched.review_urls?.length) {
+      for (const entry of searched.review_urls) {
+        if (!review_urls.some((row) => row.provider === entry.provider)) review_urls.push(entry);
       }
     }
   }
@@ -179,10 +186,10 @@ export async function resolveProviderVerification({ phone, email, markdown, incl
       matched_at: now.toISOString(),
     });
   }
-  if (pd_url) {
+  if (pd_url && !review_urls.some((row) => row.provider === "pd")) {
     review_urls.push({ provider: "pd", url: pd_url, rating: null, count: null, matched_at: now.toISOString() });
   }
-  if (tob_url) {
+  if (tob_url && !review_urls.some((row) => row.provider === "tob")) {
     review_urls.push({ provider: "tob", url: tob_url, rating: null, count: null, matched_at: now.toISOString() });
   }
 
@@ -196,6 +203,8 @@ export async function resolveProviderVerification({ phone, email, markdown, incl
     ter_url,
     pd_url,
     tob_url,
+    review_url,
+    social_media,
     review_verified_at: hasReviewMatch({ ter_url, pd_url, tob_url }) ? now : null,
     review_urls: review_urls.length ? review_urls : null,
     review_site_rating,
@@ -262,6 +271,17 @@ export function mergeVerificationFields(existing, verification) {
 
   if (verification.review_site_count != null) out.review_site_count = verification.review_site_count;
   else if (existing?.review_site_count != null) out.review_site_count = existing.review_site_count;
+
+  if (verification.review_url) out.review_url = verification.review_url;
+  else if (existing?.review_url) out.review_url = existing.review_url;
+
+  if (verification.social_media && typeof verification.social_media === "object") {
+    const prior =
+      existing?.social_media && typeof existing.social_media === "object" && !Array.isArray(existing.social_media)
+        ? existing.social_media
+        : {};
+    out.social_media = { ...prior, ...verification.social_media };
+  }
 
   return out;
 }

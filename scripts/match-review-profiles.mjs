@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
- * Match imported LBV providers to review sites + P411 by phone/email/page links.
+ * Match imported LBV providers to review sites + P411 via web search (TER/TOB/PD/Google).
  * Sets review_verified_at / p411_verified_at for public badge display.
+ *
+ * Usage:
+ *   node scripts/match-review-profiles.mjs [--dry-run] [--reverify-all] [--search-only]
+ *   REVIEW_MATCH_LIMIT=50 node scripts/match-review-profiles.mjs --dry-run
  */
 
 import {
@@ -10,14 +14,14 @@ import {
   mergeVerificationFields,
   providerHasVerificationBadge,
   resolveProviderVerification,
-  searchTerByPhone,
 } from "./lib/verification-match.mjs";
+import { mergeImportedSocial } from "./lib/extract-social-links.mjs";
 
 import { createPrismaClient } from "./lib/prisma-client.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
-const allSites = process.argv.includes("--all-sites");
 const reverifyAll = process.argv.includes("--reverify-all");
+const searchOnly = !process.argv.includes("--page-only");
 const prisma = await createPrismaClient();
 
 function maskEmail(email) {
@@ -26,34 +30,33 @@ function maskEmail(email) {
   return `${user.slice(0, 2)}***@${domain}`;
 }
 
-async function searchTobStub(_phone, _email) {
-  return null;
-}
-
-async function searchPdStub(_phone, _email) {
-  return null;
-}
-
 async function applyVerification(provider, verification) {
   const data = mergeVerificationFields(provider, verification);
-  if (!Object.keys(data).length) return false;
+
+  if (verification.social_media) {
+    data.social_media = mergeImportedSocial(provider.social_media, verification.social_media);
+  }
+
+  if (!Object.keys(data).length) return { applied: false, kind: null };
+
+  const kind = data.p411_url && !provider.p411_url ? "p411" : data.ter_url || data.pd_url || data.tob_url ? "review" : "other";
 
   if (dryRun) {
     console.log(
-      `[dry-run] ${provider.id} p411=${Boolean(data.p411_url)} review=${Boolean(data.review_verified_at)}`,
+      `[dry-run] ${provider.id} p411=${Boolean(data.p411_url)} review=${Boolean(data.review_verified_at)} kind=${kind}`,
     );
-    return true;
+    return { applied: true, kind };
   }
 
   await prisma.provider.update({ where: { id: provider.id }, data });
-  return true;
+  return { applied: true, kind };
 }
 
 async function main() {
   const where = {
     status: "active",
     verification_provider: { in: ["eros", "tryst"] },
-    OR: [{ phone: { not: null } }, { email: { not: null } }],
+    OR: [{ phone: { not: null } }, { email: { not: null } }, { display_name: { not: "" } }],
   };
 
   const limitRaw = process.env.REVIEW_MATCH_LIMIT;
@@ -63,16 +66,21 @@ async function main() {
     where,
     select: {
       id: true,
+      display_name: true,
+      location_city: true,
+      location_state: true,
       phone: true,
       email: true,
       bio: true,
       ad_body: true,
+      social_media: true,
       p411_url: true,
       p411_id: true,
       p411_verified_at: true,
       ter_url: true,
       tob_url: true,
       pd_url: true,
+      review_url: true,
       review_urls: true,
       review_site_rating: true,
       review_site_count: true,
@@ -82,16 +90,21 @@ async function main() {
     ...(limit > 0 ? { take: limit } : {}),
   });
 
-  let matched = 0;
-  let scanned = 0;
-  let skippedVerified = 0;
+  const stats = {
+    matched: 0,
+    scanned: 0,
+    skippedVerified: 0,
+    gainedP411: 0,
+    gainedReview: 0,
+    gainedBoth: 0,
+  };
 
   for (const provider of providers) {
     if (!reverifyAll && providerHasVerificationBadge(provider)) {
-      skippedVerified += 1;
+      stats.skippedVerified += 1;
       continue;
     }
-    scanned += 1;
+    stats.scanned += 1;
     const markdown = `${provider.bio ?? ""}\n${provider.ad_body ?? ""}`;
     const pageSignals = {
       ...extractP411FromMarkdown(markdown),
@@ -102,44 +115,11 @@ async function main() {
       phone: provider.phone,
       email: provider.email,
       markdown,
-      includeApiLookup: reverifyAll || !providerHasVerificationBadge(provider),
+      displayName: provider.display_name,
+      city: provider.location_city,
+      state: provider.location_state,
+      includeApiLookup: searchOnly && (reverifyAll || !providerHasVerificationBadge(provider)),
     });
-
-    if (allSites) {
-      const phone = verification.normalizedPhone;
-      const email = verification.normalizedEmail;
-      const extraMatchers = await Promise.all([
-        phone && !verification.ter_url ? searchTerByPhone(phone) : null,
-        phone || email ? searchTobStub(phone, email) : null,
-        phone || email ? searchPdStub(phone, email) : null,
-      ]);
-
-      for (const match of extraMatchers.filter(Boolean)) {
-        if (match.provider === "ter" && !verification.ter_url) {
-          verification = {
-            ...verification,
-            ter_url: match.url,
-            review_site_rating: match.rating,
-            review_site_count: match.count,
-            importAllowed: true,
-            review_verified_at: new Date(),
-            review_matched_at: new Date(),
-            review_urls: [
-              ...(verification.review_urls ?? []),
-              {
-                provider: "ter",
-                url: match.url,
-                rating: match.rating,
-                count: match.count,
-                matched_at: new Date().toISOString(),
-              },
-            ],
-          };
-        }
-        if (match.provider === "tob") verification = { ...verification, tob_url: match.url, importAllowed: true };
-        if (match.provider === "pd") verification = { ...verification, pd_url: match.url, importAllowed: true };
-      }
-    }
 
     if (pageSignals.p411_url && !verification.p411_url) {
       verification = {
@@ -156,12 +136,34 @@ async function main() {
       continue;
     }
 
-    const applied = await applyVerification(provider, verification);
-    if (applied) matched += 1;
+    const hadP411 = Boolean(provider.p411_url);
+    const hadReview = Boolean(provider.ter_url || provider.pd_url || provider.tob_url);
+    const { applied, kind } = await applyVerification(provider, verification);
+    if (!applied) continue;
+
+    stats.matched += 1;
+    const newP411 = Boolean(verification.p411_url) && !hadP411;
+    const newReview =
+      Boolean(verification.ter_url || verification.pd_url || verification.tob_url) && !hadReview;
+    if (newP411 && newReview) stats.gainedBoth += 1;
+    else if (newP411) stats.gainedP411 += 1;
+    else if (newReview) stats.gainedReview += 1;
+    else if (kind === "p411") stats.gainedP411 += 1;
+    else if (kind === "review") stats.gainedReview += 1;
   }
 
   console.log(
-    `Review match complete scanned=${scanned} matched=${matched} skippedVerified=${skippedVerified} dryRun=${dryRun}`,
+    JSON.stringify({
+      event: "review_match_complete",
+      scanned: stats.scanned,
+      matched: stats.matched,
+      skippedVerified: stats.skippedVerified,
+      gainedP411: stats.gainedP411,
+      gainedReview: stats.gainedReview,
+      gainedBoth: stats.gainedBoth,
+      dryRun,
+      searchOnly,
+    }),
   );
 }
 

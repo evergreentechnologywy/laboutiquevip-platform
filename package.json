@@ -28,6 +28,8 @@
     "import:tryst:dry": "node ./scripts/import-tryst.mjs --dry-run",
     "reconcile:tryst": "node ./scripts/reconcile-tryst.mjs",
     "match:reviews": "node ./scripts/match-review-profiles.mjs",
+    "match:reviews:dry": "node ./scripts/match-review-profiles.mjs --dry-run",
+    "test:review-site-search": "node --test scripts/lib/review-site-search.test.mjs",
     "enforce:verification-gate": "node ./scripts/enforce-verification-gate.mjs",
     "enforce:verification-gate:dry": "node ./scripts/enforce-verification-gate.mjs --dry-run",
     "test:verification-match": "node --test scripts/lib/verification-match.test.mjs",
