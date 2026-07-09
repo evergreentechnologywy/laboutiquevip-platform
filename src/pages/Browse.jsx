@@ -95,6 +95,7 @@ export default function Browse() {
   const debouncedLocation = useDebounce(location, 300);
 
   const [priceRange, setPriceRange] = React.useState([0, 2000]);
+  const debouncedPriceRange = useDebounce(priceRange, 400);
   const [sortBy, setSortBy] = React.useState("newest");
   const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
   const [page, setPage] = React.useState(1);
@@ -105,14 +106,14 @@ export default function Browse() {
   }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, priceRange, page],
+    queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, debouncedPriceRange, page],
     queryFn: () => searchProviders({
       q: debouncedSearchQuery,
       location: debouncedLocation,
       verified: selectedFilters.verified,
       premium: selectedFilters.premium,
-      minPrice: priceRange[0],
-      maxPrice: priceRange[1],
+      minPrice: debouncedPriceRange[0],
+      maxPrice: debouncedPriceRange[1],
       sort: sortBy,
       page,
       limit: 60,

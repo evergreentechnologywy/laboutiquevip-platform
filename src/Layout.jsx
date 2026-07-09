@@ -127,6 +127,7 @@ export default function Layout({ children, currentPageName }) {
         }
       `}</style>
       <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:bg-amber-500 focus:text-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold">Skip to main content</a>
         {!isProviderPage && !isAuthPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
             <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 [&>button]:hidden p-4 sm:p-6 max-w-md">
@@ -253,7 +254,7 @@ export default function Layout({ children, currentPageName }) {
           </Sidebar>
         )}
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col" id="main-content">
           {!isProviderPage && (
             <nav className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-2xl sticky top-0 z-30 shadow-sm shadow-black/50">
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -350,6 +351,9 @@ export default function Layout({ children, currentPageName }) {
             {!isProviderPage && <Footer />}
           </div>
 
+          {/* Back to top */}
+          <BackToTop />
+
           {!isProviderPage && !isAuthPage && ageGateAccepted && (
             <>
               <Button
@@ -375,5 +379,24 @@ export default function Layout({ children, currentPageName }) {
         </main>
       </div>
     </SidebarProvider>
+  );
+}
+
+function BackToTop() {
+  const [visible, setVisible] = React.useState(false);
+  React.useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  if (!visible) return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      aria-label="Back to top"
+      className="fixed bottom-20 right-4 z-40 md:bottom-6 h-10 w-10 rounded-full bg-zinc-800/80 backdrop-blur-md border border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all shadow-lg"
+    >
+      <svg className="mx-auto h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+    </button>
   );
 }

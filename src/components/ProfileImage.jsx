@@ -46,6 +46,7 @@ export function ProfileImage({
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         className={`h-full w-full object-cover transition duration-500 ${loading ? "opacity-0" : "opacity-100"}`}
         style={{ objectPosition }}
         onLoad={() => setLoading(false)}

@@ -43,8 +43,8 @@ export function ProviderListingCard({ provider }) {
     provider.is_new || new Date() - new Date(provider.created_date) < NEW_LISTING_WINDOW_MS;
 
   return (
-    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift">
-      <article data-testid="provider-card" className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative">
+    <Link to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group block hover-lift" aria-label={`View profile of ${provider.display_name}`}>
+      <article data-testid="provider-card" className="overflow-hidden rounded-[32px] glass-panel glass-panel-hover glow-rose-hover relative" role="article" aria-label={provider.display_name}>
         <div className="relative aspect-[4/5] overflow-hidden bg-zinc-950">
           <ProfileImage
             src={getPrimaryProfilePhoto(provider)}

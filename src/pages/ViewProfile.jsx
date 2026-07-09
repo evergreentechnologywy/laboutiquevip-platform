@@ -146,6 +146,25 @@ export default function ViewProfile() {
         ogDescription={provider.tagline}
         ogImage={displayPhotos[0]}
         noindex
+        jsonLd={displayPhotos[0] ? {
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": provider.display_name,
+          "description": provider.bio || provider.tagline || "",
+          "image": displayPhotos[0],
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": provider.location_city,
+            "addressRegion": provider.location_state,
+          },
+          ...(provider.rate_hourly && {
+            "makesOffer": {
+              "@type": "Offer",
+              "price": String(provider.rate_hourly),
+              "priceCurrency": "USD",
+            }
+          }),
+        } : undefined}
       />
 
       {/* ── Photo Gallery — carousel with dot indicators ── */}
