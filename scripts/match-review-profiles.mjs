@@ -5,7 +5,8 @@
  *
  * Usage:
  *   node scripts/match-review-profiles.mjs [--dry-run] [--reverify-all] [--search-only]
- *   node scripts/match-review-profiles.mjs --limit 50 --reverify-all
+ *   node scripts/match-review-profiles.mjs --limit=50 --reverify-all
+ *   node scripts/match-review-profiles.mjs --limit=320 --offset=640 --unverified-only
  *   REVIEW_MATCH_LIMIT=50 node scripts/match-review-profiles.mjs --dry-run
  */
 
@@ -29,8 +30,12 @@ const prisma = await createPrismaClient();
 // Parse --limit=N from CLI args (takes precedence over REVIEW_MATCH_LIMIT env)
 const cliLimitArg = process.argv.find(a => a.startsWith("--limit="));
 const cliLimit = cliLimitArg ? Number(cliLimitArg.split("=")[1]) : null;
+const cliOffsetArg = process.argv.find(a => a.startsWith("--offset="));
+const cliOffset = cliOffsetArg ? Number(cliOffsetArg.split("=")[1]) : 0;
+const unverifiedOnly = process.argv.includes("--unverified-only");
 const limitRaw = cliLimit ?? process.env.REVIEW_MATCH_LIMIT;
 const limit = limitRaw == null || limitRaw === "" ? 0 : Number(limitRaw);
+const offset = Number.isFinite(cliOffset) && cliOffset > 0 ? cliOffset : 0;
 
 function maskEmail(email) {
   const [user, domain] = String(email ?? "").split("@");
@@ -67,6 +72,20 @@ async function main() {
     OR: [{ phone: { not: null } }, { email: { not: null } }, { display_name: { not: "" } }],
   };
 
+  if (unverifiedOnly && !reverifyAll) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      {
+        p411_url: null,
+        ter_url: null,
+        pd_url: null,
+        tob_url: null,
+        p411_verified_at: null,
+        review_verified_at: null,
+      },
+    ];
+  }
+
   const providers = await prisma.provider.findMany({
     where,
     select: {
@@ -92,6 +111,8 @@ async function main() {
       review_verified_at: true,
       review_matched_at: true,
     },
+    orderBy: { id: "asc" },
+    ...(offset > 0 ? { skip: offset } : {}),
     ...(limit > 0 ? { take: limit } : {}),
   });
 
