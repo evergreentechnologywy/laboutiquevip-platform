@@ -151,9 +151,24 @@ function parseProfilePage(markdown, profileUrl) {
   let location_city = null;
   let location_state = null;
   if (locationLine) {
-    const parts = locationLine[1].split(",").map((p) => cleanText(p));
-    location_city = parts[0] || null;
-    location_state = parts[1]?.toUpperCase() ?? null;
+    // Strip markdown links, bold, italics, backticks, URLs, and extra punctuation
+    let raw = locationLine[1]
+      .replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")  // [text](url) → text
+      .replace(/\*\*([^*]+)\*\*/g, "$1")         // **bold** → bold
+      .replace(/\*([^*]+)\*/g, "$1")             // *italic* → italic
+      .replace(/(?:https?|ftp):\/\/[^\s)]+/gi, "") // strip raw URLs
+      .replace(/\|/g, ", ")                       // table pipes → commas
+      .replace(/\s+/g, " ");
+    const parts = raw.split(",").map((p) => cleanText(p)).filter(Boolean);
+    // Validate: city must be 2-40 chars, no URL fragments, no markdown artifacts
+    const validCity = parts[0] && parts[0].length >= 2 && parts[0].length <= 50 &&
+      !/^(?:https?|ftp|www|\.\.|[\[\](){}*#]|s\]\()/i.test(parts[0]);
+    location_city = validCity ? parts[0] : null;
+    // State: 2-letter code or full name ≤ 30 chars
+    const stateCandidate = parts[1]?.trim().replace(/[^a-zA-Z\s]/g, "").trim();
+    location_state = stateCandidate && stateCandidate.length >= 2 && stateCandidate.length <= 30
+      ? stateCandidate.toUpperCase()
+      : null;
   }
 
   // Extract only actual profile content — strip site boilerplate

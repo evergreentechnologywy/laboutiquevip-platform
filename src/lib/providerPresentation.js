@@ -12,7 +12,7 @@ export function getProviderRatingMeta(provider, reviewCountOverride) {
 
   return {
     value: "New",
-    detail: "Approved reviews publish once received",
+    detail: "Awaiting reviews",
     hasReviews: false,
   };
 }

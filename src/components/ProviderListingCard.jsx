@@ -13,6 +13,21 @@ import { PremiumBadge } from "@/components/PremiumBadge";
 
 const NEW_LISTING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+function sanitizeLocation(city) {
+  const s = String(city ?? "").trim();
+  // Strip markdown artifacts, URLs, and excessive length
+  const clean = s
+    .replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*?([^*]+)\*?\*/g, "$1")
+    .replace(/https?:\/\/[^\s]+/gi, "")
+    .replace(/[|\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "";
+  if (clean.length > 30) return clean.slice(0, 27) + "...";
+  return clean;
+}
+
 /**
  * Shared provider listing card for Browse results and Home featured grid.
  * Trust chips (Evergreen Elite / P411 / Review Verified / Premium) lead the
@@ -57,9 +72,9 @@ export function ProviderListingCard({ provider }) {
               {provider.display_name}
             </h3>
             <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-sm text-zinc-300">
-                <MapPin className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
-                {provider.location_city}, {provider.location_state}
+              <span className="flex items-center gap-1.5 text-sm text-zinc-300 truncate max-w-[60%]">
+                <MapPin className="h-3.5 w-3.5 text-zinc-400 shrink-0" aria-hidden="true" />
+                {sanitizeLocation(provider.location_city)}{provider.location_state ? `, ${provider.location_state}`.slice(0, 20) : ''}
               </span>
               {provider.rate_hourly && (
                 <span className="rounded-full border border-zinc-700/70 bg-zinc-950/80 px-3 py-1 text-sm font-medium text-zinc-100 whitespace-nowrap">

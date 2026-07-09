@@ -44,13 +44,17 @@ export default function Home() {
   const { data: featuredProviders = [], isLoading: isLoadingFeatured } = useQuery({
     queryKey: ["featured-providers"],
     queryFn: async () => {
+      // Try premium+verified first
       const data = await searchProviders({
         premium: true,
         verified: true,
         limit: 12,
       });
-      // Filter out those without photos as per requirement "real photos"
-      return (data.items || []).filter(p => p.photos && p.photos.length > 0);
+      const withPhotos = (data.items || []).filter(p => p.photos && p.photos.length > 0);
+      if (withPhotos.length >= 3) return withPhotos;
+      // Fallback: grab any active providers with photos
+      const fallback = await searchProviders({ limit: 12, sort: "newest" });
+      return (fallback.items || []).filter(p => p.photos && p.photos.length > 0);
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,
