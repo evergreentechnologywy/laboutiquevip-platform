@@ -123,6 +123,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
+  clerk_id: 'clerk_id',
   email: 'email',
   role: 'role',
   status: 'status',
@@ -380,6 +381,17 @@ exports.Prisma.ProviderScalarFieldEnum = {
   review_provider: 'review_provider',
   review_username: 'review_username',
   review_url: 'review_url',
+  review_urls: 'review_urls',
+  ter_url: 'ter_url',
+  tob_url: 'tob_url',
+  pd_url: 'pd_url',
+  review_site_rating: 'review_site_rating',
+  review_site_count: 'review_site_count',
+  review_matched_at: 'review_matched_at',
+  p411_url: 'p411_url',
+  p411_id: 'p411_id',
+  p411_verified_at: 'p411_verified_at',
+  review_verified_at: 'review_verified_at',
   ad_package: 'ad_package',
   ad_package_expiry: 'ad_package_expiry',
   ad_package_started_at: 'ad_package_started_at',
@@ -399,7 +411,8 @@ exports.Prisma.ProviderScalarFieldEnum = {
   reviews_count: 'reviews_count',
   rate_hourly: 'rate_hourly',
   created_date: 'created_date',
-  updated_date: 'updated_date'
+  updated_date: 'updated_date',
+  last_seen_at: 'last_seen_at'
 };
 
 exports.Prisma.BookingScalarFieldEnum = {

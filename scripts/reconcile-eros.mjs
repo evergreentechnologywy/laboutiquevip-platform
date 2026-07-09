@@ -21,8 +21,6 @@ import {
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
 import {
-  hubEligibleForDeactivation,
-  hubScrapeCompleteForDeactivation,
   listingHubKeyFromUrl,
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
@@ -33,6 +31,12 @@ import {
   passesImportGate,
   resolveProviderVerification,
 } from "./lib/verification-match.mjs";
+import {
+  catalogSeenTouchFields,
+  findCatalogDuplicateInCity,
+  shouldSkipCatalogInsert,
+  touchCatalogProviderSeen,
+} from "./lib/catalog-sync-policy.mjs";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -54,7 +58,6 @@ const profilesPerState = parseImportLimit(
   1250,
 );
 const dryRun = process.argv.includes("--dry-run");
-const skipDeactivate = process.argv.includes("--skip-deactivate");
 
 // Load env from workspace
 function loadEnv(envPath) {
@@ -455,80 +458,34 @@ async function run() {
     process.exit(1);
   }
 
-  // 4. Fetch all active Eros providers in DB
+  // 4. Log active Eros inventory (hide-stale runs separately after reconcile)
   const dbProviders = await prisma.provider.findMany({
     where: {
       status: "active",
       verification_provider: "eros",
     },
-    select: {
-      id: true,
-      display_name: true,
-      verification_url: true,
-    },
+    select: { id: true },
   });
   console.log(`[reconcile] Database active Eros providers: ${dbProviders.length}`);
-
-  const scannedCityKeys = new Set(cities.map((c) => `${c.state}/${c.city}`));
-  const isFullScan = limitCities === 0 || cities.length >= allCities.length;
 
   const hubsEligible = [...hubListingStats.entries()].filter(([, stats]) => stats.success > 0).length;
   const hubsSkipped = [...hubListingStats.entries()].filter(([, stats]) => stats.success === 0).length;
   console.log(
-    `[reconcile] Per-hub deactivation: ${hubsEligible} hubs eligible (>=1 listing success), ` +
+    `[reconcile] Per-hub listing stats: ${hubsEligible} hubs with success, ` +
       `${hubsSkipped} hubs skipped (all listing fetches failed). Global success ${(successRatio * 100).toFixed(1)}%.`,
   );
 
-  // 5. Deactivate profiles missing from scraped listings (per-hub success gate)
-  let deactivatedCount = 0;
-  let skippedIncompleteHub = 0;
-  const hubDeactivationCounts = new Map();
-
-  if (skipDeactivate) {
-    console.log("[reconcile] Skipping deactivation (--skip-deactivate).");
+  // 5. Mark providers still on Eros (15-day grace hide runs in hide-stale-catalog-providers.mjs)
+  let touchedCount = 0;
+  for (const url of profileUrls) {
+    const existing = await findExistingErosProvider(prisma, url);
+    if (!existing) continue;
+    if (!dryRun) {
+      await touchCatalogProviderSeen(prisma, existing.id, existing);
+    }
+    touchedCount += 1;
   }
-
-  for (const provider of dbProviders) {
-    if (skipDeactivate) break;
-
-    const canonicalUrl = canonicalErosProfileUrl(provider.verification_url);
-    if (!canonicalUrl) continue;
-
-    const cityKey = erosCityKeyFromUrl(provider.verification_url);
-    if (!isFullScan && (!cityKey || !scannedCityKeys.has(cityKey))) {
-      continue;
-    }
-
-    if (!cityKey || !hubEligibleForDeactivation(hubListingStats, cityKey)) {
-      continue;
-    }
-
-    if (!hubScrapeCompleteForDeactivation(hubProfileCounts, hubLimits, cityKey)) {
-      skippedIncompleteHub += 1;
-      continue;
-    }
-
-    if (!profileUrls.has(canonicalUrl)) {
-      console.log(`[reconcile] ${dryRun ? "[dry-run] Would deactivate" : "Deactivating"} provider (no longer on Eros): ${provider.display_name} (${provider.id}) - URL: ${provider.verification_url}`);
-      if (!dryRun) {
-        await prisma.provider.update({
-          where: { id: provider.id },
-          data: { status: "inactive", updated_date: new Date() },
-        });
-      }
-      deactivatedCount++;
-      hubDeactivationCounts.set(cityKey, (hubDeactivationCounts.get(cityKey) ?? 0) + 1);
-    }
-  }
-
-  for (const [hubKey, count] of hubDeactivationCounts) {
-    const stats = hubListingStats.get(hubKey) ?? { success: 0, attempted: 0 };
-    console.log(`[reconcile] deactivated ${count} in hub ${hubKey} (listing success ${stats.success}/${stats.attempted})`);
-  }
-
-  console.log(
-    `[reconcile] Total deactivated: ${deactivatedCount} (fullScan=${isFullScan}, citiesScanned=${scannedCityKeys.size}, skippedIncompleteHub=${skippedIncompleteHub})`,
-  );
+  console.log(`[reconcile] Marked last_seen_at for ${touchedCount} active Eros URLs (no immediate deactivation).`);
 
   // 6. Find newly discovered profile URLs
   // To avoid duplicate profiles, we query all verification URLs (active or inactive) in the DB
@@ -580,6 +537,22 @@ async function run() {
         const existing = await findExistingErosProvider(prisma, profile.sourceUrl);
         if (existing) {
           console.log(`[reconcile] Skipping duplicate (existing ${existing.id}): ${profile.display_name}`);
+          if (!dryRun) await touchCatalogProviderSeen(prisma, existing.id, existing);
+          continue;
+        }
+
+        const eros_state_wide = Boolean(profile.eros_state_wide);
+        const candidate = {
+          verification_provider: "eros",
+          verification_url: profile.sourceUrl,
+          display_name: profile.display_name,
+          location_city: eros_state_wide ? "Statewide" : profile.location_city,
+          location_state: profile.location_state,
+        };
+        const duplicateInCity = await findCatalogDuplicateInCity(prisma, candidate);
+        if (duplicateInCity && shouldSkipCatalogInsert(candidate, duplicateInCity)) {
+          console.log(`[reconcile] Skipping same-city duplicate ${duplicateInCity.id}: ${profile.display_name}`);
+          if (!dryRun) await touchCatalogProviderSeen(prisma, duplicateInCity.id, duplicateInCity);
           continue;
         }
 
@@ -594,8 +567,6 @@ async function run() {
           continue;
         }
 
-        // Create new provider record (temporary ID needed to upload photos)
-        const eros_state_wide = Boolean(profile.eros_state_wide);
         const provider = await prisma.provider.create({
           data: {
             display_name: profile.display_name,
@@ -619,6 +590,7 @@ async function run() {
             is_verified: true,
             is_profile_approved: true,
             is_premium: false,
+            last_seen_at: new Date(),
             ...mergeVerificationFields(null, verification),
           },
         });
@@ -633,9 +605,15 @@ async function run() {
           console.log(`[reconcile] IMPORTED new provider: ${profile.display_name} (${provider.id}) with ${storedUrls.length} photos.`);
           importedCount++;
         } else {
-          // Clean up if no photos could be uploaded
-          await prisma.provider.delete({ where: { id: provider.id } });
-          console.warn(`[WARN] Deleted newly created provider ${provider.id} due to zero uploaded photos.`);
+          await prisma.provider.update({
+            where: { id: provider.id },
+            data: {
+              status: "inactive",
+              admin_notes: "catalog-sync: import held inactive (zero photos uploaded)",
+              updated_date: new Date(),
+            },
+          });
+          console.warn(`[WARN] Left provider ${provider.id} inactive (zero uploaded photos; not deleted).`);
         }
       } catch (err) {
         importErrors++;
@@ -648,7 +626,7 @@ async function run() {
   await Promise.all(importWorkers);
 
   const elapsed = Math.round((Date.now() - startedAt) / 1000);
-  console.log(`[reconcile] Reconciliation complete. Elapsed: ${elapsed}s. Imported: ${importedCount}, Deactivated: ${deactivatedCount}, Errors: ${importErrors + crawledFailureCount}`);
+  console.log(`[reconcile] Reconciliation complete. Elapsed: ${elapsed}s. Imported: ${importedCount}, Touched: ${touchedCount}, Errors: ${importErrors + crawledFailureCount}`);
 }
 
 run()

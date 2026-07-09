@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Tryst daily reconcile — deactivate providers missing from latest city scrape.
- * Uses the same full-US city discovery as import-tryst.mjs (unless --pilot-only).
+ * Tryst daily reconcile — mark seen providers from latest city scrape.
+ * Missing profiles are hidden after 15 days via hide-stale-catalog-providers.mjs (not here).
  */
 
 import { parseTrystCityUrl } from "./lib/tryst-location.mjs";
@@ -11,6 +11,7 @@ import {
   resolveTrystTargetCities,
 } from "./lib/tryst-crawl.mjs";
 import { formatCap } from "./lib/import-limits.mjs";
+import { touchCatalogProviderSeen } from "./lib/catalog-sync-policy.mjs";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
@@ -80,15 +81,22 @@ async function main() {
   }
 
   const trystProviders = await prisma.provider.findMany({
-    where: { verification_provider: "tryst", status: "active" },
-    select: { id: true, verification_url: true, location_city: true, location_state: true },
+    where: { verification_provider: "tryst" },
+    select: {
+      id: true,
+      verification_url: true,
+      location_city: true,
+      location_state: true,
+      status: true,
+      admin_notes: true,
+      last_seen_at: true,
+    },
   });
 
-  let deactivated = 0;
+  let touched = 0;
   for (const provider of trystProviders) {
     const url = String(provider.verification_url ?? "").toLowerCase();
-    if (!url) continue;
-    if (activeUrls.has(url)) continue;
+    if (!url || !activeUrls.has(url)) continue;
 
     const stateSlug = String(provider.location_state ?? "").toLowerCase();
     const hubSucceeded = [...hubStats.entries()].some(
@@ -97,17 +105,15 @@ async function main() {
     if (!hubSucceeded) continue;
 
     if (dryRun) {
-      console.log(`[dry-run] would deactivate ${provider.id}`);
+      console.log(`[dry-run] would touch last_seen ${provider.id}`);
+      touched += 1;
       continue;
     }
-    await prisma.provider.update({
-      where: { id: provider.id },
-      data: { status: "inactive", admin_notes: "tryst reconcile: missing from daily scrape" },
-    });
-    deactivated += 1;
+    await touchCatalogProviderSeen(prisma, provider.id, provider);
+    touched += 1;
   }
 
-  console.log(`Deactivated: ${deactivated}`);
+  console.log(`Touched last_seen_at: ${touched}`);
   console.log(`Active URLs seen: ${activeUrls.size}`);
   await prisma.$disconnect();
 }

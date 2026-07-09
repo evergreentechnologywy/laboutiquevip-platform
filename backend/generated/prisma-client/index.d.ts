@@ -3543,6 +3543,7 @@ export namespace Prisma {
 
   export type UserMinAggregateOutputType = {
     id: string | null
+    clerk_id: string | null
     email: string | null
     role: string | null
     status: string | null
@@ -3554,6 +3555,7 @@ export namespace Prisma {
 
   export type UserMaxAggregateOutputType = {
     id: string | null
+    clerk_id: string | null
     email: string | null
     role: string | null
     status: string | null
@@ -3565,6 +3567,7 @@ export namespace Prisma {
 
   export type UserCountAggregateOutputType = {
     id: number
+    clerk_id: number
     email: number
     role: number
     status: number
@@ -3578,6 +3581,7 @@ export namespace Prisma {
 
   export type UserMinAggregateInputType = {
     id?: true
+    clerk_id?: true
     email?: true
     role?: true
     status?: true
@@ -3589,6 +3593,7 @@ export namespace Prisma {
 
   export type UserMaxAggregateInputType = {
     id?: true
+    clerk_id?: true
     email?: true
     role?: true
     status?: true
@@ -3600,6 +3605,7 @@ export namespace Prisma {
 
   export type UserCountAggregateInputType = {
     id?: true
+    clerk_id?: true
     email?: true
     role?: true
     status?: true
@@ -3684,6 +3690,7 @@ export namespace Prisma {
 
   export type UserGroupByOutputType = {
     id: string
+    clerk_id: string | null
     email: string
     role: string
     status: string
@@ -3712,6 +3719,7 @@ export namespace Prisma {
 
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerk_id?: boolean
     email?: boolean
     role?: boolean
     status?: boolean
@@ -3733,6 +3741,7 @@ export namespace Prisma {
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerk_id?: boolean
     email?: boolean
     role?: boolean
     status?: boolean
@@ -3744,6 +3753,7 @@ export namespace Prisma {
 
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
+    clerk_id?: boolean
     email?: boolean
     role?: boolean
     status?: boolean
@@ -3755,6 +3765,7 @@ export namespace Prisma {
 
   export type UserSelectScalar = {
     id?: boolean
+    clerk_id?: boolean
     email?: boolean
     role?: boolean
     status?: boolean
@@ -3764,7 +3775,7 @@ export namespace Prisma {
     password_hash?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "role" | "status" | "createdAt" | "updatedAt" | "full_name" | "password_hash", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "clerk_id" | "email" | "role" | "status" | "createdAt" | "updatedAt" | "full_name" | "password_hash", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     profiles?: boolean | User$profilesArgs<ExtArgs>
     verifications?: boolean | User$verificationsArgs<ExtArgs>
@@ -3795,6 +3806,7 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
+      clerk_id: string | null
       email: string
       role: string
       status: string
@@ -4235,6 +4247,7 @@ export namespace Prisma {
    */
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
+    readonly clerk_id: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'String'>
     readonly status: FieldRef<"User", 'String'>
@@ -28134,6 +28147,8 @@ export namespace Prisma {
     age: number | null
     photo_similarity_score: number | null
     photo_similarity_threshold: number | null
+    review_site_rating: number | null
+    review_site_count: number | null
     views_count: number | null
     rating_average: number | null
     reviews_count: number | null
@@ -28144,6 +28159,8 @@ export namespace Prisma {
     age: number | null
     photo_similarity_score: number | null
     photo_similarity_threshold: number | null
+    review_site_rating: number | null
+    review_site_count: number | null
     views_count: number | null
     rating_average: number | null
     reviews_count: number | null
@@ -28184,6 +28201,16 @@ export namespace Prisma {
     review_provider: string | null
     review_username: string | null
     review_url: string | null
+    ter_url: string | null
+    tob_url: string | null
+    pd_url: string | null
+    review_site_rating: number | null
+    review_site_count: number | null
+    review_matched_at: Date | null
+    p411_url: string | null
+    p411_id: string | null
+    p411_verified_at: Date | null
+    review_verified_at: Date | null
     ad_package: string | null
     ad_package_expiry: string | null
     ad_package_started_at: string | null
@@ -28201,6 +28228,7 @@ export namespace Prisma {
     rate_hourly: number | null
     created_date: Date | null
     updated_date: Date | null
+    last_seen_at: Date | null
   }
 
   export type ProviderMaxAggregateOutputType = {
@@ -28237,6 +28265,16 @@ export namespace Prisma {
     review_provider: string | null
     review_username: string | null
     review_url: string | null
+    ter_url: string | null
+    tob_url: string | null
+    pd_url: string | null
+    review_site_rating: number | null
+    review_site_count: number | null
+    review_matched_at: Date | null
+    p411_url: string | null
+    p411_id: string | null
+    p411_verified_at: Date | null
+    review_verified_at: Date | null
     ad_package: string | null
     ad_package_expiry: string | null
     ad_package_started_at: string | null
@@ -28254,6 +28292,7 @@ export namespace Prisma {
     rate_hourly: number | null
     created_date: Date | null
     updated_date: Date | null
+    last_seen_at: Date | null
   }
 
   export type ProviderCountAggregateOutputType = {
@@ -28294,6 +28333,17 @@ export namespace Prisma {
     review_provider: number
     review_username: number
     review_url: number
+    review_urls: number
+    ter_url: number
+    tob_url: number
+    pd_url: number
+    review_site_rating: number
+    review_site_count: number
+    review_matched_at: number
+    p411_url: number
+    p411_id: number
+    p411_verified_at: number
+    review_verified_at: number
     ad_package: number
     ad_package_expiry: number
     ad_package_started_at: number
@@ -28314,6 +28364,7 @@ export namespace Prisma {
     rate_hourly: number
     created_date: number
     updated_date: number
+    last_seen_at: number
     _all: number
   }
 
@@ -28322,6 +28373,8 @@ export namespace Prisma {
     age?: true
     photo_similarity_score?: true
     photo_similarity_threshold?: true
+    review_site_rating?: true
+    review_site_count?: true
     views_count?: true
     rating_average?: true
     reviews_count?: true
@@ -28332,6 +28385,8 @@ export namespace Prisma {
     age?: true
     photo_similarity_score?: true
     photo_similarity_threshold?: true
+    review_site_rating?: true
+    review_site_count?: true
     views_count?: true
     rating_average?: true
     reviews_count?: true
@@ -28372,6 +28427,16 @@ export namespace Prisma {
     review_provider?: true
     review_username?: true
     review_url?: true
+    ter_url?: true
+    tob_url?: true
+    pd_url?: true
+    review_site_rating?: true
+    review_site_count?: true
+    review_matched_at?: true
+    p411_url?: true
+    p411_id?: true
+    p411_verified_at?: true
+    review_verified_at?: true
     ad_package?: true
     ad_package_expiry?: true
     ad_package_started_at?: true
@@ -28389,6 +28454,7 @@ export namespace Prisma {
     rate_hourly?: true
     created_date?: true
     updated_date?: true
+    last_seen_at?: true
   }
 
   export type ProviderMaxAggregateInputType = {
@@ -28425,6 +28491,16 @@ export namespace Prisma {
     review_provider?: true
     review_username?: true
     review_url?: true
+    ter_url?: true
+    tob_url?: true
+    pd_url?: true
+    review_site_rating?: true
+    review_site_count?: true
+    review_matched_at?: true
+    p411_url?: true
+    p411_id?: true
+    p411_verified_at?: true
+    review_verified_at?: true
     ad_package?: true
     ad_package_expiry?: true
     ad_package_started_at?: true
@@ -28442,6 +28518,7 @@ export namespace Prisma {
     rate_hourly?: true
     created_date?: true
     updated_date?: true
+    last_seen_at?: true
   }
 
   export type ProviderCountAggregateInputType = {
@@ -28482,6 +28559,17 @@ export namespace Prisma {
     review_provider?: true
     review_username?: true
     review_url?: true
+    review_urls?: true
+    ter_url?: true
+    tob_url?: true
+    pd_url?: true
+    review_site_rating?: true
+    review_site_count?: true
+    review_matched_at?: true
+    p411_url?: true
+    p411_id?: true
+    p411_verified_at?: true
+    review_verified_at?: true
     ad_package?: true
     ad_package_expiry?: true
     ad_package_started_at?: true
@@ -28502,6 +28590,7 @@ export namespace Prisma {
     rate_hourly?: true
     created_date?: true
     updated_date?: true
+    last_seen_at?: true
     _all?: true
   }
 
@@ -28593,7 +28682,7 @@ export namespace Prisma {
 
   export type ProviderGroupByOutputType = {
     id: string
-    user_id: string
+    user_id: string | null
     display_name: string
     tagline: string | null
     bio: string | null
@@ -28629,6 +28718,17 @@ export namespace Prisma {
     review_provider: string | null
     review_username: string | null
     review_url: string | null
+    review_urls: JsonValue | null
+    ter_url: string | null
+    tob_url: string | null
+    pd_url: string | null
+    review_site_rating: number | null
+    review_site_count: number | null
+    review_matched_at: Date | null
+    p411_url: string | null
+    p411_id: string | null
+    p411_verified_at: Date | null
+    review_verified_at: Date | null
     ad_package: string | null
     ad_package_expiry: string | null
     ad_package_started_at: string | null
@@ -28649,6 +28749,7 @@ export namespace Prisma {
     rate_hourly: number | null
     created_date: Date
     updated_date: Date
+    last_seen_at: Date | null
     _count: ProviderCountAggregateOutputType | null
     _avg: ProviderAvgAggregateOutputType | null
     _sum: ProviderSumAggregateOutputType | null
@@ -28708,6 +28809,17 @@ export namespace Prisma {
     review_provider?: boolean
     review_username?: boolean
     review_url?: boolean
+    review_urls?: boolean
+    ter_url?: boolean
+    tob_url?: boolean
+    pd_url?: boolean
+    review_site_rating?: boolean
+    review_site_count?: boolean
+    review_matched_at?: boolean
+    p411_url?: boolean
+    p411_id?: boolean
+    p411_verified_at?: boolean
+    review_verified_at?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
     ad_package_started_at?: boolean
@@ -28728,6 +28840,7 @@ export namespace Prisma {
     rate_hourly?: boolean
     created_date?: boolean
     updated_date?: boolean
+    last_seen_at?: boolean
   }, ExtArgs["result"]["provider"]>
 
   export type ProviderSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -28768,6 +28881,17 @@ export namespace Prisma {
     review_provider?: boolean
     review_username?: boolean
     review_url?: boolean
+    review_urls?: boolean
+    ter_url?: boolean
+    tob_url?: boolean
+    pd_url?: boolean
+    review_site_rating?: boolean
+    review_site_count?: boolean
+    review_matched_at?: boolean
+    p411_url?: boolean
+    p411_id?: boolean
+    p411_verified_at?: boolean
+    review_verified_at?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
     ad_package_started_at?: boolean
@@ -28788,6 +28912,7 @@ export namespace Prisma {
     rate_hourly?: boolean
     created_date?: boolean
     updated_date?: boolean
+    last_seen_at?: boolean
   }, ExtArgs["result"]["provider"]>
 
   export type ProviderSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -28828,6 +28953,17 @@ export namespace Prisma {
     review_provider?: boolean
     review_username?: boolean
     review_url?: boolean
+    review_urls?: boolean
+    ter_url?: boolean
+    tob_url?: boolean
+    pd_url?: boolean
+    review_site_rating?: boolean
+    review_site_count?: boolean
+    review_matched_at?: boolean
+    p411_url?: boolean
+    p411_id?: boolean
+    p411_verified_at?: boolean
+    review_verified_at?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
     ad_package_started_at?: boolean
@@ -28848,6 +28984,7 @@ export namespace Prisma {
     rate_hourly?: boolean
     created_date?: boolean
     updated_date?: boolean
+    last_seen_at?: boolean
   }, ExtArgs["result"]["provider"]>
 
   export type ProviderSelectScalar = {
@@ -28888,6 +29025,17 @@ export namespace Prisma {
     review_provider?: boolean
     review_username?: boolean
     review_url?: boolean
+    review_urls?: boolean
+    ter_url?: boolean
+    tob_url?: boolean
+    pd_url?: boolean
+    review_site_rating?: boolean
+    review_site_count?: boolean
+    review_matched_at?: boolean
+    p411_url?: boolean
+    p411_id?: boolean
+    p411_verified_at?: boolean
+    review_verified_at?: boolean
     ad_package?: boolean
     ad_package_expiry?: boolean
     ad_package_started_at?: boolean
@@ -28908,16 +29056,17 @@ export namespace Prisma {
     rate_hourly?: boolean
     created_date?: boolean
     updated_date?: boolean
+    last_seen_at?: boolean
   }
 
-  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "ethnicity" | "height" | "body_type" | "hair_color" | "eye_color" | "service_type" | "services_offered" | "social_media" | "tour_plan" | "ad_headline" | "ad_body" | "ai_last_draft" | "ad_text_moderation_status" | "ad_text_moderation_reason" | "ad_text_moderated_at" | "photo_review_status" | "photo_similarity_score" | "photo_similarity_threshold" | "photo_similarity_source" | "photo_similarity_checked_at" | "phone" | "email" | "verification_provider" | "verification_username" | "verification_url" | "review_provider" | "review_username" | "review_url" | "ad_package" | "ad_package_expiry" | "ad_package_started_at" | "ad_package_expiration_reminder_sent_at" | "verification_documents" | "photos" | "pending_photos" | "video_url" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date", ExtArgs["result"]["provider"]>
+  export type ProviderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "user_id" | "display_name" | "tagline" | "bio" | "location_city" | "location_state" | "location_country" | "age" | "ethnicity" | "height" | "body_type" | "hair_color" | "eye_color" | "service_type" | "services_offered" | "social_media" | "tour_plan" | "ad_headline" | "ad_body" | "ai_last_draft" | "ad_text_moderation_status" | "ad_text_moderation_reason" | "ad_text_moderated_at" | "photo_review_status" | "photo_similarity_score" | "photo_similarity_threshold" | "photo_similarity_source" | "photo_similarity_checked_at" | "phone" | "email" | "verification_provider" | "verification_username" | "verification_url" | "review_provider" | "review_username" | "review_url" | "review_urls" | "ter_url" | "tob_url" | "pd_url" | "review_site_rating" | "review_site_count" | "review_matched_at" | "p411_url" | "p411_id" | "p411_verified_at" | "review_verified_at" | "ad_package" | "ad_package_expiry" | "ad_package_started_at" | "ad_package_expiration_reminder_sent_at" | "verification_documents" | "photos" | "pending_photos" | "video_url" | "status" | "is_premium" | "is_verified" | "is_profile_approved" | "admin_notes" | "rejection_reason" | "views_count" | "rating_average" | "reviews_count" | "rate_hourly" | "created_date" | "updated_date" | "last_seen_at", ExtArgs["result"]["provider"]>
 
   export type $ProviderPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Provider"
     objects: {}
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      user_id: string
+      user_id: string | null
       display_name: string
       tagline: string | null
       bio: string | null
@@ -28953,6 +29102,17 @@ export namespace Prisma {
       review_provider: string | null
       review_username: string | null
       review_url: string | null
+      review_urls: Prisma.JsonValue | null
+      ter_url: string | null
+      tob_url: string | null
+      pd_url: string | null
+      review_site_rating: number | null
+      review_site_count: number | null
+      review_matched_at: Date | null
+      p411_url: string | null
+      p411_id: string | null
+      p411_verified_at: Date | null
+      review_verified_at: Date | null
       ad_package: string | null
       ad_package_expiry: string | null
       ad_package_started_at: string | null
@@ -28973,6 +29133,7 @@ export namespace Prisma {
       rate_hourly: number | null
       created_date: Date
       updated_date: Date
+      last_seen_at: Date | null
     }, ExtArgs["result"]["provider"]>
     composites: {}
   }
@@ -29433,6 +29594,17 @@ export namespace Prisma {
     readonly review_provider: FieldRef<"Provider", 'String'>
     readonly review_username: FieldRef<"Provider", 'String'>
     readonly review_url: FieldRef<"Provider", 'String'>
+    readonly review_urls: FieldRef<"Provider", 'Json'>
+    readonly ter_url: FieldRef<"Provider", 'String'>
+    readonly tob_url: FieldRef<"Provider", 'String'>
+    readonly pd_url: FieldRef<"Provider", 'String'>
+    readonly review_site_rating: FieldRef<"Provider", 'Float'>
+    readonly review_site_count: FieldRef<"Provider", 'Int'>
+    readonly review_matched_at: FieldRef<"Provider", 'DateTime'>
+    readonly p411_url: FieldRef<"Provider", 'String'>
+    readonly p411_id: FieldRef<"Provider", 'String'>
+    readonly p411_verified_at: FieldRef<"Provider", 'DateTime'>
+    readonly review_verified_at: FieldRef<"Provider", 'DateTime'>
     readonly ad_package: FieldRef<"Provider", 'String'>
     readonly ad_package_expiry: FieldRef<"Provider", 'String'>
     readonly ad_package_started_at: FieldRef<"Provider", 'String'>
@@ -29453,6 +29625,7 @@ export namespace Prisma {
     readonly rate_hourly: FieldRef<"Provider", 'Int'>
     readonly created_date: FieldRef<"Provider", 'DateTime'>
     readonly updated_date: FieldRef<"Provider", 'DateTime'>
+    readonly last_seen_at: FieldRef<"Provider", 'DateTime'>
   }
     
 
@@ -33083,6 +33256,7 @@ export namespace Prisma {
 
   export const UserScalarFieldEnum: {
     id: 'id',
+    clerk_id: 'clerk_id',
     email: 'email',
     role: 'role',
     status: 'status',
@@ -33406,6 +33580,17 @@ export namespace Prisma {
     review_provider: 'review_provider',
     review_username: 'review_username',
     review_url: 'review_url',
+    review_urls: 'review_urls',
+    ter_url: 'ter_url',
+    tob_url: 'tob_url',
+    pd_url: 'pd_url',
+    review_site_rating: 'review_site_rating',
+    review_site_count: 'review_site_count',
+    review_matched_at: 'review_matched_at',
+    p411_url: 'p411_url',
+    p411_id: 'p411_id',
+    p411_verified_at: 'p411_verified_at',
+    review_verified_at: 'review_verified_at',
     ad_package: 'ad_package',
     ad_package_expiry: 'ad_package_expiry',
     ad_package_started_at: 'ad_package_started_at',
@@ -33425,7 +33610,8 @@ export namespace Prisma {
     reviews_count: 'reviews_count',
     rate_hourly: 'rate_hourly',
     created_date: 'created_date',
-    updated_date: 'updated_date'
+    updated_date: 'updated_date',
+    last_seen_at: 'last_seen_at'
   };
 
   export type ProviderScalarFieldEnum = (typeof ProviderScalarFieldEnum)[keyof typeof ProviderScalarFieldEnum]
@@ -33617,6 +33803,7 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: UuidFilter<"User"> | string
+    clerk_id?: StringNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     role?: StringFilter<"User"> | string
     status?: StringFilter<"User"> | string
@@ -33637,6 +33824,7 @@ export namespace Prisma {
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
+    clerk_id?: SortOrderInput | SortOrder
     email?: SortOrder
     role?: SortOrder
     status?: SortOrder
@@ -33657,6 +33845,7 @@ export namespace Prisma {
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    clerk_id?: string
     email?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
@@ -33676,10 +33865,11 @@ export namespace Prisma {
     blocksTarget?: BlockListRelationFilter
     auditEvents?: AuditEventListRelationFilter
     providerProfile?: XOR<ProviderProfileNullableScalarRelationFilter, ProviderProfileWhereInput> | null
-  }, "id" | "email">
+  }, "id" | "clerk_id" | "email">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
+    clerk_id?: SortOrderInput | SortOrder
     email?: SortOrder
     role?: SortOrder
     status?: SortOrder
@@ -33697,6 +33887,7 @@ export namespace Prisma {
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: UuidWithAggregatesFilter<"User"> | string
+    clerk_id?: StringNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
     role?: StringWithAggregatesFilter<"User"> | string
     status?: StringWithAggregatesFilter<"User"> | string
@@ -34959,6 +35150,7 @@ export namespace Prisma {
 
   export type BlockWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    blockerId_blockedUserId?: BlockBlockerIdBlockedUserIdCompoundUniqueInput
     AND?: BlockWhereInput | BlockWhereInput[]
     OR?: BlockWhereInput[]
     NOT?: BlockWhereInput | BlockWhereInput[]
@@ -34968,7 +35160,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Block"> | Date | string
     blocker?: XOR<UserScalarRelationFilter, UserWhereInput>
     blockedUser?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id">
+  }, "id" | "blockerId_blockedUserId">
 
   export type BlockOrderByWithAggregationInput = {
     id?: SortOrder
@@ -35135,7 +35327,7 @@ export namespace Prisma {
     OR?: ProviderWhereInput[]
     NOT?: ProviderWhereInput | ProviderWhereInput[]
     id?: UuidFilter<"Provider"> | string
-    user_id?: UuidFilter<"Provider"> | string
+    user_id?: UuidNullableFilter<"Provider"> | string | null
     display_name?: StringFilter<"Provider"> | string
     tagline?: StringNullableFilter<"Provider"> | string | null
     bio?: StringNullableFilter<"Provider"> | string | null
@@ -35171,6 +35363,17 @@ export namespace Prisma {
     review_provider?: StringNullableFilter<"Provider"> | string | null
     review_username?: StringNullableFilter<"Provider"> | string | null
     review_url?: StringNullableFilter<"Provider"> | string | null
+    review_urls?: JsonNullableFilter<"Provider">
+    ter_url?: StringNullableFilter<"Provider"> | string | null
+    tob_url?: StringNullableFilter<"Provider"> | string | null
+    pd_url?: StringNullableFilter<"Provider"> | string | null
+    review_site_rating?: FloatNullableFilter<"Provider"> | number | null
+    review_site_count?: IntNullableFilter<"Provider"> | number | null
+    review_matched_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    p411_url?: StringNullableFilter<"Provider"> | string | null
+    p411_id?: StringNullableFilter<"Provider"> | string | null
+    p411_verified_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    review_verified_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
     ad_package?: StringNullableFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableFilter<"Provider"> | string | null
     ad_package_started_at?: StringNullableFilter<"Provider"> | string | null
@@ -35191,11 +35394,12 @@ export namespace Prisma {
     rate_hourly?: IntNullableFilter<"Provider"> | number | null
     created_date?: DateTimeFilter<"Provider"> | Date | string
     updated_date?: DateTimeFilter<"Provider"> | Date | string
+    last_seen_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
   }
 
   export type ProviderOrderByWithRelationInput = {
     id?: SortOrder
-    user_id?: SortOrder
+    user_id?: SortOrderInput | SortOrder
     display_name?: SortOrder
     tagline?: SortOrderInput | SortOrder
     bio?: SortOrderInput | SortOrder
@@ -35231,6 +35435,17 @@ export namespace Prisma {
     review_provider?: SortOrderInput | SortOrder
     review_username?: SortOrderInput | SortOrder
     review_url?: SortOrderInput | SortOrder
+    review_urls?: SortOrderInput | SortOrder
+    ter_url?: SortOrderInput | SortOrder
+    tob_url?: SortOrderInput | SortOrder
+    pd_url?: SortOrderInput | SortOrder
+    review_site_rating?: SortOrderInput | SortOrder
+    review_site_count?: SortOrderInput | SortOrder
+    review_matched_at?: SortOrderInput | SortOrder
+    p411_url?: SortOrderInput | SortOrder
+    p411_id?: SortOrderInput | SortOrder
+    p411_verified_at?: SortOrderInput | SortOrder
+    review_verified_at?: SortOrderInput | SortOrder
     ad_package?: SortOrderInput | SortOrder
     ad_package_expiry?: SortOrderInput | SortOrder
     ad_package_started_at?: SortOrderInput | SortOrder
@@ -35251,6 +35466,7 @@ export namespace Prisma {
     rate_hourly?: SortOrderInput | SortOrder
     created_date?: SortOrder
     updated_date?: SortOrder
+    last_seen_at?: SortOrderInput | SortOrder
   }
 
   export type ProviderWhereUniqueInput = Prisma.AtLeast<{
@@ -35258,7 +35474,7 @@ export namespace Prisma {
     AND?: ProviderWhereInput | ProviderWhereInput[]
     OR?: ProviderWhereInput[]
     NOT?: ProviderWhereInput | ProviderWhereInput[]
-    user_id?: UuidFilter<"Provider"> | string
+    user_id?: UuidNullableFilter<"Provider"> | string | null
     display_name?: StringFilter<"Provider"> | string
     tagline?: StringNullableFilter<"Provider"> | string | null
     bio?: StringNullableFilter<"Provider"> | string | null
@@ -35294,6 +35510,17 @@ export namespace Prisma {
     review_provider?: StringNullableFilter<"Provider"> | string | null
     review_username?: StringNullableFilter<"Provider"> | string | null
     review_url?: StringNullableFilter<"Provider"> | string | null
+    review_urls?: JsonNullableFilter<"Provider">
+    ter_url?: StringNullableFilter<"Provider"> | string | null
+    tob_url?: StringNullableFilter<"Provider"> | string | null
+    pd_url?: StringNullableFilter<"Provider"> | string | null
+    review_site_rating?: FloatNullableFilter<"Provider"> | number | null
+    review_site_count?: IntNullableFilter<"Provider"> | number | null
+    review_matched_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    p411_url?: StringNullableFilter<"Provider"> | string | null
+    p411_id?: StringNullableFilter<"Provider"> | string | null
+    p411_verified_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
+    review_verified_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
     ad_package?: StringNullableFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableFilter<"Provider"> | string | null
     ad_package_started_at?: StringNullableFilter<"Provider"> | string | null
@@ -35314,11 +35541,12 @@ export namespace Prisma {
     rate_hourly?: IntNullableFilter<"Provider"> | number | null
     created_date?: DateTimeFilter<"Provider"> | Date | string
     updated_date?: DateTimeFilter<"Provider"> | Date | string
+    last_seen_at?: DateTimeNullableFilter<"Provider"> | Date | string | null
   }, "id">
 
   export type ProviderOrderByWithAggregationInput = {
     id?: SortOrder
-    user_id?: SortOrder
+    user_id?: SortOrderInput | SortOrder
     display_name?: SortOrder
     tagline?: SortOrderInput | SortOrder
     bio?: SortOrderInput | SortOrder
@@ -35354,6 +35582,17 @@ export namespace Prisma {
     review_provider?: SortOrderInput | SortOrder
     review_username?: SortOrderInput | SortOrder
     review_url?: SortOrderInput | SortOrder
+    review_urls?: SortOrderInput | SortOrder
+    ter_url?: SortOrderInput | SortOrder
+    tob_url?: SortOrderInput | SortOrder
+    pd_url?: SortOrderInput | SortOrder
+    review_site_rating?: SortOrderInput | SortOrder
+    review_site_count?: SortOrderInput | SortOrder
+    review_matched_at?: SortOrderInput | SortOrder
+    p411_url?: SortOrderInput | SortOrder
+    p411_id?: SortOrderInput | SortOrder
+    p411_verified_at?: SortOrderInput | SortOrder
+    review_verified_at?: SortOrderInput | SortOrder
     ad_package?: SortOrderInput | SortOrder
     ad_package_expiry?: SortOrderInput | SortOrder
     ad_package_started_at?: SortOrderInput | SortOrder
@@ -35374,6 +35613,7 @@ export namespace Prisma {
     rate_hourly?: SortOrderInput | SortOrder
     created_date?: SortOrder
     updated_date?: SortOrder
+    last_seen_at?: SortOrderInput | SortOrder
     _count?: ProviderCountOrderByAggregateInput
     _avg?: ProviderAvgOrderByAggregateInput
     _max?: ProviderMaxOrderByAggregateInput
@@ -35386,7 +35626,7 @@ export namespace Prisma {
     OR?: ProviderScalarWhereWithAggregatesInput[]
     NOT?: ProviderScalarWhereWithAggregatesInput | ProviderScalarWhereWithAggregatesInput[]
     id?: UuidWithAggregatesFilter<"Provider"> | string
-    user_id?: UuidWithAggregatesFilter<"Provider"> | string
+    user_id?: UuidNullableWithAggregatesFilter<"Provider"> | string | null
     display_name?: StringWithAggregatesFilter<"Provider"> | string
     tagline?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     bio?: StringNullableWithAggregatesFilter<"Provider"> | string | null
@@ -35422,6 +35662,17 @@ export namespace Prisma {
     review_provider?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     review_username?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     review_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    review_urls?: JsonNullableWithAggregatesFilter<"Provider">
+    ter_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    tob_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    pd_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    review_site_rating?: FloatNullableWithAggregatesFilter<"Provider"> | number | null
+    review_site_count?: IntNullableWithAggregatesFilter<"Provider"> | number | null
+    review_matched_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
+    p411_url?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    p411_id?: StringNullableWithAggregatesFilter<"Provider"> | string | null
+    p411_verified_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
+    review_verified_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
     ad_package?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     ad_package_expiry?: StringNullableWithAggregatesFilter<"Provider"> | string | null
     ad_package_started_at?: StringNullableWithAggregatesFilter<"Provider"> | string | null
@@ -35442,6 +35693,7 @@ export namespace Prisma {
     rate_hourly?: IntNullableWithAggregatesFilter<"Provider"> | number | null
     created_date?: DateTimeWithAggregatesFilter<"Provider"> | Date | string
     updated_date?: DateTimeWithAggregatesFilter<"Provider"> | Date | string
+    last_seen_at?: DateTimeNullableWithAggregatesFilter<"Provider"> | Date | string | null
   }
 
   export type BookingWhereInput = {
@@ -35681,6 +35933,7 @@ export namespace Prisma {
 
   export type UserCreateInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -35701,6 +35954,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -35721,6 +35975,7 @@ export namespace Prisma {
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -35741,6 +35996,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -35761,6 +36017,7 @@ export namespace Prisma {
 
   export type UserCreateManyInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -35772,6 +36029,7 @@ export namespace Prisma {
 
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -35783,6 +36041,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -37297,7 +37556,7 @@ export namespace Prisma {
 
   export type ProviderCreateInput = {
     id?: string
-    user_id: string
+    user_id?: string | null
     display_name: string
     tagline?: string | null
     bio?: string | null
@@ -37333,6 +37592,17 @@ export namespace Prisma {
     review_provider?: string | null
     review_username?: string | null
     review_url?: string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: string | null
+    tob_url?: string | null
+    pd_url?: string | null
+    review_site_rating?: number | null
+    review_site_count?: number | null
+    review_matched_at?: Date | string | null
+    p411_url?: string | null
+    p411_id?: string | null
+    p411_verified_at?: Date | string | null
+    review_verified_at?: Date | string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
     ad_package_started_at?: string | null
@@ -37353,11 +37623,12 @@ export namespace Prisma {
     rate_hourly?: number | null
     created_date?: Date | string
     updated_date?: Date | string
+    last_seen_at?: Date | string | null
   }
 
   export type ProviderUncheckedCreateInput = {
     id?: string
-    user_id: string
+    user_id?: string | null
     display_name: string
     tagline?: string | null
     bio?: string | null
@@ -37393,6 +37664,17 @@ export namespace Prisma {
     review_provider?: string | null
     review_username?: string | null
     review_url?: string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: string | null
+    tob_url?: string | null
+    pd_url?: string | null
+    review_site_rating?: number | null
+    review_site_count?: number | null
+    review_matched_at?: Date | string | null
+    p411_url?: string | null
+    p411_id?: string | null
+    p411_verified_at?: Date | string | null
+    review_verified_at?: Date | string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
     ad_package_started_at?: string | null
@@ -37413,11 +37695,12 @@ export namespace Prisma {
     rate_hourly?: number | null
     created_date?: Date | string
     updated_date?: Date | string
+    last_seen_at?: Date | string | null
   }
 
   export type ProviderUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    user_id?: StringFieldUpdateOperationsInput | string
+    user_id?: NullableStringFieldUpdateOperationsInput | string | null
     display_name?: StringFieldUpdateOperationsInput | string
     tagline?: NullableStringFieldUpdateOperationsInput | string | null
     bio?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37453,6 +37736,17 @@ export namespace Prisma {
     review_provider?: NullableStringFieldUpdateOperationsInput | string | null
     review_username?: NullableStringFieldUpdateOperationsInput | string | null
     review_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: NullableStringFieldUpdateOperationsInput | string | null
+    tob_url?: NullableStringFieldUpdateOperationsInput | string | null
+    pd_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_site_rating?: NullableFloatFieldUpdateOperationsInput | number | null
+    review_site_count?: NullableIntFieldUpdateOperationsInput | number | null
+    review_matched_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    p411_url?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_id?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    review_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37473,11 +37767,12 @@ export namespace Prisma {
     rate_hourly?: NullableIntFieldUpdateOperationsInput | number | null
     created_date?: DateTimeFieldUpdateOperationsInput | Date | string
     updated_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    last_seen_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type ProviderUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    user_id?: StringFieldUpdateOperationsInput | string
+    user_id?: NullableStringFieldUpdateOperationsInput | string | null
     display_name?: StringFieldUpdateOperationsInput | string
     tagline?: NullableStringFieldUpdateOperationsInput | string | null
     bio?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37513,6 +37808,17 @@ export namespace Prisma {
     review_provider?: NullableStringFieldUpdateOperationsInput | string | null
     review_username?: NullableStringFieldUpdateOperationsInput | string | null
     review_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: NullableStringFieldUpdateOperationsInput | string | null
+    tob_url?: NullableStringFieldUpdateOperationsInput | string | null
+    pd_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_site_rating?: NullableFloatFieldUpdateOperationsInput | number | null
+    review_site_count?: NullableIntFieldUpdateOperationsInput | number | null
+    review_matched_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    p411_url?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_id?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    review_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37533,11 +37839,12 @@ export namespace Prisma {
     rate_hourly?: NullableIntFieldUpdateOperationsInput | number | null
     created_date?: DateTimeFieldUpdateOperationsInput | Date | string
     updated_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    last_seen_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type ProviderCreateManyInput = {
     id?: string
-    user_id: string
+    user_id?: string | null
     display_name: string
     tagline?: string | null
     bio?: string | null
@@ -37573,6 +37880,17 @@ export namespace Prisma {
     review_provider?: string | null
     review_username?: string | null
     review_url?: string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: string | null
+    tob_url?: string | null
+    pd_url?: string | null
+    review_site_rating?: number | null
+    review_site_count?: number | null
+    review_matched_at?: Date | string | null
+    p411_url?: string | null
+    p411_id?: string | null
+    p411_verified_at?: Date | string | null
+    review_verified_at?: Date | string | null
     ad_package?: string | null
     ad_package_expiry?: string | null
     ad_package_started_at?: string | null
@@ -37593,11 +37911,12 @@ export namespace Prisma {
     rate_hourly?: number | null
     created_date?: Date | string
     updated_date?: Date | string
+    last_seen_at?: Date | string | null
   }
 
   export type ProviderUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    user_id?: StringFieldUpdateOperationsInput | string
+    user_id?: NullableStringFieldUpdateOperationsInput | string | null
     display_name?: StringFieldUpdateOperationsInput | string
     tagline?: NullableStringFieldUpdateOperationsInput | string | null
     bio?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37633,6 +37952,17 @@ export namespace Prisma {
     review_provider?: NullableStringFieldUpdateOperationsInput | string | null
     review_username?: NullableStringFieldUpdateOperationsInput | string | null
     review_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: NullableStringFieldUpdateOperationsInput | string | null
+    tob_url?: NullableStringFieldUpdateOperationsInput | string | null
+    pd_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_site_rating?: NullableFloatFieldUpdateOperationsInput | number | null
+    review_site_count?: NullableIntFieldUpdateOperationsInput | number | null
+    review_matched_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    p411_url?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_id?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    review_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37653,11 +37983,12 @@ export namespace Prisma {
     rate_hourly?: NullableIntFieldUpdateOperationsInput | number | null
     created_date?: DateTimeFieldUpdateOperationsInput | Date | string
     updated_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    last_seen_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type ProviderUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    user_id?: StringFieldUpdateOperationsInput | string
+    user_id?: NullableStringFieldUpdateOperationsInput | string | null
     display_name?: StringFieldUpdateOperationsInput | string
     tagline?: NullableStringFieldUpdateOperationsInput | string | null
     bio?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37693,6 +38024,17 @@ export namespace Prisma {
     review_provider?: NullableStringFieldUpdateOperationsInput | string | null
     review_username?: NullableStringFieldUpdateOperationsInput | string | null
     review_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_urls?: NullableJsonNullValueInput | InputJsonValue
+    ter_url?: NullableStringFieldUpdateOperationsInput | string | null
+    tob_url?: NullableStringFieldUpdateOperationsInput | string | null
+    pd_url?: NullableStringFieldUpdateOperationsInput | string | null
+    review_site_rating?: NullableFloatFieldUpdateOperationsInput | number | null
+    review_site_count?: NullableIntFieldUpdateOperationsInput | number | null
+    review_matched_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    p411_url?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_id?: NullableStringFieldUpdateOperationsInput | string | null
+    p411_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    review_verified_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     ad_package?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_expiry?: NullableStringFieldUpdateOperationsInput | string | null
     ad_package_started_at?: NullableStringFieldUpdateOperationsInput | string | null
@@ -37713,6 +38055,7 @@ export namespace Prisma {
     rate_hourly?: NullableIntFieldUpdateOperationsInput | number | null
     created_date?: DateTimeFieldUpdateOperationsInput | Date | string
     updated_date?: DateTimeFieldUpdateOperationsInput | Date | string
+    last_seen_at?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type BookingCreateInput = {
@@ -38000,6 +38343,21 @@ export namespace Prisma {
     not?: NestedUuidFilter<$PrismaModel> | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -38024,21 +38382,6 @@ export namespace Prisma {
     gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
-  }
-
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
   export type ProfileListRelationFilter = {
@@ -38113,6 +38456,7 @@ export namespace Prisma {
 
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
+    clerk_id?: SortOrder
     email?: SortOrder
     role?: SortOrder
     status?: SortOrder
@@ -38124,6 +38468,7 @@ export namespace Prisma {
 
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
+    clerk_id?: SortOrder
     email?: SortOrder
     role?: SortOrder
     status?: SortOrder
@@ -38135,6 +38480,7 @@ export namespace Prisma {
 
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
+    clerk_id?: SortOrder
     email?: SortOrder
     role?: SortOrder
     status?: SortOrder
@@ -38157,6 +38503,24 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -38189,24 +38553,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
   export type JsonFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -39129,6 +39475,11 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
+  export type BlockBlockerIdBlockedUserIdCompoundUniqueInput = {
+    blockerId: string
+    blockedUserId: string
+  }
+
   export type BlockCountOrderByAggregateInput = {
     id?: SortOrder
     blockerId?: SortOrder
@@ -39282,6 +39633,17 @@ export namespace Prisma {
     review_provider?: SortOrder
     review_username?: SortOrder
     review_url?: SortOrder
+    review_urls?: SortOrder
+    ter_url?: SortOrder
+    tob_url?: SortOrder
+    pd_url?: SortOrder
+    review_site_rating?: SortOrder
+    review_site_count?: SortOrder
+    review_matched_at?: SortOrder
+    p411_url?: SortOrder
+    p411_id?: SortOrder
+    p411_verified_at?: SortOrder
+    review_verified_at?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
     ad_package_started_at?: SortOrder
@@ -39302,12 +39664,15 @@ export namespace Prisma {
     rate_hourly?: SortOrder
     created_date?: SortOrder
     updated_date?: SortOrder
+    last_seen_at?: SortOrder
   }
 
   export type ProviderAvgOrderByAggregateInput = {
     age?: SortOrder
     photo_similarity_score?: SortOrder
     photo_similarity_threshold?: SortOrder
+    review_site_rating?: SortOrder
+    review_site_count?: SortOrder
     views_count?: SortOrder
     rating_average?: SortOrder
     reviews_count?: SortOrder
@@ -39348,6 +39713,16 @@ export namespace Prisma {
     review_provider?: SortOrder
     review_username?: SortOrder
     review_url?: SortOrder
+    ter_url?: SortOrder
+    tob_url?: SortOrder
+    pd_url?: SortOrder
+    review_site_rating?: SortOrder
+    review_site_count?: SortOrder
+    review_matched_at?: SortOrder
+    p411_url?: SortOrder
+    p411_id?: SortOrder
+    p411_verified_at?: SortOrder
+    review_verified_at?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
     ad_package_started_at?: SortOrder
@@ -39365,6 +39740,7 @@ export namespace Prisma {
     rate_hourly?: SortOrder
     created_date?: SortOrder
     updated_date?: SortOrder
+    last_seen_at?: SortOrder
   }
 
   export type ProviderMinOrderByAggregateInput = {
@@ -39401,6 +39777,16 @@ export namespace Prisma {
     review_provider?: SortOrder
     review_username?: SortOrder
     review_url?: SortOrder
+    ter_url?: SortOrder
+    tob_url?: SortOrder
+    pd_url?: SortOrder
+    review_site_rating?: SortOrder
+    review_site_count?: SortOrder
+    review_matched_at?: SortOrder
+    p411_url?: SortOrder
+    p411_id?: SortOrder
+    p411_verified_at?: SortOrder
+    review_verified_at?: SortOrder
     ad_package?: SortOrder
     ad_package_expiry?: SortOrder
     ad_package_started_at?: SortOrder
@@ -39418,12 +39804,15 @@ export namespace Prisma {
     rate_hourly?: SortOrder
     created_date?: SortOrder
     updated_date?: SortOrder
+    last_seen_at?: SortOrder
   }
 
   export type ProviderSumOrderByAggregateInput = {
     age?: SortOrder
     photo_similarity_score?: SortOrder
     photo_similarity_threshold?: SortOrder
+    review_site_rating?: SortOrder
+    review_site_count?: SortOrder
     views_count?: SortOrder
     rating_average?: SortOrder
     reviews_count?: SortOrder
@@ -39723,12 +40112,12 @@ export namespace Prisma {
     set?: string
   }
 
-  export type DateTimeFieldUpdateOperationsInput = {
-    set?: Date | string
-  }
-
   export type NullableStringFieldUpdateOperationsInput = {
     set?: string | null
+  }
+
+  export type DateTimeFieldUpdateOperationsInput = {
+    set?: Date | string
   }
 
   export type ProfileUpdateManyWithoutUserNestedInput = {
@@ -40932,6 +41321,20 @@ export namespace Prisma {
     not?: NestedUuidFilter<$PrismaModel> | string
   }
 
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -40957,20 +41360,6 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type NestedUuidWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -40994,6 +41383,34 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
@@ -41025,34 +41442,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedBoolFilter<$PrismaModel = never> = {
@@ -41789,6 +42178,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutProviderProfileInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -41808,6 +42198,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutProviderProfileInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -41927,6 +42318,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutProviderProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -41946,6 +42338,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutProviderProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -42420,6 +42813,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutProfilesInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -42439,6 +42833,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutProfilesInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -42578,6 +42973,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutProfilesInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -42597,6 +42993,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutProfilesInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -43035,6 +43432,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutVerificationsInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43054,6 +43452,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutVerificationsInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43113,6 +43512,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutVerificationsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -43132,6 +43532,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutVerificationsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -43360,6 +43761,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutOrdersInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43379,6 +43781,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutOrdersInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43509,6 +43912,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutOrdersInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -43528,6 +43932,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutOrdersInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -43892,6 +44297,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutReportsFiledInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43911,6 +44317,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutReportsFiledInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43935,6 +44342,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutReportsTargetInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43954,6 +44362,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutReportsTargetInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -43989,6 +44398,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutReportsFiledInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44008,6 +44418,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutReportsFiledInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44038,6 +44449,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutReportsTargetInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44057,6 +44469,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutReportsTargetInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44076,6 +44489,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutBlocksByInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44095,6 +44509,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutBlocksByInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44119,6 +44534,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutBlocksTargetInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44138,6 +44554,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutBlocksTargetInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44173,6 +44590,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutBlocksByInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44192,6 +44610,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutBlocksByInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44222,6 +44641,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutBlocksTargetInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44241,6 +44661,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutBlocksTargetInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44260,6 +44681,7 @@ export namespace Prisma {
 
   export type UserCreateWithoutAuditEventsInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44279,6 +44701,7 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutAuditEventsInput = {
     id?: string
+    clerk_id?: string | null
     email: string
     role?: string
     status?: string
@@ -44314,6 +44737,7 @@ export namespace Prisma {
 
   export type UserUpdateWithoutAuditEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string
@@ -44333,6 +44757,7 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutAuditEventsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clerk_id?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     role?: StringFieldUpdateOperationsInput | string
     status?: StringFieldUpdateOperationsInput | string

@@ -8,6 +8,11 @@ import {
   resolveCacheDir,
   resolveLatestCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
+import {
+  catalogSeenTouchFields,
+  findCatalogDuplicateInCity,
+  shouldSkipCatalogInsert,
+} from "./lib/catalog-sync-policy.mjs";
 
 const args = new Map(
   process.argv.slice(2).map((arg) => {
@@ -44,8 +49,32 @@ async function upsertRecord(record) {
   }
 
   try {
+    const seenFields = catalogSeenTouchFields();
+    const payloadWithSeen = { ...payload, ...seenFields };
+
     if (existingId) {
-      await prisma.provider.update({ where: { id: existingId }, data: payload });
+      const existing = await prisma.provider.findUnique({ where: { id: existingId } });
+      await prisma.provider.update({
+        where: { id: existingId },
+        data: { ...payloadWithSeen, ...catalogSeenTouchFields(existing) },
+      });
+      stats.updated += 1;
+      if (recordIsVerified(payload)) stats.verified += 1;
+      return;
+    }
+
+    const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
+      verification_provider: payload.verification_provider,
+      verification_url: payload.verification_url,
+      display_name: payload.display_name,
+      location_city: payload.location_city,
+      location_state: payload.location_state,
+    });
+    if (duplicateInCity && shouldSkipCatalogInsert(payload, duplicateInCity)) {
+      await prisma.provider.update({
+        where: { id: duplicateInCity.id },
+        data: { ...payloadWithSeen, ...catalogSeenTouchFields(duplicateInCity) },
+      });
       stats.updated += 1;
       if (recordIsVerified(payload)) stats.verified += 1;
       return;
@@ -63,7 +92,10 @@ async function upsertRecord(record) {
       },
     });
     if (dup) {
-      await prisma.provider.update({ where: { id: dup.id }, data: payload });
+      await prisma.provider.update({
+        where: { id: dup.id },
+        data: { ...payloadWithSeen, ...catalogSeenTouchFields(dup) },
+      });
       stats.updated += 1;
       if (recordIsVerified(payload)) stats.verified += 1;
       return;
@@ -71,7 +103,7 @@ async function upsertRecord(record) {
 
     await prisma.provider.create({
       data: {
-        ...payload,
+        ...payloadWithSeen,
         is_premium: payload.is_premium ?? false,
       },
     });

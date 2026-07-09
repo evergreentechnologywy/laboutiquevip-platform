@@ -33,6 +33,11 @@ import {
   resolveCacheDir,
 } from "./lib/catalog-scan-cache.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
+import {
+  catalogSeenTouchFields,
+  findCatalogDuplicateInCity,
+  shouldSkipCatalogInsert,
+} from "./lib/catalog-sync-policy.mjs";
 
 const MAX_PROVIDER_PHOTOS = 32;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -355,6 +360,7 @@ function buildProviderPayload(profile, existing = null) {
     is_verified: existing?.is_verified ?? true,
     is_profile_approved: existing?.is_profile_approved ?? true,
     ...mergeVerificationFields(existing, profile.verification),
+    ...catalogSeenTouchFields(existing),
   };
 }
 
@@ -410,6 +416,24 @@ async function importProfile(profile, markdown = "") {
     stats.updated += 1;
     if (options.dryRun) return;
     await prisma.provider.update({ where: { id: existing.id }, data });
+    return;
+  }
+
+  const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
+    verification_provider: "eros",
+    verification_url: profile.sourceUrl,
+    display_name: data.display_name,
+    location_city: data.location_city,
+    location_state: data.location_state,
+  });
+  if (duplicateInCity && shouldSkipCatalogInsert(data, duplicateInCity)) {
+    stats.skipped += 1;
+    if (!options.dryRun) {
+      await prisma.provider.update({
+        where: { id: duplicateInCity.id },
+        data: catalogSeenTouchFields(duplicateInCity),
+      });
+    }
     return;
   }
 
