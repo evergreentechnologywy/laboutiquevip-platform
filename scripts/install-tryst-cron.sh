@@ -6,16 +6,21 @@ set -euo pipefail
 REPO="${REPO:-/srv/apps/trystlike/repo}"
 CAPS="PROFILES_PER_CITY=250 PROFILES_PER_STATE=1250 TRYST_MAX_PROFILES_PER_CITY=250 TRYST_MAX_CITIES_PER_STATE=5 TRYST_MAX_LISTING_PAGES_PER_CITY=25 STRICT_IMPORT_VERIFICATION_GATE=1"
 CRON_TRYST="30 5 * * * REPO_DIR=$REPO $CAPS $REPO/scripts/run-tryst-import.sh >> /var/log/laboutiquevip/cron.log 2>&1 # tryst-import-daily"
+# 06:30 UTC daily — photo backfill so zero-photo Tryst rows become visible
+CRON_TRYST_R2="30 6 * * * REPO_DIR=$REPO TRYST_R2_BATCH_LIMIT=150 bash $REPO/scripts/run-tryst-r2.sh >> /var/log/laboutiquevip/cron.log 2>&1 # tryst-r2-daily"
 
 mkdir -p /var/log/laboutiquevip
 chmod +x "$REPO/scripts/run-tryst-import.sh" 2>/dev/null || true
+chmod +x "$REPO/scripts/run-tryst-r2.sh" 2>/dev/null || true
 chmod +x "$REPO/scripts/import-tryst.mjs" 2>/dev/null || true
 chmod +x "$REPO/scripts/reconcile-tryst.mjs" 2>/dev/null || true
 
 (crontab -l 2>/dev/null \
   | sed '/run-tryst-import\.sh/d' \
   | sed '/tryst-import-daily/d' \
-  ; echo "$CRON_TRYST") | crontab -
+  | sed '/run-tryst-r2\.sh/d' \
+  | sed '/tryst-r2-daily/d' \
+  ; echo "$CRON_TRYST"; echo "$CRON_TRYST_R2") | crontab -
 
-echo "Installed Tryst daily cron:"
-crontab -l | grep -E 'tryst-import'
+echo "Installed Tryst daily crons:"
+crontab -l | grep -E 'tryst-import|tryst-r2'

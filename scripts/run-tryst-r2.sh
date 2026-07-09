@@ -13,6 +13,11 @@ EROS_LOCKS=(
 )
 DELAY_MS="${TRYST_R2_DELAY_MS:-400}"
 BATCH_LIMIT="${TRYST_R2_BATCH_LIMIT:-100}"
+# TRYST_R2_MISSING_ONLY=1 → only rows with zero photos (invisible listings)
+MISSING_ONLY_FLAG=""
+if [[ "${TRYST_R2_MISSING_ONLY:-0}" == "1" ]]; then
+  MISSING_ONLY_FLAG="--missing-only"
+fi
 LOG_FILE="${LOG_DIR}/tryst-r2.log"
 REPORT_FILE="${LOG_DIR}/tryst-r2-report.log"
 
@@ -50,7 +55,8 @@ set +e
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst r2 start limit=$BATCH_LIMIT delay=$DELAY_MS ==="
   node "$REPO_DIR/scripts/populate-r2-from-tryst.cjs" \
     --delay-ms="$DELAY_MS" \
-    --limit="$BATCH_LIMIT"
+    --limit="$BATCH_LIMIT" \
+    $MISSING_ONLY_FLAG
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") tryst r2 done ==="
 } 2>&1 | tee -a "$LOG_FILE" | tee "$RUN_LOG" >/dev/null
 RUN_EXIT=${PIPESTATUS[0]}

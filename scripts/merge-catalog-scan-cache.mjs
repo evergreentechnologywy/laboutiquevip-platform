@@ -31,6 +31,16 @@ const prisma = await createPrismaClient();
 
 const stats = { created: 0, updated: 0, skipped: 0, errors: 0, verified: 0 };
 
+// Imported catalog rows have no owning user; never let a cached payload try to
+// write identity/audit columns (user_id must stay untouched/null on catalog rows).
+const PROTECTED_PAYLOAD_KEYS = ["id", "user_id", "created_date", "updated_date"];
+
+function sanitizePayload(payload) {
+  const clean = { ...payload };
+  for (const key of PROTECTED_PAYLOAD_KEYS) delete clean[key];
+  return clean;
+}
+
 function recordIsVerified(payload) {
   return Boolean(
     payload?.p411_url ||
@@ -51,7 +61,7 @@ async function upsertRecord(record) {
 
   try {
     const seenFields = catalogSeenTouchFields();
-    const payloadWithSeen = { ...payload, ...seenFields };
+    const payloadWithSeen = { ...sanitizePayload(payload), ...seenFields };
 
     if (existingId) {
       const existing = await prisma.provider.findUnique({ where: { id: existingId } });
