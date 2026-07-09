@@ -166,7 +166,7 @@ function parseProfilePage(markdown, profileUrl) {
   const ethnicityMatch = markdown.match(/(?:ethnicity|race)[:\s]*([^\n|]+)/i);
   const hairMatch = markdown.match(/(?:hair|hair color)[:\s]*([^\n|]+)/i);
   const bodyMatch = markdown.match(/(?:body|body type|build|figure)[:\s]*([^\n|]+)/i);
-  const heightMatch = markdown.match(/(?:height)[:\s]*(\d['\"]?\s*\d*)/i);
+  const heightMatch = markdown.match(/(?:height)[:\s]*(\d['"]?\s*\d*)/i);
 
   // Rate extraction
   const rateMatches = [...markdown.matchAll(/(?:rate|donation|hour|hr|incall|outcall)[:\s]*\$?(\d{2,4})/gi)];
@@ -197,8 +197,7 @@ function parseProfilePage(markdown, profileUrl) {
  * stripping navigation menus, footer links, and site boilerplate.
  */
 function extractTrystBio(markdown, displayName) {
-  const lines = markdown.split(/
-?\n/);
+  const lines = markdown.split(/\r?\n/);
 
   // Boilerplate patterns that signal site chrome (not profile content)
   const boilerplatePhrases = [
@@ -243,23 +242,19 @@ function extractTrystBio(markdown, displayName) {
 
   // Collect lines until we hit boilerplate or end of useful content
   const bioLines = [];
-  let hitBoilerplate = false;
   for (let i = contentStart; i < Math.min(lines.length, contentStart + 60); i++) {
     const line = lines[i].trim();
     if (!line) continue;
-    
+
     // Stop at boilerplate
-    if (boilerplatePhrases.some(p => p.test(line))) {
-      hitBoilerplate = true;
-      break;
-    }
+    if (boilerplatePhrases.some(p => p.test(line))) break;
     // Stop at obvious nav/footer links
     if (/^\*\s*\[(?!.*photo|image|pic)/i.test(line) && line.length < 120) continue;
     // Skip image-only lines
     if (/^!\[.*?\]\(.*?\)$/.test(line)) continue;
     // Skip horizontal rules
     if (/^[-–—]{3,}$/.test(line)) continue;
-    
+
     bioLines.push(line);
   }
 
@@ -331,10 +326,7 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     social_media: mergeImportedSocial(
       existing?.social_media && typeof existing.social_media === "object" ? existing.social_media : {},
       contactExtract.social_media,
-      {
-        tryst_profile: profile.sourceUrl,
-        tryst_slug: profile.slug,
-      },
+      { tryst_profile: profile.sourceUrl, tryst_slug: profile.slug },
     ),
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
