@@ -2,7 +2,7 @@
  * Shared Tryst listing crawl helpers (city discovery, pagination, profile link extraction).
  */
 
-import { TRYST_PILOT_CITIES, TRYST_STATE_SLUGS } from "./tryst-location.mjs";
+import { TRYST_PILOT_CITIES, TRYST_STATE_SLUGS, TRYST_MAJOR_CITIES } from "./tryst-location.mjs";
 import { parseImportLimit, sliceToLimit } from "./import-limits.mjs";
 
 export function getTrystCrawlLimits(env = process.env) {
@@ -104,16 +104,24 @@ export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits)
 export async function resolveTrystTargetCities({ fullUs, stateFilter, fetchPageText, delayMs, limits, onState }) {
   if (!fullUs && !stateFilter) return TRYST_PILOT_CITIES;
 
-  // Filter to specified states only
-  const allStateSlugs = Object.keys(TRYST_STATE_SLUGS);
-  const stateSlugs = stateFilter
-    ? allStateSlugs.filter(s => stateFilter.includes(s.toLowerCase()))
-    : allStateSlugs;
-
-  if (stateSlugs.length === 0) {
-    console.warn("[tryst-crawl] No states matched filter, falling back to pilot cities");
-    return TRYST_PILOT_CITIES;
+  // Fast path: use hardcoded major cities — skip slow state page crawling
+  if (stateFilter && stateFilter.length > 0) {
+    const targets = [];
+    for (const stateSlug of stateFilter) {
+      const cities = TRYST_MAJOR_CITIES[stateSlug];
+      if (!cities) continue;
+      if (typeof onState === "function") onState(stateSlug);
+      for (const citySlug of cities) {
+        targets.push({ state: stateSlug, city: citySlug });
+      }
+    }
+    console.log(`[tryst-crawl] Fast path: ${targets.length} cities from ${stateFilter.length} states (no discovery crawl)`);
+    return targets;
   }
+
+  // Slow path: crawl state pages for city links
+  const allStateSlugs = Object.keys(TRYST_STATE_SLUGS);
+  const stateSlugs = allStateSlugs;
   const targets = [];
   for (const stateSlug of stateSlugs) {
     const stateUrl = `https://tryst.link/us/escorts/${stateSlug}`;
