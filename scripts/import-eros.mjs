@@ -15,6 +15,7 @@ import {
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
+import { parseErosProfileDetails } from "./lib/eros-profile-parse.mjs";
 import {
   extractContactAndSocialFromMarkdown,
   mergeImportedSocial,
@@ -282,13 +283,16 @@ function parseProfile(markdown, sourceUrl) {
     if (val) details.push(cleanText(`${key}: ${val}`));
   }
 
-  const bioParts = [tagline, ...details].filter(Boolean);
-  const bio = bioParts.length ? bioParts.join(" | ") : null;
+  const parsedDetails = parseErosProfileDetails(markdown);
+  const bio = parsedDetails.bio ?? (() => {
+    const bioParts = [tagline, ...details].filter(Boolean);
+    return bioParts.length ? bioParts.join(" | ") : null;
+  })();
 
   return {
     sourceUrl,
     display_name: displayName,
-    tagline: tagline ?? null,
+    tagline: parsedDetails.tagline ?? tagline ?? null,
     bio,
     location_city,
     location_state,
@@ -297,6 +301,11 @@ function parseProfile(markdown, sourceUrl) {
     phone,
     email,
     photos,
+    ethnicity: parsedDetails.ethnicity,
+    hair_color: parsedDetails.hair_color,
+    eye_color: parsedDetails.eye_color,
+    height: parsedDetails.height,
+    service_type: parsedDetails.service_type,
   };
 }
 
@@ -325,6 +334,11 @@ function buildProviderPayload(profile, existing = null) {
       : (profile.location_city ?? existing?.location_city ?? null),
     location_state: profile.location_state ?? existing?.location_state ?? null,
     age: profile.age ?? existing?.age ?? null,
+    ethnicity: profile.ethnicity ?? existing?.ethnicity ?? null,
+    hair_color: profile.hair_color ?? existing?.hair_color ?? null,
+    eye_color: profile.eye_color ?? existing?.eye_color ?? null,
+    height: profile.height ?? existing?.height ?? null,
+    service_type: profile.service_type ?? existing?.service_type ?? null,
     phone: profile.phone ?? existing?.phone ?? null,
     email: profile.email ?? existing?.email ?? null,
     photos: mergedPhotos,

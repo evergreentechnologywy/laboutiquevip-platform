@@ -17,7 +17,10 @@ import {
 } from "../validation/base44Compat.js";
 import { storeUpload } from "../storage/uploads.js";
 import { storeVideo, isAllowedVideoType, MAX_VIDEO_BYTES } from "../storage/video.js";
-import { publicProviderVisibilityWhere } from "./providerVisibility.js";
+import {
+  sanitizeProviderContactForAudience,
+} from "../lib/importedCatalog.js";
+import { publicProviderProfileSelect, publicProviderVisibilityWhere } from "./providerVisibility.js";
 import { sanitizeImageBuffer, validateImageMagicBytes } from "../lib/imageSanitize.js";
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
@@ -241,6 +244,11 @@ const PUBLIC_PROVIDER_FIELDS = {
   updated_date: true,
 } as const;
 
+const PUBLIC_PROVIDER_DETAIL_CONTACT_FIELDS = {
+  phone: true,
+  email: true,
+} as const;
+
 const OWNER_PROVIDER_FIELDS = {
   user_id: true,
   phone: true,
@@ -399,6 +407,19 @@ function combineWhere(...parts: Array<any | undefined>): any {
   if (filtered.length === 0) return {};
   if (filtered.length === 1) return filtered[0];
   return { AND: filtered };
+}
+
+function resolveProviderPublicSelect(
+  entity: string,
+  requestedWhere: Record<string, unknown>,
+  scopedSelect?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (entity !== "Provider") return scopedSelect;
+  if (typeof requestedWhere.id !== "string") return scopedSelect;
+  return {
+    ...publicProviderProfileSelect,
+    ...PUBLIC_PROVIDER_DETAIL_CONTACT_FIELDS,
+  };
 }
 
 function validationError(error: z.ZodError): ApiResponse {
@@ -569,7 +590,7 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
 
   const rows = await prisma[model.toLowerCase()].findMany({
     where: combineWhere(scoped.where, requestedWhere),
-    select: scoped.select,
+    select: resolveProviderPublicSelect(entity, requestedWhere, scoped.select),
     orderBy: parseSort(sort, entity),
     take: Number.isFinite(limit) ? Math.min(limit, 1000) : 100,
   });
@@ -577,6 +598,11 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
   let normalized = rows.map((r: any) => normalizeDates(r));
   if (entity === "Provider" && scoped.enrichOwned) {
     normalized = await enrichOwnedProviderRows(prisma, normalized, getAuthUserId(req));
+  } else if (entity === "Provider") {
+    const exposeImportedContact = Boolean(requestedWhere?.id);
+    normalized = normalized.map((row: Record<string, unknown>) =>
+      sanitizeProviderContactForAudience(row, { exposeImportedContact }),
+    );
   }
 
   return { statusCode: 200, body: normalized };

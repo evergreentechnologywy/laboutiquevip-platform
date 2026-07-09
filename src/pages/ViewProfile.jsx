@@ -286,10 +286,28 @@ export default function ViewProfile() {
                       <span className="ml-2 text-zinc-300">{provider.age}</span>
                     </div>
                   )}
+                  {provider.service_type && (
+                    <div>
+                      <span className="text-zinc-500">Gender:</span>
+                      <span className="ml-2 text-zinc-300">{provider.service_type}</span>
+                    </div>
+                  )}
                   {provider.ethnicity && (
                     <div>
                       <span className="text-zinc-500">Ethnicity:</span>
                       <span className="ml-2 text-zinc-300">{provider.ethnicity}</span>
+                    </div>
+                  )}
+                  {provider.hair_color && (
+                    <div>
+                      <span className="text-zinc-500">Hair:</span>
+                      <span className="ml-2 text-zinc-300">{provider.hair_color}</span>
+                    </div>
+                  )}
+                  {provider.eye_color && (
+                    <div>
+                      <span className="text-zinc-500">Eyes:</span>
+                      <span className="ml-2 text-zinc-300">{provider.eye_color}</span>
                     </div>
                   )}
                   {provider.height && (

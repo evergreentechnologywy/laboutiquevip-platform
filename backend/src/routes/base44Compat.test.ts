@@ -237,12 +237,44 @@ test("Public provider reads apply the blocked-name guardrail", async () => {
   assert.ok(seenWhere.AND[0].NOT);
   assert.ok(Array.isArray(seenWhere.AND[0].NOT.OR));
   assert.deepEqual(seenWhere.AND[1], { id: "00000000-0000-4000-8000-000000000001" });
-  assert.equal(seenSelect.phone, undefined);
-  assert.equal(seenSelect.email, undefined);
+  assert.equal(seenSelect.phone, true);
+  assert.equal(seenSelect.email, true);
   assert.equal(seenSelect.verification_provider, true);
   assert.equal(seenSelect.verification_url, true);
   assert.equal(seenSelect.review_provider, true);
   assert.equal(seenSelect.review_url, true);
+});
+
+test("Public provider detail by id exposes imported eros contact only", async () => {
+  let seenSelect: any = null;
+  const prisma = {
+    provider: {
+      findMany: async ({ select }: any) => {
+        seenSelect = select;
+        return [{
+          id: "dbd11aee-01a4-4dd9-a1bc-9da81ea56690",
+          display_name: "KIERA BENNETT",
+          verification_provider: "eros",
+          phone: "8036290716",
+          bio: "American Supermodel",
+        }];
+      },
+    },
+  };
+
+  const req = makeReq({
+    method: "GET",
+    auth: { userId: null, roles: [] },
+    query: new URLSearchParams({
+      where: JSON.stringify({ id: "dbd11aee-01a4-4dd9-a1bc-9da81ea56690" }),
+    }),
+  });
+
+  const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
+  assert.equal(res.statusCode, 200);
+  assert.equal(seenSelect.phone, true);
+  assert.equal((res.body as any[])[0].phone, "8036290716");
+  assert.equal((res.body as any[])[0].bio, "American Supermodel");
 });
 
 test("Public provider reads reject non-allowlisted where filters", async () => {
