@@ -73,6 +73,7 @@ export default function ViewProfile() {
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
   const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
+  const hasPhotos = displayPhotos.length > 0;
 
   const prevPhoto = useCallback(
     () => setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1)),
@@ -170,6 +171,7 @@ export default function ViewProfile() {
       {/* ── Photo Gallery — carousel with dot indicators ── */}
       <section className="relative" ref={galleryRef}>
         <div className="relative mx-auto max-w-7xl">
+          {hasPhotos ? (
           <div
             className="relative aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/2] overflow-hidden bg-zinc-900 lg:rounded-b-[40px] cursor-pointer"
             onTouchStart={handleTouchStart}
@@ -230,10 +232,30 @@ export default function ViewProfile() {
               </Breadcrumb>
             </div>
           </div>
+          ) : (
+          <div className="relative aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/2] overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 lg:rounded-b-[40px] flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-zinc-800 flex items-center justify-center">
+                <span className="text-2xl font-serif font-bold text-zinc-600">{(provider.display_name || "?").charAt(0).toUpperCase()}</span>
+              </div>
+              <p className="mt-3 text-sm text-zinc-500">No photos yet</p>
+            </div>
+            <div className="absolute top-4 left-4 md:top-6 md:left-8 z-20">
+              <Breadcrumb>
+                <BreadcrumbList className="text-xs text-zinc-400 [&_a]:text-zinc-300 [&_a]:hover:text-white">
+                  <BreadcrumbItem><BreadcrumbLink asChild><Link to={createPageUrl("Browse")}>Browse</Link></BreadcrumbLink></BreadcrumbItem>
+                  {provider.location_city && (<><BreadcrumbSeparator /><BreadcrumbItem><BreadcrumbLink asChild><Link to={`${createPageUrl("Browse")}?location=${encodeURIComponent(provider.location_city)}`}>{provider.location_city}</Link></BreadcrumbLink></BreadcrumbItem></>)}
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem><BreadcrumbPage className="text-zinc-200">{provider.display_name}</BreadcrumbPage></BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </div>
+          )}
         </div>
 
-        {/* ── Dot indicators (replaces thumbnail strip) ── */}
-        {displayPhotos.length > 1 && (
+        {/* ── Dot indicators ── */}
+        {hasPhotos && displayPhotos.length > 1 && (
           <div className="flex items-center justify-center gap-1.5 mt-3 mb-1">
             {displayPhotos.map((_, i) => (
               <button
