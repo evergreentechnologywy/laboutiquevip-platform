@@ -25,6 +25,11 @@ import {
   recordHubListingAttempt,
 } from "./lib/reconcile-hub.mjs";
 import { findExistingErosProvider } from "./lib/eros-provider-db.mjs";
+import {
+  extractContactAndSocialFromMarkdown,
+  mergeImportedSocial,
+} from "./lib/extract-social-links.mjs";
+import { parseErosProfileDetails } from "./lib/eros-profile-parse.mjs";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
 import {
   mergeVerificationFields,
@@ -227,13 +232,16 @@ function parseProfile(markdown, sourceUrl) {
     if (val) details.push(cleanText(`${key}: ${val}`));
   }
 
-  const bioParts = [tagline, ...details].filter(Boolean);
-  const bio = bioParts.length ? bioParts.join(" | ") : null;
+  const parsedDetails = parseErosProfileDetails(markdown);
+  const bio = parsedDetails.bio ?? (() => {
+    const bioParts = [tagline, ...details].filter(Boolean);
+    return bioParts.length ? bioParts.join(" | ") : null;
+  })();
 
   return {
     sourceUrl,
     display_name: displayName,
-    tagline: tagline ?? null,
+    tagline: parsedDetails.tagline ?? tagline ?? null,
     bio,
     location_city,
     location_state,
@@ -242,6 +250,11 @@ function parseProfile(markdown, sourceUrl) {
     phone,
     email,
     photos,
+    ethnicity: parsedDetails.ethnicity,
+    hair_color: parsedDetails.hair_color,
+    eye_color: parsedDetails.eye_color,
+    height: parsedDetails.height,
+    service_type: parsedDetails.service_type,
   };
 }
 
@@ -523,6 +536,10 @@ async function run() {
         }
 
         const profile = parseProfile(markdown, profileUrl);
+        const contactExtract = extractContactAndSocialFromMarkdown(markdown);
+        profile.phone = profile.phone || contactExtract.phone;
+        profile.email = profile.email || contactExtract.email;
+        profile.socialExtract = contactExtract.social_media;
         if (!profile.display_name || (!profile.phone && !profile.email)) {
           console.log(`[reconcile] Skipping invalid profile (missing name or contact): ${profileUrl}`);
           continue;
@@ -575,15 +592,20 @@ async function run() {
             location_city: eros_state_wide ? "Statewide" : profile.location_city,
             location_state: profile.location_state,
             age: profile.age,
+            ethnicity: profile.ethnicity ?? null,
+            hair_color: profile.hair_color ?? null,
+            eye_color: profile.eye_color ?? null,
+            height: profile.height ?? null,
+            service_type: profile.service_type ?? null,
             phone: profile.phone,
             email: profile.email,
             verification_provider: "eros",
             verification_url: profile.sourceUrl,
-            social_media: {
+            social_media: mergeImportedSocial({}, profile.socialExtract, {
               eros_profile: profile.sourceUrl,
               eros_source: "r.jina.ai",
               eros_state_wide,
-            },
+            }),
             ad_headline: profile.tagline || profile.display_name,
             ad_body: profile.bio,
             status: "active",
