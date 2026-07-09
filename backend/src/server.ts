@@ -10,7 +10,7 @@ import {
   captureBackendException,
   initBackendObservability,
 } from "./observability.js";
-import { adminIpAllowlist } from "./config/security.js";
+import { adminIpAllowlist, trustProxyForwardedIp } from "./config/security.js";
 import { enforceRbac } from "./middleware/rbac.js";
 import { applyRateLimit } from "./middleware/rateLimit.js";
 import { corsHeaders, securityHeaders } from "./middleware/security.js";
@@ -88,6 +88,7 @@ import {
   adminImportMaintenanceGetHandler,
   adminImportMaintenancePostHandler,
 } from "./routes/adminImportMaintenance.js";
+import { BodyTooLargeError, readBody } from "./http/readBody.js";
 
 
 const PORT = Number(process.env.API_PORT ?? 8787);
@@ -142,43 +143,6 @@ function sendResponse(res: http.ServerResponse, payload: ApiResponse): void {
   res.end(JSON.stringify(payload.body ?? {}));
 }
 
-async function readBody(req: http.IncomingMessage): Promise<{ rawBody: string | null; rawBuffer: Buffer | null; body: unknown }> {
-  const method = req.method ?? "GET";
-  if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    return { rawBody: null, rawBuffer: null, body: undefined };
-  }
-
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-
-  if (chunks.length === 0) {
-    return { rawBody: null, rawBuffer: null, body: undefined };
-  }
-
-  const rawBuffer = Buffer.concat(chunks);
-  const raw = rawBuffer.toString("utf8").trim();
-  if (!raw) {
-    return { rawBody: null, rawBuffer: null, body: undefined };
-  }
-
-  const contentType = req.headers["content-type"];
-  const resolvedType = Array.isArray(contentType) ? contentType[0] : contentType;
-
-  // For multipart, keep the raw Buffer
-  if (resolvedType?.includes("multipart/form-data")) {
-    return { rawBody: null, rawBuffer, body: undefined };
-  }
-
-  if (!resolvedType?.includes("application/json")) {
-    return { rawBody: raw, rawBuffer: null, body: undefined };
-  }
-
-  return { rawBody: raw, rawBuffer: null, body: JSON.parse(raw) };
-}
-
 function matchTourPath(pathname: string): string | null {
   const matched = pathname.match(/^\/api\/v1\/models\/me\/tours\/([^/]+)$/);
   return matched?.[1] ?? null;
@@ -216,10 +180,12 @@ function matchProviderSlugPath(pathname: string): string | null {
 }
 
 function resolveRequestIp(req: http.IncomingMessage): string | null {
-  const forwarded = req.headers["x-forwarded-for"];
-  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  if (value?.trim()) {
-    return value.split(",")[0]?.trim() ?? null;
+  if (trustProxyForwardedIp()) {
+    const forwarded = req.headers["x-forwarded-for"];
+    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+    if (value?.trim()) {
+      return value.split(",")[0]?.trim() ?? null;
+    }
   }
 
   return req.socket.remoteAddress ?? null;
@@ -551,8 +517,18 @@ const server = http.createServer(async (req, res) => {
 
   let payload: { rawBody: string | null; rawBuffer: Buffer | null; body: unknown };
   try {
-    payload = await readBody(req);
-  } catch {
+    payload = await readBody(req, url.pathname);
+  } catch (error) {
+    if (error instanceof BodyTooLargeError) {
+      return sendResponse(res, {
+        statusCode: 413,
+        headers: baseHeaders,
+        body: {
+          error: "payload_too_large",
+          maxBytes: error.maxBytes,
+        },
+      });
+    }
     return sendResponse(res, {
       statusCode: 400,
       headers: baseHeaders,

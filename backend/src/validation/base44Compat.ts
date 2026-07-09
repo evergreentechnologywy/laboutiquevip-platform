@@ -96,3 +96,7 @@ export const uploadSchema = z.object({
   contentType: z.string().min(1).max(100),
   data: z.string().min(1),
 });
+
+export const verificationCreateSchema = z.object({
+  type: z.string().min(1).max(80),
+}).strict();

@@ -61,6 +61,8 @@ test("createOrderHandler uses NOWPayments-only env and webhook route", async () 
     product: {
       findUnique: async () => ({
         id: "product-1",
+        amountCents: 12500,
+        currency: "USD",
         profile: { displayName: "Ava" },
       }),
     },
@@ -119,9 +121,45 @@ test("createOrderHandler uses NOWPayments-only env and webhook route", async () 
   assert.equal(requestBody.success_url, "https://app.laboutiquevip.test/providerdashboard?payment=success");
   assert.equal(requestBody.cancel_url, "https://app.laboutiquevip.test/providerdashboard?payment=cancelled");
   assert.equal("metadata" in requestBody, false);
-  assert.equal(createCalls.length, 1);
+  assert.equal(createCalls[0]?.amountCents, 12500);
   assert.equal(updateCalls.length, 1);
   assert.equal((auditEvents[0]?.metadata as any)?.hasNowpayments, true);
+});
+
+test("createOrderHandler ignores client-supplied amountCents", async () => {
+  const createCalls: Array<Record<string, unknown>> = [];
+  const prisma = {
+    product: {
+      findUnique: async () => ({
+        id: "product-1",
+        amountCents: 5900,
+        currency: "USD",
+        isActive: true,
+      }),
+    },
+    order: {
+      create: async ({ data }: any) => {
+        createCalls.push(data);
+        return { id: "order-1", ...data, user: { email: null }, product: { profile: { displayName: "Ava" } } };
+      },
+    },
+    invoice: {
+      create: async ({ data }: any) => ({ id: "invoice-1", ...data }),
+      update: async () => ({ id: "invoice-1" }),
+    },
+  };
+
+  const response = await createOrderHandler(
+    makeRequest({ body: { productId: "product-1", amountCents: 100, currency: "EUR" } }),
+    {
+      prisma,
+      auditLogger: { append: async () => {} },
+    } as any,
+  );
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(createCalls[0]?.amountCents, 5900);
+  assert.equal(createCalls[0]?.currency, "USD");
 });
 
 test("createOrderHandler resolves provider package products by sku", async () => {

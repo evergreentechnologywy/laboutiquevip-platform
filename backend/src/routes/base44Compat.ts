@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import crypto, { timingSafeEqual } from "node:crypto";
 import { verifyToken } from "@clerk/backend";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
@@ -13,15 +13,18 @@ import {
   registerSchema,
   reviewCreateSchema,
   uploadSchema,
+  verificationCreateSchema,
 } from "../validation/base44Compat.js";
 import { storeUpload } from "../storage/uploads.js";
 import { storeVideo, isAllowedVideoType, MAX_VIDEO_BYTES } from "../storage/video.js";
 import { publicProviderVisibilityWhere } from "./providerVisibility.js";
+import { sanitizeImageBuffer, validateImageMagicBytes } from "../lib/imageSanitize.js";
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
 const ALLOWED_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const BLOCKED_UPLOAD_TYPES = new Set(["image/svg+xml", "image/svg", "text/xml", "application/xml"]);
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ANTI_SPAM_WINDOW_MS = 15 * 60 * 1000;
 const ANTI_SPAM_MAX_PER_WINDOW = 5;
@@ -129,13 +132,75 @@ function parseSort(sort?: string | null, entity?: string): any {
   return { [key]: desc ? "desc" : "asc" };
 }
 
-function parseWhere(whereRaw?: string | null): any {
-  if (!whereRaw) return {};
+function verifyPassword(password: string, storedHash: string): boolean {
+  const [salt, stored] = String(storedHash).split(":");
+  if (!salt || !stored) return false;
+
+  let storedBuf: Buffer;
   try {
-    return JSON.parse(whereRaw);
+    storedBuf = Buffer.from(stored, "hex");
   } catch {
-    return {};
+    return false;
   }
+
+  const computed = crypto.scryptSync(password, salt, 64);
+  if (computed.length !== storedBuf.length) return false;
+  return timingSafeEqual(computed, storedBuf);
+}
+
+const CLERK_METADATA_ROLES = new Set<Role>(["member", "provider", "agency"]);
+
+function clerkRoleFromMetadata(metadata: unknown): Role | null {
+  const role = (metadata as { role?: unknown } | null)?.role;
+  if (typeof role === "string" && CLERK_METADATA_ROLES.has(role as Role)) {
+    return role as Role;
+  }
+  return null;
+}
+
+const ENTITY_WHERE_ALLOWLIST: Record<string, Set<string>> = {
+  Provider: new Set(["id"]),
+  Booking: new Set(["id"]),
+  Message: new Set(["id"]),
+  Review: new Set(["id"]),
+  Verification: new Set(["id"]),
+};
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function parseAllowlistedWhere(entity: string, whereRaw?: string | null): any | ApiResponse {
+  if (!whereRaw) return {};
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(whereRaw);
+  } catch {
+    return { statusCode: 400, body: { error: "invalid_where" } };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { statusCode: 400, body: { error: "invalid_where" } };
+  }
+
+  const allowlist = ENTITY_WHERE_ALLOWLIST[entity];
+  if (!allowlist) {
+    return { statusCode: 400, body: { error: "invalid_where" } };
+  }
+
+  const obj = parsed as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    if (!allowlist.has(key)) {
+      return { statusCode: 400, body: { error: "invalid_where_field", field: key } };
+    }
+  }
+
+  if (typeof obj.id === "string" && !isUuid(obj.id)) {
+    return { statusCode: 400, body: { error: "invalid_where" } };
+  }
+
+  return obj;
 }
 
 function normalizeDates<T extends Record<string, any>>(obj: T): T {
@@ -159,8 +224,6 @@ const PUBLIC_PROVIDER_FIELDS = {
   location_state: true,
   location_country: true,
   age: true,
-  phone: true,
-  email: true,
   verification_provider: true,
   verification_username: true,
   verification_url: true,
@@ -176,6 +239,21 @@ const PUBLIC_PROVIDER_FIELDS = {
   rate_hourly: true,
   created_date: true,
   updated_date: true,
+} as const;
+
+const OWNER_PROVIDER_FIELDS = {
+  user_id: true,
+  phone: true,
+  email: true,
+  status: true,
+  pending_photos: true,
+  verification_documents: true,
+  rejection_reason: true,
+  video_url: true,
+  social_media: true,
+  ad_package: true,
+  ad_package_expiry: true,
+  is_profile_approved: true,
 } as const;
 
 function hasRole(request: ApiRequest, role: Role): boolean {
@@ -200,7 +278,11 @@ async function resolveOwnedProviderIds(prisma: any, userId: string | null): Prom
   return rows.map((row: { id: string }) => row.id);
 }
 
-async function buildEntityScope(req: ApiRequest, entity: string, prisma: any): Promise<{ where?: any; select?: any } | ApiResponse> {
+async function buildEntityScope(
+  req: ApiRequest,
+  entity: string,
+  prisma: any,
+): Promise<{ where?: any; select?: any; enrichOwned?: boolean } | ApiResponse> {
   if (entity === "Provider") {
     const publicVisibilityWhere = publicProviderVisibilityWhere();
 
@@ -217,6 +299,8 @@ async function buildEntityScope(req: ApiRequest, entity: string, prisma: any): P
             publicVisibilityWhere,
           ],
         },
+        select: PUBLIC_PROVIDER_FIELDS,
+        enrichOwned: true,
       };
     }
 
@@ -283,6 +367,31 @@ async function buildEntityScope(req: ApiRequest, entity: string, prisma: any): P
   }
 
   return {};
+}
+
+async function enrichOwnedProviderRows(
+  prisma: any,
+  rows: Array<Record<string, unknown>>,
+  userId: string | null,
+): Promise<Array<Record<string, unknown>>> {
+  if (!userId || rows.length === 0) return rows;
+
+  const rowIds = rows
+    .map((row) => row.id)
+    .filter((id): id is string => typeof id === "string");
+  if (rowIds.length === 0) return rows;
+
+  const privilegedRows = await prisma.provider.findMany({
+    where: { id: { in: rowIds }, user_id: userId },
+    select: { ...PUBLIC_PROVIDER_FIELDS, ...OWNER_PROVIDER_FIELDS },
+  });
+  if (privilegedRows.length === 0) return rows;
+
+  const privilegedById = new Map(privilegedRows.map((row: Record<string, unknown>) => [row.id, row]));
+  return rows.map((row) => {
+    const privileged = privilegedById.get(row.id);
+    return privileged ? { ...row, ...privileged } : row;
+  });
 }
 
 function combineWhere(...parts: Array<any | undefined>): any {
@@ -366,8 +475,9 @@ export async function loginHandler(req: ApiRequest, { prisma }: Ctx): Promise<Ap
   if (!user?.password_hash) return { statusCode: 401, body: { error: "invalid_credentials" } };
 
   const [salt, stored] = String(user.password_hash).split(":");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  if (hash !== stored) return { statusCode: 401, body: { error: "invalid_credentials" } };
+  if (!verifyPassword(password, `${salt}:${stored}`)) {
+    return { statusCode: 401, body: { error: "invalid_credentials" } };
+  }
 
   const token = signJwt({ sub: user.id, role: user.role as Role });
   const { password_hash: _l, ...safeUserL } = user as any;
@@ -390,17 +500,13 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
     user = await prisma.user.findFirst({ where: { clerk_id: clerkPayload.sub } });
 
     if (user) {
-      // Sync role from Clerk on each call (picks up elevation changes)
       try {
         const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
-        const metadataRole = (clerkUser.publicMetadata as any)?.role;
-        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "dev", "service"].includes(metadataRole)
-          ? metadataRole
-          : null;
+        const clerkRole = clerkRoleFromMetadata(clerkUser.publicMetadata);
         if (clerkRole && clerkRole !== user.role) {
           user = await prisma.user.update({
             where: { id: user.id },
-            data: { role: clerkRole }
+            data: { role: clerkRole },
           });
         }
       } catch (_) {}
@@ -409,10 +515,7 @@ export async function meHandler(req: ApiRequest, { prisma }: Ctx): Promise<ApiRe
       try {
         const clerkUser = await clerkClient.users.getUser(clerkPayload.sub);
         const email = clerkUser.emailAddresses[0]?.emailAddress;
-        const metadataRole = (clerkUser.publicMetadata as any)?.role;
-        const clerkRole = typeof metadataRole === "string" && ["member", "provider", "agency", "admin", "dev", "service"].includes(metadataRole)
-          ? metadataRole
-          : "member";
+        const clerkRole = clerkRoleFromMetadata(clerkUser.publicMetadata) ?? "member";
         if (email) {
           user = await prisma.user.findUnique({ where: { email } });
           if (user) {
@@ -452,7 +555,11 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
   const model = modelFor(entity);
   if (!model) return { statusCode: 404, body: { error: "unknown_entity" } };
 
-  const requestedWhere = parseWhere(req.query.get("where"));
+  const requestedWhere = parseAllowlistedWhere(entity, req.query.get("where"));
+  if ("statusCode" in requestedWhere) {
+    return requestedWhere;
+  }
+
   const sort = req.query.get("sort");
   const limit = Number(req.query.get("limit") ?? 100);
   const scoped = await buildEntityScope(req, entity, prisma);
@@ -466,7 +573,13 @@ export async function listOrFilterEntityHandler(req: ApiRequest, entity: string,
     orderBy: parseSort(sort, entity),
     take: Number.isFinite(limit) ? Math.min(limit, 1000) : 100,
   });
-  return { statusCode: 200, body: rows.map((r: any) => normalizeDates(r)) };
+
+  let normalized = rows.map((r: any) => normalizeDates(r));
+  if (entity === "Provider" && scoped.enrichOwned) {
+    normalized = await enrichOwnedProviderRows(prisma, normalized, getAuthUserId(req));
+  }
+
+  return { statusCode: 200, body: normalized };
 }
 
 export async function createEntityHandler(req: ApiRequest, entity: string, { prisma }: Ctx): Promise<ApiResponse> {
@@ -551,8 +664,17 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
 
   if (entity === "Verification") {
     if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
-    const data = { ...rawData, user_id: req.auth.userId };
-    const created = await prisma.verification.create({ data });
+
+    const parsed = verificationCreateSchema.safeParse(rawData);
+    if (!parsed.success) return validationError(parsed.error);
+
+    const created = await prisma.verification.create({
+      data: {
+        userId: req.auth.userId,
+        type: parsed.data.type,
+        status: "pending",
+      },
+    });
     return { statusCode: 200, body: normalizeDates(created) };
   }
 
@@ -633,13 +755,26 @@ export async function uploadHandler(req: ApiRequest): Promise<ApiResponse> {
   const parsed = uploadSchema.safeParse(req.body ?? {});
   if (!parsed.success) return validationError(parsed.error);
 
-  if (!ALLOWED_UPLOAD_TYPES.has(parsed.data.contentType)) {
+  if (!ALLOWED_UPLOAD_TYPES.has(parsed.data.contentType) || BLOCKED_UPLOAD_TYPES.has(parsed.data.contentType)) {
     return { statusCode: 400, body: { error: "unsupported_media_type" } };
   }
 
-  const fileBuffer = decodeBase64Payload(parsed.data.data);
+  let fileBuffer = decodeBase64Payload(parsed.data.data);
   if (fileBuffer.length === 0) {
     return { statusCode: 400, body: { error: "missing_data" } };
+  }
+
+  if (!validateImageMagicBytes(fileBuffer, parsed.data.contentType)) {
+    return { statusCode: 400, body: { error: "invalid_image_data" } };
+  }
+
+  let outputContentType = parsed.data.contentType;
+  try {
+    const sanitized = await sanitizeImageBuffer(fileBuffer, parsed.data.contentType);
+    fileBuffer = sanitized.buffer;
+    outputContentType = sanitized.contentType;
+  } catch {
+    return { statusCode: 400, body: { error: "invalid_image_data" } };
   }
 
   if (fileBuffer.length > MAX_UPLOAD_BYTES) {
@@ -649,7 +784,7 @@ export async function uploadHandler(req: ApiRequest): Promise<ApiResponse> {
   try {
     const uploaded = await storeUpload({
       filename: parsed.data.filename,
-      contentType: parsed.data.contentType,
+      contentType: outputContentType,
       fileBuffer,
     });
 

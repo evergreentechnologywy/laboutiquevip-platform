@@ -55,6 +55,19 @@ export const nowpaymentsWebhookSchema = z.preprocess((input) => {
       order_id: orderId,
       status,
       currency: optionalStringFromUnknown(payload.price_currency),
+      amount_cents: (() => {
+        const priceAmount = payload.price_amount ?? payload.actually_paid_at_fiat;
+        if (typeof priceAmount === "number" && Number.isFinite(priceAmount)) {
+          return Math.round(priceAmount * 100);
+        }
+        if (typeof priceAmount === "string") {
+          const parsed = Number(priceAmount);
+          if (Number.isFinite(parsed)) {
+            return Math.round(parsed * 100);
+          }
+        }
+        return undefined;
+      })(),
     },
   };
 }, normalizedNowpaymentsWebhookSchema);

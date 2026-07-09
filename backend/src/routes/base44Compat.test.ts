@@ -6,6 +6,8 @@ import { setUploadStorageForTests } from "../storage/uploads.js";
 import { createEntityHandler, listOrFilterEntityHandler, updateProviderHandler, uploadHandler } from "./base44Compat.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
+const MINIMAL_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 function makeReq(overrides: any = {}): any {
   return {
@@ -223,7 +225,7 @@ test("Public provider reads apply the blocked-name guardrail", async () => {
     method: "GET",
     auth: { userId: null, roles: [] },
     query: new URLSearchParams({
-      where: JSON.stringify({ id: "p1" }),
+      where: JSON.stringify({ id: "00000000-0000-4000-8000-000000000001" }),
     }),
   });
 
@@ -234,22 +236,49 @@ test("Public provider reads apply the blocked-name guardrail", async () => {
   assert.equal(seenWhere.AND[0].is_profile_approved, true);
   assert.ok(seenWhere.AND[0].NOT);
   assert.ok(Array.isArray(seenWhere.AND[0].NOT.OR));
-  assert.deepEqual(seenWhere.AND[1], { id: "p1" });
-  assert.equal(seenSelect.phone, true);
-  assert.equal(seenSelect.email, true);
+  assert.deepEqual(seenWhere.AND[1], { id: "00000000-0000-4000-8000-000000000001" });
+  assert.equal(seenSelect.phone, undefined);
+  assert.equal(seenSelect.email, undefined);
   assert.equal(seenSelect.verification_provider, true);
   assert.equal(seenSelect.verification_url, true);
   assert.equal(seenSelect.review_provider, true);
   assert.equal(seenSelect.review_url, true);
 });
 
+test("Public provider reads reject non-allowlisted where filters", async () => {
+  const prisma = { provider: { findMany: async () => [] } };
+  const req = makeReq({
+    method: "GET",
+    auth: { userId: null, roles: [] },
+    query: new URLSearchParams({
+      where: JSON.stringify({ user_id: "00000000-0000-4000-8000-000000000099" }),
+    }),
+  });
+
+  const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
+  assert.equal(res.statusCode, 400);
+  assert.equal((res.body as any).error, "invalid_where_field");
+});
+
 test("Provider owner can self-preview a non-public profile by id", async () => {
   let seenWhere: any = null;
+  let findManyCalls = 0;
   const prisma = {
     provider: {
-      findMany: async ({ where }: any) => {
-        seenWhere = where;
-        return [{ id: "p1", user_id: "owner-1", status: "pending_verification" }];
+      findMany: async ({ where, select }: any) => {
+        findManyCalls += 1;
+        if (findManyCalls === 1) {
+          seenWhere = where;
+          return [{ id: "00000000-0000-4000-8000-000000000001", display_name: "Owner Listing" }];
+        }
+        return [{
+          id: "00000000-0000-4000-8000-000000000001",
+          user_id: "owner-1",
+          display_name: "Owner Listing",
+          phone: "555-0100",
+          email: "owner@example.com",
+          status: "pending_verification",
+        }];
       },
     },
   };
@@ -258,21 +287,66 @@ test("Provider owner can self-preview a non-public profile by id", async () => {
     method: "GET",
     auth: { userId: "owner-1", roles: ["member"] },
     query: new URLSearchParams({
-      where: JSON.stringify({ id: "p1" }),
+      where: JSON.stringify({ id: "00000000-0000-4000-8000-000000000001" }),
     }),
   });
 
   const res = await listOrFilterEntityHandler(req, "Provider", { prisma });
   assert.equal(res.statusCode, 200);
-  assert.equal(Array.isArray(res.body), true);
   assert.equal((res.body as any[]).length, 1);
+  assert.equal((res.body as any[])[0].phone, "555-0100");
+  assert.equal((res.body as any[])[0].email, "owner@example.com");
   assert.equal(seenWhere.AND.length, 2);
   assert.deepEqual(seenWhere.AND[0].OR[0], { user_id: "owner-1" });
-  assert.equal(seenWhere.AND[0].OR[1].status, "active");
-  assert.equal(seenWhere.AND[0].OR[1].is_profile_approved, true);
-  assert.ok(seenWhere.AND[0].OR[1].NOT);
-  assert.ok(Array.isArray(seenWhere.AND[0].OR[1].NOT.OR));
-  assert.deepEqual(seenWhere.AND[1], { id: "p1" });
+  assert.deepEqual(seenWhere.AND[1], { id: "00000000-0000-4000-8000-000000000001" });
+});
+
+test("Verification create forces pending status and rejects client elevation", async () => {
+  const prisma = {
+    verification: {
+      create: async () => {
+        throw new Error("should not create when client sends privileged fields");
+      },
+    },
+  };
+
+  const res = await createEntityHandler(
+    makeReq({
+      body: { type: "id", status: "approved", userId: "attacker" },
+      auth: { userId: "user-1", roles: ["member"] },
+    }),
+    "Verification",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.equal((res.body as any).error, "validation_error");
+});
+
+test("Verification create allowlists type and forces pending status", async () => {
+  let seenData: any = null;
+  const prisma = {
+    verification: {
+      create: async ({ data }: any) => {
+        seenData = data;
+        return { id: "v1", ...data };
+      },
+    },
+  };
+
+  const res = await createEntityHandler(
+    makeReq({
+      body: { type: "id" },
+      auth: { userId: "user-1", roles: ["member"] },
+    }),
+    "Verification",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(seenData.userId, "user-1");
+  assert.equal(seenData.type, "id");
+  assert.equal(seenData.status, "pending");
 });
 
 test("Verification reads are scoped to the authenticated user", async () => {
@@ -290,7 +364,7 @@ test("Verification reads are scoped to the authenticated user", async () => {
     method: "GET",
     auth: { userId: "user-1", roles: ["member"] },
     query: new URLSearchParams({
-      where: JSON.stringify({ id: "v1" }),
+      where: JSON.stringify({ id: "00000000-0000-4000-8000-0000000000a1" }),
     }),
   });
 
@@ -299,7 +373,7 @@ test("Verification reads are scoped to the authenticated user", async () => {
   assert.deepEqual(seenWhere, {
     AND: [
       { userId: "user-1" },
-      { id: "v1" },
+      { id: "00000000-0000-4000-8000-0000000000a1" },
     ],
   });
 });
@@ -311,7 +385,7 @@ test("Upload requires an authenticated user", async () => {
       body: {
         filename: "id.png",
         contentType: "image/png",
-        data: "data:image/png;base64,aGVsbG8=",
+        data: `data:image/png;base64,${MINIMAL_PNG_BASE64}`,
       },
     }),
   );
@@ -335,17 +409,16 @@ test("Upload returns local file url when using local storage", async () => {
       body: {
         filename: "id.png",
         contentType: "image/png",
-        data: "data:image/png;base64,aGVsbG8=",
+        data: `data:image/png;base64,${MINIMAL_PNG_BASE64}`,
       },
     }),
   );
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(uploaded, {
-    filename: "id.png",
-    contentType: "image/png",
-    fileBuffer: Buffer.from("hello"),
-  });
+  assert.deepEqual(uploaded.filename, "id.png");
+  assert.equal(uploaded.contentType, "image/png");
+  assert.ok(Buffer.isBuffer(uploaded.fileBuffer));
+  assert.ok(uploaded.fileBuffer.length > 0);
   assert.equal((res.body as any).file_url, "/uploads/local-file.png");
 });
 
@@ -366,7 +439,7 @@ test("Upload can return an absolute S3 url", async () => {
       body: {
         filename: "id.png",
         contentType: "image/png",
-        data: "data:image/png;base64,aGVsbG8=",
+        data: `data:image/png;base64,${MINIMAL_PNG_BASE64}`,
       },
     }),
   );
