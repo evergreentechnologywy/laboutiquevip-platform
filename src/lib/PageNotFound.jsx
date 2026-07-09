@@ -5,19 +5,19 @@ export default function PageNotFound() {
   const pageName = location.pathname.substring(1);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        <h1 className="text-7xl font-light text-slate-300">404</h1>
-        <h2 className="text-2xl font-medium text-slate-800">Page Not Found</h2>
-        <p className="text-slate-600 leading-relaxed">
-          The page <span className="font-medium text-slate-700">"{pageName}"</span> could not be found in this application.
+        <h1 className="text-8xl font-bold text-zinc-800 font-serif">404</h1>
+        <h2 className="text-2xl font-semibold text-zinc-200">Page not found</h2>
+        <p className="text-zinc-500 leading-relaxed">
+          The page <span className="font-medium text-zinc-400">"{pageName}"</span> doesn't exist.
         </p>
-        <div className="pt-6">
+        <div className="pt-4">
           <button
             onClick={() => { window.location.href = '/'; }}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+            className="inline-flex items-center px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-rose-500 to-amber-500 rounded-full hover:opacity-95"
           >
-            Go Home
+            Return home
           </button>
         </div>
       </div>

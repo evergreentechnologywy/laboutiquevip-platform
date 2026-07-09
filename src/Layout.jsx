@@ -30,6 +30,8 @@ const publicNavigation = [
   { title: "Browse", url: createPageUrl("Browse"), icon: Search },
   { title: "Pricing", url: createPageUrl("Pricing"), icon: Crown },
   { title: "Trust", url: createPageUrl("Trust"), icon: Shield },
+  { title: "FAQ", url: createPageUrl("FAQ"), icon: MessageSquare },
+  { title: "Contact", url: createPageUrl("Contact"), icon: MessageSquare },
 ];
 
 const providerNavigation = [

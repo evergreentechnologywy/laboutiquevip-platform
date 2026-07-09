@@ -60,9 +60,9 @@ export function ProviderListingCard({ provider }) {
                 Touring
               </Badge>
             )}
-            {isNew && !hasTrustChips && (
+            {isNew && !hasTrustChips && !provider.verification_provider && (
               <Badge className="rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold shadow-sm">
-                Just joined
+                New listing
               </Badge>
             )}
           </div>
