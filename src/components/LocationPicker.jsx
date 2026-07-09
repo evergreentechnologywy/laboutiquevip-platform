@@ -48,6 +48,18 @@ function resolveSelection(value, states) {
   return { state: parsed.stateName || parsed.stateCode || "", city: parsed.cityName || "" };
 }
 
+function selectionToValue(selection, states) {
+  if (!selection.state && !selection.city) return "";
+  const stateRow = states.find(
+    (state) => state.code === selection.state || state.name.toLowerCase() === String(selection.state).toLowerCase(),
+  );
+  return buildLocationValue({
+    stateCode: stateRow?.code ?? selection.state,
+    stateName: stateRow?.name,
+    cityName: selection.city,
+  });
+}
+
 export function LocationPicker({ value, onChange, className = "" }) {
   const { data, isLoading } = useQuery({
     queryKey: ["search-locations"],
@@ -65,7 +77,14 @@ export function LocationPicker({ value, onChange, className = "" }) {
     const next = resolveSelection(value, states);
     setSelectedState(next.state);
     setSelectedCity(next.city);
-  }, [value, states]);
+
+    if (!states.length) return;
+
+    const normalized = selectionToValue(next, states);
+    if (normalized !== value) {
+      onChange(normalized);
+    }
+  }, [value, states, onChange]);
 
   const activeState = states.find(
     (state) => state.code === selectedState || state.name.toLowerCase() === String(selectedState).toLowerCase(),
