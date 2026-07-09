@@ -22,7 +22,6 @@ function isImageUrl(url) {
 
 (async () => {
   const all = await p.provider.findMany({
-    where: { status: "active" },
     select: { id: true, display_name: true, social_media: true },
   });
 
