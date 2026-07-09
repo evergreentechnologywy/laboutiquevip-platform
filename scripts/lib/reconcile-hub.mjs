@@ -32,10 +32,25 @@ export function recordHubListingAttempt(statsByHub, url, succeeded) {
   return hubKey;
 }
 
-/** Deactivate only when at least one listing page for the hub succeeded. */
+/** Deactivate only when hub listing fetches are reliable enough. */
 export function hubEligibleForDeactivation(statsByHub, hubKey) {
   const stats = statsByHub.get(hubKey);
-  return Boolean(stats && stats.success > 0);
+  if (!stats || stats.success <= 0 || stats.attempted <= 0) return false;
+  const ratio = stats.success / stats.attempted;
+  // Need multiple successes and majority of listing pages for this hub.
+  return stats.success >= 2 && ratio >= 0.6;
+}
+
+/** Global gate: skip all deactivation when overall listing scrape was too flaky. */
+export function globalDeactivationAllowed(statsByHub, minRatio = 0.65) {
+  let success = 0;
+  let attempted = 0;
+  for (const stats of statsByHub.values()) {
+    success += stats.success;
+    attempted += stats.attempted;
+  }
+  if (attempted === 0) return false;
+  return success / attempted >= minRatio;
 }
 
 /**

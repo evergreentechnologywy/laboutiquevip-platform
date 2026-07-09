@@ -16,6 +16,8 @@ export CATALOG_SCAN_CACHE_DIR="${CATALOG_SCAN_CACHE_DIR:-${CACHE_ROOT}/${SCAN_DA
 mkdir -p "$LOG_DIR" "$CATALOG_SCAN_CACHE_DIR"
 cd "$REPO_DIR"
 
+bash "$REPO_DIR/scripts/ensure-lbv-scripts-executable.sh"
+
 set -a
 # shellcheck disable=SC1091
 . ./.env
