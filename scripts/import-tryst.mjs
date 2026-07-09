@@ -43,6 +43,7 @@ import {
   shouldSkipCatalogInsert,
 } from "./lib/catalog-sync-policy.mjs";
 
+const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
 const pilotOnly = process.argv.includes("--pilot-only");
@@ -110,10 +111,9 @@ function cleanText(input) {
 async function fetchPageText(url, attempts = 4) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 25000);
+    const timer = setTimeout(() => controller.abort(), 45000);
     try {
-      // Direct fetch - Tryst does not block direct requests
-      const response = await fetch(url, {
+      const response = await fetch(`${JINA_PREFIX}${url.replace(/^https?:\/\//i, "")}`, {
         signal: controller.signal,
         headers: { "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-tryst-import/1.0)" },
       });
