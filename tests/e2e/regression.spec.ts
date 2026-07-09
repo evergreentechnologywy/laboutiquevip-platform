@@ -34,8 +34,10 @@ test.describe("1 — Search & filtration integrity", () => {
   test("location picker API returns valid states", async ({ request }) => {
     const res = await fetchJson(request, "/api/v1/search/locations");
     expect(res.status).toBe(200);
-    const locations = (res.body as { locations?: unknown[] })?.locations ?? res.body;
-    expect(Array.isArray(locations)).toBe(true);
+    const body = res.body as { states?: { code?: string; cities?: unknown[] }[] };
+    expect(Array.isArray(body.states)).toBe(true);
+    expect(body.states!.length).toBeGreaterThan(0);
+    expect(body.states![0]).toHaveProperty("code");
   });
 
   test("invalid injection payloads do not 500", async ({ request }) => {

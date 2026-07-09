@@ -11,6 +11,12 @@ import {
   assertVerticallyAligned,
   getBoundingBox,
 } from "./helpers/layout";
+import { installLocalDistRoutes } from "./helpers/local-dist";
+
+// Opt-in: serve the local build on the prod origin (LBV_LOCAL_DIST=../dist).
+test.beforeEach(async ({ context }) => {
+  await installLocalDistRoutes(context);
+});
 
 const SMOKE_SLUG = process.env.LBV_SMOKE_SLUG ?? "rubyvega";
 
@@ -27,7 +33,7 @@ test.describe("UI layout — provider cards @desktop", () => {
   });
 
   test("provider card has exactly one primary badge overlay row", async ({ page }) => {
-    const cards = page.locator("article").filter({ has: page.locator("h3") });
+    const cards = page.getByTestId("provider-card");
     await expect(cards.first()).toBeVisible({ timeout: 20_000 });
 
     const cardCount = Math.min(await cards.count(), 5);
@@ -56,10 +62,17 @@ test.describe("UI layout — provider cards @desktop", () => {
   });
 
   test("provider card links resolve to viewprofile with id", async ({ page }) => {
-    const cardLink = page.locator("a[href*='viewprofile']").filter({ has: page.locator("article") }).first();
+    const cardLink = page.locator("a[href*='viewprofile']").filter({ has: page.getByTestId("provider-card") }).first();
     await expect(cardLink).toBeVisible({ timeout: 20_000 });
     const href = await cardLink.getAttribute("href");
     expect(href).toMatch(/viewprofile\?id=/i);
+  });
+
+  test("provider card shows name, city, and rate band on gradient bar", async ({ page }) => {
+    const card = page.getByTestId("provider-card").first();
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    await expect(card.locator("h3")).toBeVisible();
+    await expect(card.getByText(/,\s*[A-Z]{2}\b/).first()).toBeVisible();
   });
 });
 
@@ -80,8 +93,7 @@ test.describe("UI layout — profile header @desktop", () => {
     await expect(h1).toBeVisible();
     await expect(h1).toContainText(provider.display_name ?? "");
 
-    const titleRow = h1.locator("xpath=ancestor::div[contains(@class,'items-center')][1]");
-    const badgeRow = titleRow.locator("> div.flex.flex-wrap").first();
+    const badgeRow = page.getByTestId("profile-badge-row").first();
 
     const h1Box = await getBoundingBox(h1);
     expect(h1Box).not.toBeNull();
@@ -89,11 +101,19 @@ test.describe("UI layout — profile header @desktop", () => {
     if (await badgeRow.isVisible().catch(() => false)) {
       const badgeBox = await getBoundingBox(badgeRow);
       expect(badgeBox).not.toBeNull();
-      assertVerticallyAligned(h1Box!, badgeBox!, 28);
+
+      const viewport = page.viewportSize();
+      if (viewport && viewport.width >= 640) {
+        // Desktop: badges sit inline with the title.
+        assertVerticallyAligned(h1Box!, badgeBox!, 28);
+      } else {
+        // Mobile: badges stack in a single row directly below the title.
+        expect(badgeBox!.y).toBeGreaterThanOrEqual(h1Box!.y + h1Box!.height - 4);
+      }
       await assertNoInternalOverlap([h1, badgeRow], 0);
     }
 
-    const premiumInHeader = titleRow.getByText("Premium", { exact: false });
+    const premiumInHeader = badgeRow.getByText("Premium", { exact: false });
     expect(await premiumInHeader.count()).toBeLessThanOrEqual(1);
   });
 });
@@ -161,9 +181,17 @@ test.describe("UI layout — age gate", () => {
       : null;
     assertNavNotObscuredByOverlay(navBox!, overlayBox);
 
-    const browseLink = page.locator("nav").getByRole("link", { name: /browse/i }).first();
-    await expect(browseLink).toBeVisible();
-    await browseLink.click({ trial: true });
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 640) {
+      const browseLink = page.locator("nav").getByRole("link", { name: /browse/i }).first();
+      await expect(browseLink).toBeVisible();
+      await browseLink.click({ trial: true });
+    } else {
+      // Mobile: public nav collapses behind the hamburger menu.
+      const menuButton = page.getByRole("button", { name: /open menu/i });
+      await expect(menuButton).toBeVisible();
+      await menuButton.click({ trial: true });
+    }
   });
 
   test("terms link inside age gate points to /terms", async ({ page }) => {
