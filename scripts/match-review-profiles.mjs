@@ -5,6 +5,7 @@
  *
  * Usage:
  *   node scripts/match-review-profiles.mjs [--dry-run] [--reverify-all] [--search-only]
+ *   node scripts/match-review-profiles.mjs --limit 50 --reverify-all
  *   REVIEW_MATCH_LIMIT=50 node scripts/match-review-profiles.mjs --dry-run
  */
 
@@ -22,7 +23,14 @@ import { createPrismaClient } from "./lib/prisma-client.mjs";
 const dryRun = process.argv.includes("--dry-run");
 const reverifyAll = process.argv.includes("--reverify-all");
 const searchOnly = !process.argv.includes("--page-only");
+const allSites = process.argv.includes("--all-sites"); // ignored compat flag
 const prisma = await createPrismaClient();
+
+// Parse --limit=N from CLI args (takes precedence over REVIEW_MATCH_LIMIT env)
+const cliLimitArg = process.argv.find(a => a.startsWith("--limit="));
+const cliLimit = cliLimitArg ? Number(cliLimitArg.split("=")[1]) : null;
+const limitRaw = cliLimit ?? process.env.REVIEW_MATCH_LIMIT;
+const limit = limitRaw == null || limitRaw === "" ? 0 : Number(limitRaw);
 
 function maskEmail(email) {
   const [user, domain] = String(email ?? "").split("@");
@@ -58,9 +66,6 @@ async function main() {
     verification_provider: { in: ["eros", "tryst"] },
     OR: [{ phone: { not: null } }, { email: { not: null } }, { display_name: { not: "" } }],
   };
-
-  const limitRaw = process.env.REVIEW_MATCH_LIMIT;
-  const limit = limitRaw == null || limitRaw === "" ? 0 : Number(limitRaw);
 
   const providers = await prisma.provider.findMany({
     where,

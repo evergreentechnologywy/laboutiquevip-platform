@@ -84,10 +84,19 @@ export function ProviderListingCard({ provider }) {
           )}
 
           <div className="mt-5 flex items-center justify-between gap-4 text-xs uppercase tracking-wider font-semibold border-t border-zinc-900 pt-4">
-            <div className="flex items-center gap-2 text-zinc-400">
-              <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-zinc-700"}`} aria-hidden="true" />
-              <span className="font-semibold text-zinc-300">{ratingMeta.value}</span>
-              <span className="text-zinc-500 font-normal normal-case">{ratingMeta.detail}</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-zinc-400">
+                <Star className={`h-4 w-4 ${ratingMeta.hasReviews ? "fill-amber-400 text-amber-400" : "text-zinc-700"}`} aria-hidden="true" />
+                <span className="font-semibold text-zinc-300">{ratingMeta.value}</span>
+                <span className="text-zinc-500 font-normal normal-case">{ratingMeta.detail}</span>
+              </div>
+              {/* Review site indicator dots */}
+              <div className="flex items-center gap-1">
+                {provider.ter_url && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="TER matched" />}
+                {provider.pd_url && <span className="w-1.5 h-1.5 rounded-full bg-violet-400" title="PrivateDelights matched" />}
+                {provider.tob_url && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="TheOtherBoard matched" />}
+                {provider.p411_url && <span className="w-1.5 h-1.5 rounded-full bg-sky-400" title="P411 matched" />}
+              </div>
             </div>
             <span className="inline-flex items-center gap-2 text-zinc-300 group-hover:text-amber-400 transition-colors">
               View profile
