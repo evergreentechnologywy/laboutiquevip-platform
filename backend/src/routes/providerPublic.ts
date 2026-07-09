@@ -1,6 +1,10 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
 import { isUuid, legacyProviderSlug } from "../lib/providerSlug.js";
-import { publicProviderVisibilityWhere, publicSearchCacheHeaders } from "./providerVisibility.js";
+import {
+  publicProviderProfileSelect,
+  publicProviderVisibilityWhere,
+  publicSearchCacheHeaders,
+} from "./providerVisibility.js";
 
 interface ProviderPublicContext {
   prisma: any;
@@ -22,12 +26,14 @@ export async function getProviderBySlugHandler(
   }
 
   const visibility = publicProviderVisibilityWhere();
+  const select = publicProviderProfileSelect;
 
   let provider = null;
 
   if (isUuid(normalized)) {
     provider = await context.prisma.provider.findFirst({
       where: { ...visibility, id: normalized },
+      select,
     });
   }
 
@@ -37,6 +43,7 @@ export async function getProviderBySlugHandler(
         ...visibility,
         verification_username: { equals: normalized, mode: "insensitive" },
       },
+      select,
     });
   }
 
@@ -46,6 +53,7 @@ export async function getProviderBySlugHandler(
         ...visibility,
         display_name: { equals: normalized, mode: "insensitive" },
       },
+      select,
     });
   }
 
@@ -55,6 +63,7 @@ export async function getProviderBySlugHandler(
         ...visibility,
         verification_url: { contains: `-${normalized}.html`, mode: "insensitive" },
       },
+      select,
       take: 5,
     });
     provider =
