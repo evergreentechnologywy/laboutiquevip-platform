@@ -155,6 +155,24 @@ function parseProfilePage(markdown, profileUrl) {
     location_state = parts[1]?.toUpperCase() ?? null;
   }
 
+  // Extract only actual profile content — strip site boilerplate
+  const bio = extractTrystBio(markdown, displayName);
+
+  // Age / stats extraction
+  const ageMatch = markdown.match(/\b(\d{2})\s*(?:years|yrs|yo)\b/i);
+  const age = ageMatch ? Number(ageMatch[1]) : null;
+
+  // Ethnicity / hair / body type
+  const ethnicityMatch = markdown.match(/(?:ethnicity|race)[:\s]*([^\n|]+)/i);
+  const hairMatch = markdown.match(/(?:hair|hair color)[:\s]*([^\n|]+)/i);
+  const bodyMatch = markdown.match(/(?:body|body type|build|figure)[:\s]*([^\n|]+)/i);
+  const heightMatch = markdown.match(/(?:height)[:\s]*(\d['\"]?\s*\d*)/i);
+
+  // Rate extraction
+  const rateMatches = [...markdown.matchAll(/(?:rate|donation|hour|hr|incall|outcall)[:\s]*\$?(\d{2,4})/gi)];
+  const rates = rateMatches.map(m => Number(m[1])).filter(n => n >= 50 && n <= 5000);
+  const rate_hourly = rates.length > 0 ? Math.min(...rates) : null;
+
   return {
     slug,
     displayName,
@@ -164,8 +182,96 @@ function parseProfilePage(markdown, profileUrl) {
     photos,
     location_city,
     location_state,
-    bio: cleanText(markdown.slice(0, 1200)),
+    bio,
+    age: age && age >= 18 && age <= 99 ? age : null,
+    ethnicity: ethnicityMatch ? cleanText(ethnicityMatch[1]) : null,
+    hair_color: hairMatch ? cleanText(hairMatch[1]) : null,
+    body_type: bodyMatch ? cleanText(bodyMatch[1]) : null,
+    height: heightMatch ? cleanText(heightMatch[1]) : null,
+    rate_hourly,
   };
+}
+
+/**
+ * Extract only the actual provider-written bio from Tryst markdown,
+ * stripping navigation menus, footer links, and site boilerplate.
+ */
+function extractTrystBio(markdown, displayName) {
+  const lines = markdown.split(/
+?\n/);
+
+  // Boilerplate patterns that signal site chrome (not profile content)
+  const boilerplatePhrases = [
+    /^Skip to content/i,
+    /^\* Search/i,
+    /^\* Log in/i,
+    /^\* Sign up/i,
+    /^\* Menu/i,
+    /^Membership & Pricing/i,
+    /^TLC donation matching/i,
+    /^Tryst Blog/i,
+    /^Good Client Guide/i,
+    /^Sex work FAQ/i,
+    /^Tryst\.link FAQ/i,
+    /^Knowledge Base/i,
+    /^Contact Tryst Support/i,
+    /^Feedback/i,
+    /^About$/i,
+    /^Resources$/i,
+    /^Platform$/i,
+    /^Locations$/i,
+    /^\* \[.*?\]\(.*?tryst\.link\/.*?(?:pricing|faq|blog|support|feedback|about|resources)/i,
+    /^Report/i,
+    /^© /i,
+    /^Privacy/i,
+    /^Terms/i,
+    /^Cookie/i,
+    /^\[.*?logo.*?\]/i,
+    /^Back to top/i,
+    /^Share this/i,
+    /^Follow us/i,
+  ];
+
+  // Find where actual content starts (after the H1 title)
+  let contentStart = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].match(/^#\s+/) && lines[i].toLowerCase().includes(displayName?.toLowerCase()?.slice(0,5) || "")) {
+      contentStart = i + 1;
+      break;
+    }
+  }
+
+  // Collect lines until we hit boilerplate or end of useful content
+  const bioLines = [];
+  let hitBoilerplate = false;
+  for (let i = contentStart; i < Math.min(lines.length, contentStart + 60); i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Stop at boilerplate
+    if (boilerplatePhrases.some(p => p.test(line))) {
+      hitBoilerplate = true;
+      break;
+    }
+    // Stop at obvious nav/footer links
+    if (/^\*\s*\[(?!.*photo|image|pic)/i.test(line) && line.length < 120) continue;
+    // Skip image-only lines
+    if (/^!\[.*?\]\(.*?\)$/.test(line)) continue;
+    // Skip horizontal rules
+    if (/^[-–—]{3,}$/.test(line)) continue;
+    
+    bioLines.push(line);
+  }
+
+  const extracted = cleanText(bioLines.join(" "));
+  // If we got nothing useful, try a simpler approach — grab everything after the title,
+  // up to the first boilerplate hit, max 800 chars
+  if (extracted.length < 20) {
+    const afterTitle = markdown.split(/^#\s+.+$/m).slice(1).join(" ").slice(0, 800);
+    return cleanText(afterTitle) || null;
+  }
+
+  return extracted.slice(0, 800) || null;
 }
 
 async function upsertTrystProvider(profile, cityMeta, markdown = "") {
@@ -213,6 +319,12 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     phone: profile.phone || existing?.phone,
     email: profile.email || existing?.email,
     photos: profile.photos.length ? profile.photos : existing?.photos,
+    age: profile.age ?? existing?.age ?? null,
+    ethnicity: profile.ethnicity ?? existing?.ethnicity ?? null,
+    hair_color: profile.hair_color ?? existing?.hair_color ?? null,
+    body_type: profile.body_type ?? existing?.body_type ?? null,
+    height: profile.height ?? existing?.height ?? null,
+    rate_hourly: profile.rate_hourly ?? existing?.rate_hourly ?? null,
     verification_provider: "tryst",
     verification_url: profile.sourceUrl,
     verification_username: profile.slug,
