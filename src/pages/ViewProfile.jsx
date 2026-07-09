@@ -365,33 +365,116 @@ export default function ViewProfile() {
                   </CardHeader>
                   <CardContent>
                     {reviews.length === 0 ? (
-                      <div className="py-10 text-center">
-                        <Star className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
-                        <p className="text-zinc-500">No reviews yet. Be the first — reviews appear after moderation.</p>
+                      <div className="py-6">
+                        {/* External review links when no internal reviews exist */}
+                        {(provider.ter_url || provider.pd_url || provider.tob_url) ? (
+                          <div className="space-y-4">
+                            <p className="text-sm text-zinc-400 text-center">
+                              Reviews are available on external sites linked below.
+                            </p>
+                            <div className="grid gap-3">
+                              {provider.ter_url && (
+                                <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-4 p-4 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
+                                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                                    <Star className="w-5 h-5 text-emerald-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-zinc-200 group-hover:text-emerald-300">The Erotic Review</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">View verified reviews on TER</p>
+                                  </div>
+                                  <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-emerald-400 shrink-0" />
+                                </a>
+                              )}
+                              {provider.pd_url && (
+                                <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-4 p-4 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-violet-500/30 transition-all group">
+                                  <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                                    <Star className="w-5 h-5 text-violet-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-zinc-200 group-hover:text-violet-300">PrivateDelights</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">View profile and reviews on PD</p>
+                                  </div>
+                                  <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-violet-400 shrink-0" />
+                                </a>
+                              )}
+                              {provider.tob_url && (
+                                <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                                  className="flex items-center gap-4 p-4 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-amber-500/30 transition-all group">
+                                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                                    <Star className="w-5 h-5 text-amber-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-zinc-200 group-hover:text-amber-300">TheOtherBoard</p>
+                                    <p className="text-xs text-zinc-500 mt-0.5">View profile and reviews on TOB</p>
+                                  </div>
+                                  <ExternalLink className="w-4 h-4 text-zinc-500 group-hover:text-amber-400 shrink-0" />
+                                </a>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-zinc-500 text-center leading-4 pt-2">
+                              These links point to third-party review sites. Review content and availability are handled externally.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="py-10 text-center">
+                            <Star className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
+                            <p className="text-zinc-500">No reviews yet. Be the first — reviews appear after moderation.</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="divide-y divide-zinc-800/50">
-                        {reviews.map((review) => (
-                          <div key={review.id} className="py-4 first:pt-0 last:pb-0">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="flex gap-0.5">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`w-3.5 h-3.5 ${
-                                      i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'
-                                    }`}
-                                  />
-                                ))}
+                      <div>
+                        <div className="divide-y divide-zinc-800/50">
+                          {reviews.map((review) => (
+                            <div key={review.id} className="py-4 first:pt-0 last:pb-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="flex gap-0.5">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`w-3.5 h-3.5 ${
+                                        i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-700'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-sm font-semibold text-zinc-200">{review.reviewer_name}</span>
+                                <span className="text-xs text-zinc-500 ml-auto">
+                                  {format(new Date(review.created_date), 'MMM d, yyyy')}
+                                </span>
                               </div>
-                              <span className="text-sm font-semibold text-zinc-200">{review.reviewer_name}</span>
-                              <span className="text-xs text-zinc-500 ml-auto">
-                                {format(new Date(review.created_date), 'MMM d, yyyy')}
-                              </span>
+                              <p className="text-sm text-zinc-400 leading-6">{review.comment}</p>
                             </div>
-                            <p className="text-sm text-zinc-400 leading-6">{review.comment}</p>
+                          ))}
+                        </div>
+                        {/* External review links alongside internal reviews */}
+                        {(provider.ter_url || provider.pd_url || provider.tob_url) && (
+                          <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                            <p className="text-xs text-zinc-500 mb-3">Also see reviews on:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {provider.ter_url && (
+                                <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 hover:bg-emerald-500/20 transition-colors">
+                                  <Star className="w-3 h-3" /> TER
+                                </a>
+                              )}
+                              {provider.pd_url && (
+                                <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300 hover:bg-violet-500/20 transition-colors">
+                                  <Star className="w-3 h-3" /> PrivateDelights
+                                </a>
+                              )}
+                              {provider.tob_url && (
+                                <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 hover:bg-amber-500/20 transition-colors">
+                                  <Star className="w-3 h-3" /> TOB
+                                </a>
+                              )}
+                            </div>
                           </div>
-                        ))}
+                        )}
                       </div>
                     )}
                   </CardContent>
