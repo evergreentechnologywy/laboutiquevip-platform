@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Star, Shield, Crown, MapPin, Check, AlertTriangle, MessageSquare, Send,
   CheckCircle2, Loader2, Video, ChevronLeft, ChevronRight, ExternalLink,
-  Globe, Mail, Phone,
+  Globe, Mail, Phone, ArrowLeft,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,7 @@ import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
-import { PremiumBadge } from "@/components/PremiumBadge";
 import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
-import { renderTextWithLinks } from "@/lib/linkify";
 import { SEO } from "@/components/SEO";
 import { Link } from "react-router-dom";
 import {
@@ -44,9 +42,7 @@ async function fetchPublicProvider(identifier) {
   try {
     const res = await fetch(`/api/v1/providers/by-slug/${encodeURIComponent(identifier)}`);
     if (res.ok) return res.json();
-  } catch {
-    // Fall through to authenticated entity filter.
-  }
+  } catch { /* fall through */ }
   const providers = await base44.entities.Provider.filter({ id: identifier });
   return providers.length > 0 ? providers[0] : null;
 }
@@ -66,17 +62,10 @@ export default function ViewProfile() {
     queryFn: async () => {
       const currentProvider = await fetchPublicProvider(providerId);
       if (!currentProvider) return null;
-
       const viewCount = (currentProvider.views_count || 0) + 1;
-
-      // Public viewers may not be authenticated, so a failed analytics update
-      // must not block rendering the actual profile.
       try {
         await base44.entities.Provider.update(currentProvider.id, { views_count: viewCount });
-      } catch {
-        return currentProvider;
-      }
-
+      } catch { return currentProvider; }
       return { ...currentProvider, views_count: viewCount };
     },
     enabled: !!providerId,
@@ -105,9 +94,7 @@ export default function ViewProfile() {
       setSent(true);
     } catch (err) {
       console.error("Failed to send message", err);
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
   const prevPhoto = () => setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1));
@@ -254,7 +241,12 @@ export default function ViewProfile() {
                   {provider.display_name}
                 </h1>
                 <VerificationBadges provider={provider} size="md" />
-                {provider.is_premium && <PremiumBadge variant="solid" size="md" />}
+                {provider.is_premium && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 border-0 text-zinc-950 font-semibold">
+                    <Crown className="w-3 h-3 mr-1" />
+                    Premium
+                  </Badge>
+                )}
               </div>
               {provider.tagline && (
                 <p className="text-lg md:text-xl text-zinc-400 font-light mb-3">{provider.tagline}</p>
@@ -274,7 +266,7 @@ export default function ViewProfile() {
 
             {/* Verification note */}
             <Card className="mb-8 bg-amber-500/5 border-amber-500/20 rounded-2xl">
-              <CardContent className="py-4 text-sm">
+              <CardContent className="py-4 text-sm text-zinc-300">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5 shrink-0" />
                   <div>
@@ -331,9 +323,9 @@ export default function ViewProfile() {
                     <CardTitle className="text-zinc-100 text-lg font-serif">About Me</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-zinc-400 leading-7 whitespace-pre-wrap">
-                      {provider.bio ? renderTextWithLinks(provider.bio) : 'No bio available.'}
-                    </div>
+                    <p className="text-zinc-400 leading-7 whitespace-pre-wrap">
+                      {provider.bio || 'No bio available.'}
+                    </p>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -471,7 +463,7 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact — direct info */}
+            {/* Contact — unified */}
             {(provider.phone || provider.email || provider.social_media?.website || provider.website) && (
               <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl">
                 <CardHeader className="pb-3">
@@ -480,10 +472,12 @@ export default function ViewProfile() {
                     Contact
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2.5">
+                <CardContent className="space-y-3">
                   {provider.phone && (
-                    <a href={`tel:${provider.phone}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
+                    <a
+                      href={`tel:${provider.phone}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
+                    >
                       <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
                         <Phone className="w-4 h-4 text-rose-400" />
                       </div>
@@ -491,8 +485,10 @@ export default function ViewProfile() {
                     </a>
                   )}
                   {provider.email && (
-                    <a href={`mailto:${provider.email}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
+                    <a
+                      href={`mailto:${provider.email}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
+                    >
                       <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
                         <Mail className="w-4 h-4 text-rose-400" />
                       </div>
@@ -500,9 +496,11 @@ export default function ViewProfile() {
                     </a>
                   )}
                   {(provider.social_media?.website || provider.website) && (
-                    <a href={(provider.social_media?.website || provider.website).startsWith('http') ? (provider.social_media?.website || provider.website) : `https://${provider.social_media?.website || provider.website}`}
+                    <a
+                      href={(provider.social_media?.website || provider.website).startsWith('http') ? (provider.social_media?.website || provider.website) : `https://${provider.social_media?.website || provider.website}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
+                    >
                       <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
                         <Globe className="w-4 h-4 text-rose-400" />
                       </div>
@@ -537,7 +535,8 @@ export default function ViewProfile() {
                   <form onSubmit={handleMessageSubmit} className="space-y-3.5">
                     <div>
                       <Label htmlFor="sender-name" className="text-xs text-zinc-400 mb-1.5 block">Your Name</Label>
-                      <Input id="sender-name" value={messageForm.name}
+                      <Input
+                        id="sender-name" value={messageForm.name}
                         onChange={e => setMessageForm({...messageForm, name: e.target.value})}
                         placeholder="Name" required
                         className="bg-zinc-800/60 border-zinc-700 h-10 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10"
@@ -545,7 +544,8 @@ export default function ViewProfile() {
                     </div>
                     <div>
                       <Label htmlFor="sender-email" className="text-xs text-zinc-400 mb-1.5 block">Email Address</Label>
-                      <Input id="sender-email" type="email" value={messageForm.email}
+                      <Input
+                        id="sender-email" type="email" value={messageForm.email}
                         onChange={e => setMessageForm({...messageForm, email: e.target.value})}
                         placeholder="email@example.com" required
                         className="bg-zinc-800/60 border-zinc-700 h-10 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10"
@@ -553,14 +553,17 @@ export default function ViewProfile() {
                     </div>
                     <div>
                       <Label htmlFor="sender-msg" className="text-xs text-zinc-400 mb-1.5 block">Message</Label>
-                      <Textarea id="sender-msg" value={messageForm.message}
+                      <Textarea
+                        id="sender-msg" value={messageForm.message}
                         onChange={e => setMessageForm({...messageForm, message: e.target.value})}
                         placeholder="Inquire about availability or services..." required rows={4}
                         className="bg-zinc-800/60 border-zinc-700 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10 resize-none"
                       />
                     </div>
-                    <Button type="submit" disabled={sending}
-                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-11 text-sm font-semibold rounded-xl transition-all">
+                    <Button
+                      type="submit" disabled={sending}
+                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-11 text-sm font-semibold rounded-xl transition-all"
+                    >
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-2" /> Send Message</>}
                     </Button>
                     <p className="text-[10px] text-zinc-500 text-center leading-4">
@@ -571,7 +574,7 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* External trust references — simplified link rows */}
+            {/* External trust references — simplified */}
             {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider || provider.review_provider) && (
               <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl">
                 <CardHeader className="pb-3">
@@ -581,59 +584,53 @@ export default function ViewProfile() {
                   {provider.p411_url && (
                     <a href={provider.p411_url} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-sky-500/30 transition-all group">
-                      <span className="text-sm text-zinc-200 group-hover:text-sky-300">
-                        Preferred411{provider.p411_id ? ` · ${provider.p411_id}` : ''}
-                      </span>
+                      <span className="text-sm text-zinc-200 group-hover:text-sky-300">Preferred411{provider.p411_id ? ` · ${provider.p411_id}` : ''}</span>
                       <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-sky-400" />
                     </a>
                   )}
-                  {(provider.ter_url || provider.pd_url || provider.tob_url) && (
-                    <>
-                      {provider.ter_url && (
-                        <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
-                          <span className="text-sm text-zinc-200 group-hover:text-emerald-300">The Erotic Review</span>
-                          <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
-                        </a>
-                      )}
-                      {provider.pd_url && (
-                        <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
-                          <span className="text-sm text-zinc-200 group-hover:text-emerald-300">PrivateDelights</span>
-                          <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
-                        </a>
-                      )}
-                      {provider.tob_url && (
-                        <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
-                          <span className="text-sm text-zinc-200 group-hover:text-emerald-300">TheOtherBoard</span>
-                          <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
-                        </a>
-                      )}
-                    </>
-                  )}
-                  {(provider.verification_provider || provider.verification_username || provider.verification_url) && (
-                    <a href={provider.verification_url || '#'} target={provider.verification_url ? "_blank" : undefined} rel={provider.verification_url ? "noopener noreferrer" : undefined}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
-                      <span className="text-sm text-zinc-200 group-hover:text-rose-300 truncate">
-                        {provider.verification_provider || 'Verification'}
-                        {provider.verification_username ? ` · @${String(provider.verification_username).replace(/^@/, '')}` : ''}
-                      </span>
-                      {provider.verification_url && <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-rose-400 shrink-0" />}
+                  {provider.ter_url && (
+                    <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
+                      <span className="text-sm text-zinc-200 group-hover:text-emerald-300">The Erotic Review</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
                     </a>
                   )}
-                  {(provider.review_provider || provider.review_username || provider.review_url) && (
-                    <a href={provider.review_url || '#'} target={provider.review_url ? "_blank" : undefined} rel={provider.review_url ? "noopener noreferrer" : undefined}
+                  {provider.pd_url && (
+                    <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
+                      <span className="text-sm text-zinc-200 group-hover:text-emerald-300">PrivateDelights</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
+                    </a>
+                  )}
+                  {provider.tob_url && (
+                    <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-emerald-500/30 transition-all group">
+                      <span className="text-sm text-zinc-200 group-hover:text-emerald-300">TheOtherBoard</span>
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-emerald-400" />
+                    </a>
+                  )}
+                  {provider.verification_url && (
+                    <a href={provider.verification_url} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
-                      <span className="text-sm text-zinc-200 group-hover:text-rose-300 truncate">
-                        {provider.review_provider || 'Review'}
+                      <span className="text-sm text-zinc-200 group-hover:text-rose-300">
+                        {provider.verification_provider || 'Verification account'}
+                        {provider.verification_username ? ` · @${String(provider.verification_username).replace(/^@/, '')}` : ''}
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-rose-400" />
+                    </a>
+                  )}
+                  {provider.review_url && !provider.verification_url && (
+                    <a href={provider.review_url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group">
+                      <span className="text-sm text-zinc-200 group-hover:text-rose-300">
+                        {provider.review_provider || 'Review account'}
                         {provider.review_username ? ` · @${String(provider.review_username).replace(/^@/, '')}` : ''}
                       </span>
-                      {provider.review_url && <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-rose-400 shrink-0" />}
+                      <ExternalLink className="w-3.5 h-3.5 text-zinc-500 group-hover:text-rose-400" />
                     </a>
                   )}
                   <p className="text-[10px] text-zinc-500 leading-5 pt-1">
-                    These links point to third-party services and are displayed for reference only. Availability, verification status, and review publication on those services are handled externally.
+                    Third-party links for reference only. Verification and review status are handled externally.
                   </p>
                 </CardContent>
               </Card>
@@ -647,14 +644,9 @@ export default function ViewProfile() {
 
 function getVideoEmbedUrl(url) {
   if (!url) return "";
-  // YouTube
-  const ytMatch = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-  );
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
   if (ytMatch) return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?rel=0`;
-  // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  // Direct link or unknown — return as-is, the iframe will try it
   return url;
 }
