@@ -47,14 +47,14 @@ const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
 const dryRun = process.argv.includes("--dry-run");
 const pilotOnly = process.argv.includes("--pilot-only");
-const statesArg = args.get("states") ?? process.env.TRYST_STATES ?? null;
-const filteredStates = statesArg ? statesArg.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : null;
 const args = new Map(
   process.argv.slice(2).map((arg) => {
     const [k, v = "true"] = arg.replace(/^--/, "").split("=");
     return [k, v];
   }),
 );
+const statesArg = args.get("states") ?? process.env.TRYST_STATES ?? null;
+const filteredStates = statesArg ? statesArg.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : null;
 const cacheOnly =
   args.has("cache-only") ||
   Boolean(process.env.CATALOG_SCAN_CACHE_DIR || process.env.LBV_CATALOG_SCAN_CACHE);
