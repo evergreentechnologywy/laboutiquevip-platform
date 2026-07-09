@@ -14,6 +14,8 @@ REPORT_FILE="${LOG_DIR}/us-verified-catalog-merge-report.log"
 mkdir -p "$LOG_DIR" /var/run/lboutiquevip
 cd "$REPO_DIR"
 
+bash "$REPO_DIR/scripts/ensure-lbv-scripts-executable.sh"
+
 set -a
 # shellcheck disable=SC1091
 . ./.env
@@ -21,7 +23,21 @@ set +a
 export NODE_PATH="$REPO_DIR/node_modules"
 # shellcheck disable=SC1091
 . "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
-export CATALOG_SCAN_CACHE_DIR="${CATALOG_SCAN_CACHE_DIR:-$(readlink -f /var/run/lboutiquevip/catalog-scan-cache/latest 2>/dev/null || cat /var/run/lboutiquevip/catalog-scan-cache/latest-path.txt 2>/dev/null || echo "")}"
+resolve_catalog_cache_dir() {
+  for root in /run/laboutiquevip/catalog-scan-cache /var/run/laboutiquevip/catalog-scan-cache; do
+    if [[ -L "$root/latest" ]]; then
+      echo "$(readlink -f "$root/latest")"
+      return 0
+    fi
+    local latest_dated
+    latest_dated="$(ls -1d "$root"/202* 2>/dev/null | sort | tail -1)"
+    if [[ -n "$latest_dated" ]]; then
+      echo "$latest_dated"
+      return 0
+    fi
+  done
+}
+export CATALOG_SCAN_CACHE_DIR="${CATALOG_SCAN_CACHE_DIR:-$(resolve_catalog_cache_dir)}"
 export REVIEW_MATCH_LIMIT="${REVIEW_MATCH_LIMIT:-0}"
 
 exec 9>"$LOCK_FILE"
@@ -51,6 +67,8 @@ set +e
   write_flag "merge-cache"
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog merge start ==="
 
+  # shellcheck disable=SC1091
+  . "$REPO_DIR/scripts/lib/ensure-prisma-client.sh"
   node "$REPO_DIR/scripts/merge-catalog-scan-cache.mjs"
   write_flag "staged-r2-photos"
   if [[ -n "${CATALOG_SCAN_CACHE_DIR}" && -d "${CATALOG_SCAN_CACHE_DIR}" ]]; then
@@ -61,10 +79,13 @@ set +e
   write_flag "reconcile-eros"
   node "$REPO_DIR/scripts/reconcile-eros.mjs" \
     --profiles-per-city="$PROFILES_PER_CITY" \
-    --profiles-per-state="$PROFILES_PER_STATE"
+    --profiles-per-state="$PROFILES_PER_STATE" \
+    --skip-deactivate
   write_flag "reconcile-tryst"
   node "$REPO_DIR/scripts/reconcile-tryst.mjs"
   write_flag "match-review"
+  # shellcheck disable=SC1091
+  . "$REPO_DIR/scripts/lib/ensure-prisma-client.sh"
   node "$REPO_DIR/scripts/match-review-profiles.mjs" --all-sites || true
   write_flag "dedupe"
   node "$REPO_DIR/scripts/dedupe-imported-providers.cjs" || true
@@ -85,13 +106,21 @@ TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 if [[ "$RUN_EXIT" -eq 0 ]]; then
   echo "$TS status=ok exit=0 phase=merge" >> "$REPORT_FILE"
   MERGE_STATUS=ok
+  mkdir -p /var/log/laboutiquevip/heartbeats
+  for hb in eros-photo eros-reconcile catalog-merge; do
+    {
+      echo "timestamp=$TS"
+      echo "status=ok"
+      echo "detail=source=$REPORT_FILE phase=merge"
+    } >"/var/log/laboutiquevip/heartbeats/${hb}.last"
+  done
 else
   echo "$TS status=failed exit=$RUN_EXIT phase=merge" >> "$REPORT_FILE"
   MERGE_STATUS=failed
 fi
 
 export NODE_PATH="$REPO_DIR/node_modules"
-export CATALOG_SCAN_SCHEDULE_NOTE="Next scan 8:00 PM America/Denver; merge at midnight includes Eros + Tryst photos → R2."
+export CATALOG_SCAN_SCHEDULE_NOTE="Next scan 8:00 PM America/Denver; merge at midnight includes Eros + Tryst photos to R2."
 node "$REPO_DIR/scripts/lbv-catalog-scan-notify.mjs" \
   --log="$RUN_LOG" \
   --status="$MERGE_STATUS" \

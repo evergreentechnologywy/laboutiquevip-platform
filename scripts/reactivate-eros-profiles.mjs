@@ -9,6 +9,8 @@
 
 import fs from "node:fs";
 
+import { createPrismaClient } from "./lib/prisma-client.mjs";
+
 const dryRun = process.argv.includes("--dry-run");
 
 function loadEnv(envPath) {
@@ -22,25 +24,6 @@ function loadEnv(envPath) {
 
 loadEnv(new URL("../.env", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
 loadEnv("/srv/apps/trystlike/repo/.env");
-
-const dynamicImport = new Function("modulePath", "return import(modulePath)");
-
-async function createPrismaClient() {
-  for (const modulePath of [
-    "../backend/generated/prisma-client/index.js",
-    "/srv/apps/trystlike/repo/backend/generated/prisma-client/index.js",
-  ]) {
-    try {
-      const generated = await dynamicImport(modulePath);
-      if (generated?.PrismaClient) return new generated.PrismaClient();
-    } catch {
-      // try next
-    }
-  }
-  const runtime = await dynamicImport("@prisma/client");
-  if (!runtime?.PrismaClient) throw new Error("PrismaClient not available.");
-  return new runtime.PrismaClient();
-}
 
 const prisma = await createPrismaClient();
 

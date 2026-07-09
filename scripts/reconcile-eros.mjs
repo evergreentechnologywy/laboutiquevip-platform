@@ -21,6 +21,7 @@ import {
   resolveErosLocationState,
 } from "./lib/eros-location.mjs";
 import {
+  globalDeactivationAllowed,
   hubEligibleForDeactivation,
   hubScrapeCompleteForDeactivation,
   listingHubKeyFromUrl,
@@ -54,7 +55,7 @@ const profilesPerState = parseImportLimit(
   1250,
 );
 const dryRun = process.argv.includes("--dry-run");
-const skipDeactivate = process.argv.includes("--skip-deactivate");
+let skipDeactivate = process.argv.includes("--skip-deactivate");
 
 // Load env from workspace
 function loadEnv(envPath) {
@@ -72,17 +73,7 @@ const KEY_PREFIX = process.env.S3_KEY_PREFIX || "laboutiquevip/providers";
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
-async function createPrismaClient() {
-  try {
-    const generated = await dynamicImport("/srv/apps/trystlike/repo/backend/generated/prisma-client/index.js");
-    if (generated?.PrismaClient) return new generated.PrismaClient();
-  } catch {
-    // fallback
-  }
-  const runtime = await dynamicImport("@prisma/client");
-  if (!runtime?.PrismaClient) throw new Error("PrismaClient not available.");
-  return new runtime.PrismaClient();
-}
+import { createPrismaClient } from "./lib/prisma-client.mjs";
 
 const prisma = await createPrismaClient();
 
@@ -450,9 +441,11 @@ async function run() {
   console.log(`[reconcile] Scanned ${crawledSuccessCount}/${totalAttempted} listing pages. Success ratio: ${(successRatio * 100).toFixed(1)}%`);
   console.log(`[reconcile] Extracted ${profileUrls.size} unique active profile URLs.`);
 
-  if (successRatio < 0.40) {
-    console.error(`[FATAL] Success ratio is below 40% (${(successRatio * 100).toFixed(1)}%). Aborting reconciliation to protect DB.`);
-    process.exit(1);
+  if (successRatio < 0.65) {
+    console.error(
+      `[reconcile] Listing success ratio ${(successRatio * 100).toFixed(1)}% < 65% — skipping ALL deactivation to protect catalog.`,
+    );
+    skipDeactivate = true;
   }
 
   // 4. Fetch all active Eros providers in DB
@@ -478,6 +471,12 @@ async function run() {
     `[reconcile] Per-hub deactivation: ${hubsEligible} hubs eligible (>=1 listing success), ` +
       `${hubsSkipped} hubs skipped (all listing fetches failed). Global success ${(successRatio * 100).toFixed(1)}%.`,
   );
+
+  const deactivationAllowed = !skipDeactivate && globalDeactivationAllowed(hubListingStats, 0.65);
+  if (!skipDeactivate && !deactivationAllowed) {
+    console.error("[reconcile] Global per-hub listing quality too low — skipping ALL deactivation.");
+    skipDeactivate = true;
+  }
 
   // 5. Deactivate profiles missing from scraped listings (per-hub success gate)
   let deactivatedCount = 0;

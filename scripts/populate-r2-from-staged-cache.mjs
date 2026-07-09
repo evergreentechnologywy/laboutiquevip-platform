@@ -28,8 +28,9 @@ const cacheDir = args.has("cache-dir")
   ? resolveCacheDir(args.get("cache-dir"))
   : resolveLatestCacheDir();
 
-const { PrismaClient } = await import("@prisma/client");
-const prisma = new PrismaClient();
+import { createPrismaClient } from "./lib/prisma-client.mjs";
+
+const prisma = await createPrismaClient();
 const s3 = getS3Client();
 const bucket = process.env.S3_BUCKET;
 
