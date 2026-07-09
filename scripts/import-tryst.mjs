@@ -35,6 +35,7 @@ import {
   passesImportGate,
   providerHasVerificationBadge,
   resolveProviderVerification,
+  shouldSoftGate,
 } from "./lib/verification-match.mjs";
 import {
   catalogSeenTouchFields,
@@ -301,8 +302,11 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
   });
 
   if (!passesImportGate(existing, verification)) {
-    stats.skippedNoVerification += 1;
-    return;
+    // Soft gate: import anyway but flag as unverified
+    if (!shouldSoftGate(verification)) {
+      stats.skippedNoVerification += 1;
+      return;
+    }
   }
 
   const payload = {
@@ -330,7 +334,9 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     ),
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
-    is_profile_approved: existing?.is_profile_approved ?? true,
+    is_profile_approved: verification?.importAllowed !== false
+      ? (existing?.is_profile_approved ?? true)
+      : false,
     ...mergeVerificationFields(existing, verification),
     ...catalogSeenTouchFields(existing),
   };

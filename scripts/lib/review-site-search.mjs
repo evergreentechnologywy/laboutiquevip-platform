@@ -22,8 +22,8 @@ const TOB_PROFILE_RE =
 const P411_PROFILE_RE =
   /https?:\/\/(?:www\.)?preferred411\.com\/(?:escort\/)?[Pp]\d{4,}/gi;
 
-const DEFAULT_DELAY_MS = Number(process.env.REVIEW_SEARCH_DELAY_MS ?? "1500");
-const DEFAULT_TIMEOUT_MS = Number(process.env.REVIEW_SEARCH_TIMEOUT_MS ?? "35000");
+const DEFAULT_DELAY_MS = Number(process.env.REVIEW_SEARCH_DELAY_MS ?? "600");
+const DEFAULT_TIMEOUT_MS = Number(process.env.REVIEW_SEARCH_TIMEOUT_MS ?? "25000");
 
 let lastFetchAt = 0;
 

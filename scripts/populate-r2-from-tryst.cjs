@@ -95,8 +95,18 @@ async function fetchTrystMarkdown(trystUrl) {
 }
 
 function extractTrystPhotos(markdown, existingPhotos = []) {
-  const fromMarkdown = [...String(markdown || "").matchAll(/https?:\/\/[^\s)]+(?:a4cdn\.(?:ch|org)|tryst\.link\/media)[^\s)]+/gi)].map((m) => m[0]);
-  const fromExisting = (Array.isArray(existingPhotos) ? existingPhotos : []).filter((u) => TRST_HOST_RE.test(String(u)));
+  // Primary: direct CDN URLs from Jina-rendered markdown
+  const fromMarkdown = [
+    ...String(markdown || "").matchAll(/https?:\/\/[^\s)]+(?:a4cdn\.(?:ch|org)|tryst\.link\/media|cdn\.tryst|images\.tryst)[^\s)]+/gi),
+    // Broader: any image URLs that appear near the profile content
+    ...String(markdown || "").matchAll(/https?:\/\/[^\s)"']+\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s)"']*)?/gi),
+    // Tryst discovery CDN
+    ...String(markdown || "").matchAll(/https?:\/\/(?:discovery\.)?tryst[^\s)"']+\/[^\s)"']+\.(?:jpg|jpeg|png|webp)/gi),
+  ].map((m) => m[0]);
+
+  // Fallback: existing photos already in DB (don't lose what we have)
+  const fromExisting = (Array.isArray(existingPhotos) ? existingPhotos : []).filter((u) => TRST_HOST_RE.test(String(u)) || String(u).includes("/api/r2-photo/"));
+
   const urls = [...new Set([...fromMarkdown, ...fromExisting])];
   return urls.slice(0, MAX_PHOTOS);
 }

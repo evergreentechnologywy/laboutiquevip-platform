@@ -75,7 +75,14 @@ function hasReviewMatch(fields) {
 }
 
 export function importGateEnabled() {
-  return process.env.STRICT_IMPORT_VERIFICATION_GATE !== "0";
+  // Default: soft gate — import everything, flag unverified for later matching.
+  // Set STRICT_IMPORT_VERIFICATION_GATE=1 to block unverified imports entirely.
+  return process.env.STRICT_IMPORT_VERIFICATION_GATE === "1";
+}
+
+export function shouldSoftGate(verification) {
+  // Returns true when profile should be imported but flagged as unverified
+  return !verification?.importAllowed && !process.env.STRICT_IMPORT_VERIFICATION_GATE;
 }
 
 export function providerHasVerificationBadge(existing) {

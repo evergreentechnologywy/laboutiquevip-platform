@@ -34,6 +34,7 @@ import {
   passesImportGate,
   providerHasVerificationBadge,
   resolveProviderVerification,
+  shouldSoftGate,
 } from "./lib/verification-match.mjs";
 import {
   appendCacheRecord,
@@ -462,7 +463,9 @@ function buildProviderPayload(profile, existing = null) {
     ad_body: profile.bio ?? existing?.ad_body ?? null,
     status: existing?.status ?? "active",
     is_verified: existing?.is_verified ?? true,
-    is_profile_approved: existing?.is_profile_approved ?? true,
+    is_profile_approved: profile.verification?.importAllowed !== false
+      ? (existing?.is_profile_approved ?? true)
+      : false,
     ...mergeVerificationFields(existing, profile.verification),
     ...catalogSeenTouchFields(existing),
   };
@@ -496,8 +499,11 @@ async function importProfile(profile, markdown = "") {
   });
 
   if (!passesImportGate(existing, profile.verification)) {
-    stats.skippedNoVerification += 1;
-    return;
+    // Soft gate: import anyway but flag as unverified
+    if (!shouldSoftGate(profile.verification)) {
+      stats.skippedNoVerification += 1;
+      return;
+    }
   }
 
   const data = buildProviderPayload(profile, existing ?? null);
