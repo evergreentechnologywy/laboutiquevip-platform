@@ -51,17 +51,17 @@ async function loadPublicPhotoProviderIds(prisma: {
     return photoProviderIdsCache.ids;
   }
 
-  const rows = await prisma.$queryRaw\`
-  SELECT id FROM "Provider"
-  WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
-    AND photos IS NOT NULL
-    AND jsonb_typeof(photos) = 'array'
-    AND jsonb_array_length(photos) > 0
-    AND EXISTS (
-      SELECT 1 FROM jsonb_array_elements_text(photos) AS url
-      WHERE url LIKE '%/api/r2-photo/%'
-         OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
-         OR url ~* '(tryst\\.link|discovery\\.tryst|a4cdn\\.ch|a4cdn\\.org)'
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM "Provider"
+    WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
+      AND photos IS NOT NULL
+      AND jsonb_typeof(photos::jsonb) = 'array'
+      AND jsonb_array_length(photos::jsonb) > 0
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(photos::jsonb) AS url
+        WHERE url LIKE '%/api/r2-photo/%'
+           OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
+           OR url ~* '(tryst\\.link|discovery\\.tryst|a4cdn\\.ch|a4cdn\\.org)'
            OR url ~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?|$)'
       )
   `;
