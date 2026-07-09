@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   Star, Shield, Crown, MapPin, Check, AlertTriangle,
   Video, ChevronLeft, ChevronRight, ExternalLink,
-  Globe, Mail, Phone,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -523,58 +522,10 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact — unified */}
-            {(provider.phone || provider.email || provider.social_media?.website || provider.website) && (
-              <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-zinc-100 font-serif text-lg flex items-center gap-2">
-                    <span className="w-1.5 h-5 rounded-full bg-amber-500" />
-                    Contact
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {provider.phone && (
-                    <a
-                      href={`tel:${provider.phone}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
-                        <Phone className="w-4 h-4 text-rose-400" />
-                      </div>
-                      <span className="text-sm font-medium text-zinc-200 group-hover:text-rose-300 transition-colors">{provider.phone}</span>
-                    </a>
-                  )}
-                  {provider.email && (
-                    <a
-                      href={`mailto:${provider.email}`}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
-                        <Mail className="w-4 h-4 text-rose-400" />
-                      </div>
-                      <span className="text-sm font-medium text-zinc-200 group-hover:text-rose-300 transition-colors break-all">{provider.email}</span>
-                    </a>
-                  )}
-                  {(provider.social_media?.website || provider.website) && (
-                    <a
-                      href={(provider.social_media?.website || provider.website).startsWith('http') ? (provider.social_media?.website || provider.website) : `https://${provider.social_media?.website || provider.website}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-950/50 border border-zinc-800/50 hover:border-rose-500/30 transition-all group"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
-                        <Globe className="w-4 h-4 text-rose-400" />
-                      </div>
-                      <span className="text-sm font-medium text-zinc-200 group-hover:text-rose-300 transition-colors">Website</span>
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* ProviderContactAndSocial — external trust & social links */}
+            {/* Contact & social — ProviderContactAndSocial handles phone/email/actions */}
             <ProviderContactAndSocial provider={provider} />
 
-            {/* External trust references — simplified */}
+            {/* External trust references */}
             {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider || provider.review_provider) && (
               <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl">
                 <CardHeader className="pb-3">
