@@ -15,11 +15,22 @@ test("hasPublicVerificationBadge accepts P411 or review URLs", () => {
 });
 
 test("publicVerificationBadgeWhere includes evergreen exempt branch", () => {
-  const where = publicVerificationBadgeWhere();
-  assert.ok(where);
-  const branches = (where as { OR: Record<string, unknown>[] }).OR;
-  assert.ok(branches.some((row) => row.verification_provider === "evergreen"));
-  assert.ok(branches.some((row) => row.p411_url && (row.p411_url as { not: null }).not === null));
+  const prevStrict = process.env.STRICT_VERIFICATION_GATE;
+  const prevPublic = process.env.PUBLIC_REQUIRE_VERIFICATION_BADGE;
+  delete process.env.STRICT_VERIFICATION_GATE;
+  delete process.env.PUBLIC_REQUIRE_VERIFICATION_BADGE;
+  try {
+    const where = publicVerificationBadgeWhere();
+    assert.ok(where);
+    const branches = (where as { OR: Record<string, unknown>[] }).OR;
+    assert.ok(branches.some((row) => row.verification_provider === "evergreen"));
+    assert.ok(branches.some((row) => row.p411_url && (row.p411_url as { not: null }).not === null));
+  } finally {
+    if (prevStrict === undefined) delete process.env.STRICT_VERIFICATION_GATE;
+    else process.env.STRICT_VERIFICATION_GATE = prevStrict;
+    if (prevPublic === undefined) delete process.env.PUBLIC_REQUIRE_VERIFICATION_BADGE;
+    else process.env.PUBLIC_REQUIRE_VERIFICATION_BADGE = prevPublic;
+  }
 });
 
 test("badge helpers", () => {
