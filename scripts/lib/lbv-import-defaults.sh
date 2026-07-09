@@ -3,6 +3,7 @@
 # Convention: 0 = unlimited (avoid for production cron; use explicit caps below).
 
 export PROFILES_PER_CITY="${PROFILES_PER_CITY:-250}"
+export EROS_TOP5_PROFILES_PER_CITY="${EROS_TOP5_PROFILES_PER_CITY:-500}"
 export PROFILES_PER_STATE="${PROFILES_PER_STATE:-1250}"
 export EROS_MAX_PAGES="${EROS_MAX_PAGES:-15000}"
 export TRYST_MAX_PROFILES_PER_CITY="${TRYST_MAX_PROFILES_PER_CITY:-250}"

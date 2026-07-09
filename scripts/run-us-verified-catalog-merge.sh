@@ -79,6 +79,7 @@ set +e
   write_flag "reconcile-eros"
   node "$REPO_DIR/scripts/reconcile-eros.mjs" \
     --profiles-per-city="$PROFILES_PER_CITY" \
+    --profiles-per-top5-city="$EROS_TOP5_PROFILES_PER_CITY" \
     --profiles-per-state="$PROFILES_PER_STATE" \
     --skip-deactivate
   write_flag "reconcile-tryst"

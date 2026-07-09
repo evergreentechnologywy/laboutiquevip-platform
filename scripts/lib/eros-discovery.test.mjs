@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { hubKey, matchTop5CityToHub, mergeHubCatalog } from "./eros-hub-resolve.mjs";
 
 // Minimal mirrors of import-eros hub helpers (keep in sync with scripts/import-eros.mjs)
 function hubKeyForUrl(url) {
@@ -46,5 +47,40 @@ describe("eros discovery hub matching", () => {
     const hub = { state: "carolinas", city: "carolinas" };
     assert.ok(urlBelongsToHub("https://www.eros.com/carolinas/charlotte/files/1.htm", hub));
     assert.ok(urlBelongsToHub("https://www.eros.com/carolinas/carolinas/files/1.htm", hub));
+  });
+});
+
+describe("eros top-5 city hub resolution", () => {
+  const sitemapHubs = [
+    { state: "florida", city: "miami" },
+    { state: "carolinas", city: "charlotte" },
+    { state: "new_york", city: "new_york" },
+    { state: "nevada", city: "las_vegas" },
+    { state: "texas", city: "dallas" },
+  ];
+
+  it("matches Census city names to Eros hub slugs", () => {
+    assert.deepEqual(matchTop5CityToHub("Miami", "FL", sitemapHubs), {
+      state: "florida",
+      city: "miami",
+    });
+    assert.deepEqual(matchTop5CityToHub("Charlotte", "NC", sitemapHubs), {
+      state: "carolinas",
+      city: "charlotte",
+    });
+    assert.deepEqual(matchTop5CityToHub("Las Vegas", "NV", sitemapHubs), {
+      state: "nevada",
+      city: "las_vegas",
+    });
+  });
+
+  it("merges sitemap hubs with top-5 priority flags without duplicating keys", () => {
+    const { hubs, top5Matched } = mergeHubCatalog(sitemapHubs, { includeTop5: true });
+    assert.equal(hubs.length, sitemapHubs.length);
+    assert.ok(top5Matched >= 3);
+    const miami = hubs.find((h) => hubKey(h) === "florida/miami");
+    assert.ok(miami?.priority);
+    assert.ok(miami?.sources.includes("sitemap"));
+    assert.ok(miami?.sources.includes("top5"));
   });
 });

@@ -53,7 +53,7 @@ set +e
 {
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog scan (cache-only) start ==="
   echo "cacheDir=${CATALOG_SCAN_CACHE_DIR}"
-  echo "eros caps: city=${PROFILES_PER_CITY} state=${PROFILES_PER_STATE} maxPages=${EROS_MAX_PAGES}"
+  echo "eros caps: city=${PROFILES_PER_CITY} top5=${EROS_TOP5_PROFILES_PER_CITY} state=${PROFILES_PER_STATE} maxPages=${EROS_MAX_PAGES}"
   echo "tryst caps: profilesPerCity=${TRYST_MAX_PROFILES_PER_CITY} citiesPerState=${TRYST_MAX_CITIES_PER_STATE}"
 
   node "$REPO_DIR/scripts/import-eros.mjs" \
@@ -62,6 +62,7 @@ set +e
     --max-pages="$EROS_MAX_PAGES" \
     --from-cities \
     --profiles-per-city="$PROFILES_PER_CITY" \
+    --profiles-per-top5-city="$EROS_TOP5_PROFILES_PER_CITY" \
     --profiles-per-state="$PROFILES_PER_STATE"
 
   write_scan_flag "tryst-import"

@@ -35,7 +35,8 @@
     "test:verification-match": "node --test scripts/lib/verification-match.test.mjs",
     "test:extract-social-links": "node --test scripts/lib/extract-social-links.test.mjs",
     "test:eros-profile-parse": "node --test scripts/lib/eros-profile-parse.test.mjs",
-    "test:catalog-sync-policy": "node --test scripts/lib/catalog-sync-policy.test.mjs"
+    "test:catalog-sync-policy": "node --test scripts/lib/catalog-sync-policy.test.mjs",
+    "test:eros-discovery": "node --test scripts/lib/eros-discovery.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1020.0",
