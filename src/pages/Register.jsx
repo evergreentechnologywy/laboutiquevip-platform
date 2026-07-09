@@ -51,7 +51,7 @@ export default function Register() {
 
       <button 
         onClick={() => navigate('/')} 
-        className="mt-8 flex items-center gap-2 mx-auto text-sm font-medium text-zinc-450 hover:text-zinc-100 transition-colors relative z-10"
+        className="mt-8 flex items-center gap-2 mx-auto text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors relative z-10"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to home

@@ -305,7 +305,7 @@ export default function Browse() {
       <section className="mx-auto max-w-7xl px-6 py-10">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-450">Results</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-400">Results</p>
             <h2 className="mt-3 text-3xl font-serif font-bold tracking-tight text-zinc-100">Live directory listings</h2>
             <p className="mt-3 text-sm leading-6 text-zinc-500">
               {isLoading ? "Loading results..." : `${total} listing${total === 1 ? "" : "s"} found`}{isFetching && !isLoading ? "   refreshing" : ""}
@@ -380,7 +380,7 @@ export default function Browse() {
               <Link to={createPageUrl("Pricing")}>
                 <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 transition hover:border-zinc-800">
                   <p className="text-sm font-semibold text-zinc-100">Provider placement</p>
-                  <p className="mt-2 text-xs leading-5 text-zinc-450 font-light">Looking to appear here? Review advertising and premium packages.</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-400 font-light">Looking to appear here? Review advertising and premium packages.</p>
                 </div>
               </Link>
             </div>
@@ -453,11 +453,11 @@ export default function Browse() {
             return (
               <Link key={card.title} to={card.href} className="group rounded-[32px] glass-panel glass-panel-hover p-5 hover-lift">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-400">
-                  <Icon className="h-5 w-5 text-rose-450" />
+                  <Icon className="h-5 w-5 text-rose-400" />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-zinc-100 group-hover:text-amber-400">{card.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-400 font-light">{card.description}</p>
-                <div className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-zinc-350 group-hover:text-amber-400 transition-colors">
+                <div className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-zinc-400 group-hover:text-amber-400 transition-colors">
                   {card.label}
                   <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
                 </div>
@@ -468,11 +468,11 @@ export default function Browse() {
 
         {totalPages > 1 && (
           <div className="mt-10 flex items-center justify-center gap-3">
-            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-350 hover:bg-zinc-900 hover:text-white" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-white" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
               Previous
             </Button>
             <span className="text-sm text-zinc-500">Page {page} of {totalPages}</span>
-            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-350 hover:bg-zinc-900 hover:text-white" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="outline" className="rounded-full border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-900 hover:text-white" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
               Next
             </Button>
           </div>

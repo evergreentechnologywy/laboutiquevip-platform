@@ -50,7 +50,7 @@ export default function Trust() {
           ))}
         </div>
 
-        <div className="mt-8 rounded-[32px] border border-zinc-900 bg-zinc-900/10 p-8 text-sm leading-7 text-zinc-450 font-light">
+        <div className="mt-8 rounded-[32px] border border-zinc-900 bg-zinc-900/10 p-8 text-sm leading-7 text-zinc-400 font-light">
           <p>
             Imported catalog listings require a P411 or review-site match before they appear in public browse. External links point to third-party services and remain subject to those providers&apos; policies.
           </p>
