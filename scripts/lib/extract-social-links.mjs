@@ -151,6 +151,15 @@ export function extractContactAndSocialFromMarkdown(markdown) {
     }
 
     if (!classified && /^https?:\/\//i.test(url)) {
+      // Skip image/CDN URLs — those are stored as photos, not social links
+      const lower = url.toLowerCase();
+      if (
+        /\.(jpg|jpeg|png|webp|gif|avif|bmp|svg)(\?|$)/i.test(lower) ||
+        /a4cdn\.(?:ch|org)\/profiles\//i.test(lower) ||
+        /media.*\.tryst/i.test(lower) ||
+        /tryst\.link\/media/i.test(lower) ||
+        /cdn\.(?:tryst|imgbox|image)/i.test(lower)
+      ) continue;
       extra_links.push(url);
     }
   }

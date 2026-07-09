@@ -37,7 +37,17 @@ export function ProviderContactAndSocial({ provider }) {
     null;
 
   const extraLinks = Array.isArray(provider?.social_media?.extra_links)
-    ? provider.social_media.extra_links.filter(Boolean)
+    ? provider.social_media.extra_links.filter(Boolean).filter((url) => {
+        // Skip image/CDN URLs — those are photos, not social links
+        const s = String(url).toLowerCase();
+        return !(
+          /\.(jpg|jpeg|png|webp|gif|avif|bmp|svg)(\?|$)/i.test(s) ||
+          /a4cdn\.(?:ch|org)\/profiles\//i.test(s) ||
+          /media.*\.tryst/i.test(s) ||
+          /tryst\.link\/media/i.test(s) ||
+          /cdn\.(?:tryst|imgbox|image)/i.test(s)
+        );
+      })
     : [];
 
   const hasContact =
