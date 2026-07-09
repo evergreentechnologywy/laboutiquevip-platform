@@ -180,6 +180,13 @@ function matchProviderSlugPath(pathname: string): string | null {
 }
 
 function resolveRequestIp(req: http.IncomingMessage): string | null {
+  // Always trust Cloudflare CF-Connecting-IP header (real client IP)
+  const cfIp = req.headers["cf-connecting-ip"];
+  const cfValue = Array.isArray(cfIp) ? cfIp[0] : cfIp;
+  if (cfValue?.trim()) {
+    return cfValue.trim();
+  }
+
   if (trustProxyForwardedIp()) {
     const forwarded = req.headers["x-forwarded-for"];
     const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
