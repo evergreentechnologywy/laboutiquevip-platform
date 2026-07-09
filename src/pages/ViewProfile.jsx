@@ -7,14 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Star, Shield, Crown, MapPin, Check, AlertTriangle, MessageSquare, Send,
-  CheckCircle2, Loader2, Video, ChevronLeft, ChevronRight, ExternalLink,
-  Globe, Mail, Phone, ArrowLeft,
+  Star, Shield, Crown, MapPin, Check, AlertTriangle,
+  Video, ChevronLeft, ChevronRight, ExternalLink,
+  Globe, Mail, Phone,
 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -53,9 +49,6 @@ export default function ViewProfile() {
   const queryId = searchParams.get("id");
   const providerId = resolveProviderId(profileSlug, queryId);
   const [selectedPhoto, setSelectedPhoto] = React.useState(0);
-  const [messageForm, setMessageForm] = React.useState({ name: "", email: "", message: "" });
-  const [sending, setSending] = React.useState(false);
-  const [sent, setSent] = React.useState(false);
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
@@ -79,23 +72,6 @@ export default function ViewProfile() {
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
   const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
-
-  const handleMessageSubmit = async (e) => {
-    e.preventDefault();
-    setSending(true);
-    try {
-      await base44.entities.Message.create({
-        provider_id: provider?.id || providerId,
-        sender_name: messageForm.name,
-        sender_email: messageForm.email,
-        message: messageForm.message,
-        subject: `Enquiry for ${provider?.display_name || "Provider"}`,
-      });
-      setSent(true);
-    } catch (err) {
-      console.error("Failed to send message", err);
-    } finally { setSending(false); }
-  };
 
   const prevPhoto = () => setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1));
   const nextPhoto = () => setSelectedPhoto((p) => (p === displayPhotos.length - 1 ? 0 : p + 1));
@@ -142,15 +118,16 @@ export default function ViewProfile() {
       {/* ── Photo Gallery Hero ── */}
       <section className="relative">
         <div className="relative mx-auto max-w-7xl">
-          <div className="relative aspect-[3/4] md:aspect-[16/7] overflow-hidden bg-zinc-900 md:rounded-b-[40px]">
+          <div className="relative aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/2] overflow-hidden bg-zinc-900 lg:rounded-b-[40px]">
             <ProfileImage
               src={displayPhotos[selectedPhoto]}
               alt={provider.display_name}
-              className="w-full h-full object-cover transition-opacity duration-300"
+              priority
+              className="w-full h-full"
             />
 
-            {/* gradient overlay for readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none" />
+            {/* subtle gradient overlay — keeps breadcrumbs/arrows readable without crushing the photo */}
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent pointer-events-none" />
 
             {/* nav arrows */}
             {displayPhotos.length > 1 && (
@@ -208,13 +185,13 @@ export default function ViewProfile() {
 
         {/* thumbnail strip */}
         {displayPhotos.length > 1 && (
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 -mt-2 md:-mt-4">
-            <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-none justify-center">
+          <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8 -mt-2 lg:-mt-4">
+            <div className="flex gap-1.5 sm:gap-2 lg:gap-3 overflow-x-auto pb-2 scrollbar-none justify-center">
               {displayPhotos.map((photo, index) => (
                 <button
                   key={index}
                   onClick={() => setSelectedPhoto(index)}
-                  className={`flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
+                  className={`flex-shrink-0 w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all duration-200 ${
                     selectedPhoto === index
                       ? 'border-rose-500 ring-2 ring-rose-500/30 scale-105 shadow-lg shadow-rose-500/20'
                       : 'border-zinc-800 hover:border-zinc-500 opacity-70 hover:opacity-100'
@@ -513,66 +490,6 @@ export default function ViewProfile() {
 
             {/* ProviderContactAndSocial — external trust & social links */}
             <ProviderContactAndSocial provider={provider} />
-
-            {/* Enquiry form */}
-            <Card className="bg-zinc-900/60 border-zinc-800 rounded-2xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-zinc-100 font-serif text-lg flex items-center gap-2">
-                  <span className="w-1.5 h-5 rounded-full bg-emerald-500" />
-                  Send an enquiry
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {sent ? (
-                  <div className="py-6 text-center">
-                    <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-3">
-                      <CheckCircle2 className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <p className="font-semibold text-zinc-100">Message sent</p>
-                    <p className="text-xs text-zinc-500 mt-1">The provider has been notified.</p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleMessageSubmit} className="space-y-3.5">
-                    <div>
-                      <Label htmlFor="sender-name" className="text-xs text-zinc-400 mb-1.5 block">Your Name</Label>
-                      <Input
-                        id="sender-name" value={messageForm.name}
-                        onChange={e => setMessageForm({...messageForm, name: e.target.value})}
-                        placeholder="Name" required
-                        className="bg-zinc-800/60 border-zinc-700 h-10 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="sender-email" className="text-xs text-zinc-400 mb-1.5 block">Email Address</Label>
-                      <Input
-                        id="sender-email" type="email" value={messageForm.email}
-                        onChange={e => setMessageForm({...messageForm, email: e.target.value})}
-                        placeholder="email@example.com" required
-                        className="bg-zinc-800/60 border-zinc-700 h-10 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="sender-msg" className="text-xs text-zinc-400 mb-1.5 block">Message</Label>
-                      <Textarea
-                        id="sender-msg" value={messageForm.message}
-                        onChange={e => setMessageForm({...messageForm, message: e.target.value})}
-                        placeholder="Inquire about availability or services..." required rows={4}
-                        className="bg-zinc-800/60 border-zinc-700 text-sm rounded-xl focus:border-rose-500/50 focus:ring-rose-500/10 resize-none"
-                      />
-                    </div>
-                    <Button
-                      type="submit" disabled={sending}
-                      className="w-full bg-zinc-100 text-zinc-900 hover:bg-white h-11 text-sm font-semibold rounded-xl transition-all"
-                    >
-                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-3.5 w-3.5 mr-2" /> Send Message</>}
-                    </Button>
-                    <p className="text-[10px] text-zinc-500 text-center leading-4">
-                      Enquiries are stored securely and sent directly to the provider.
-                    </p>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
 
             {/* External trust references — simplified */}
             {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider || provider.review_provider) && (
