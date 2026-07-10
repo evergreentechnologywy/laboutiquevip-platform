@@ -276,12 +276,10 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
       };
     }
 
-    const photoFilter = await buildPublicPhotoSearchFilter(context.prisma);
     const rows = await context.prisma.provider.findMany({
       where: {
         AND: [
           publicProviderVisibilityWhere(),
-          photoFilter,
           { location_state: { not: null } },
           { location_city: { not: null } },
           { NOT: { location_city: { equals: "Statewide", mode: "insensitive" } } },
