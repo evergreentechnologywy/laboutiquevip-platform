@@ -279,7 +279,7 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
     const rows = await context.prisma.provider.findMany({
       where: {
         status: "active",
-        verification_provider: { in: [...PUBLIC_VERIFICATION_PROVIDERS] },
+        verification_provider: { in: ["eros", "evergreen", "tryst"] as const },
         location_state: { not: null },
         location_city: { not: null },
         NOT: { location_city: { equals: "Statewide", mode: "insensitive" } },
