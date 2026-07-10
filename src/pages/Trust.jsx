@@ -12,10 +12,6 @@ const sections = [
     body: "Review Verified means we matched the listing to a profile on a review site such as The Erotic Review, PrivateDelights, or TheOtherBoard. We store links and aggregate signals only — not full review text.",
   },
   {
-    title: "Evergreen Elite",
-    body: "Agency roster models on our Evergreen Elite program are curated directly by La Boutique VIP. They are exempt from scrape import gates and carry a separate badge from P411/Review Verified.",
-  },
-  {
     title: "Premium placement",
     body: "Featured or premium placement is paid visibility only. It does not grant P411 Verified or Review Verified badges. Badges are not for sale.",
   },
@@ -26,9 +22,9 @@ export default function Trust() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
       <SEO
         title="Trust, Verification & Safety Standards | La Boutique VIP International"
-        description="Learn how P411 Verified, Review Verified, and Evergreen Elite badges work — and how premium placement differs from earned verification."
+        description="Learn how P411 Verified and Review Verified badges work — and how premium placement differs from earned verification."
         ogTitle="Trust & Verification Standards | La Boutique VIP"
-        ogDescription="P411 Verified, Review Verified, Evergreen Elite, and premium placement explained."
+        ogDescription="P411 Verified, Review Verified, and premium placement explained."
       />
       <section className="relative overflow-hidden border-b border-zinc-900/80 bg-[radial-gradient(circle_at_top,_rgba(244,63,94,0.12),_transparent_40%),linear-gradient(180deg,#09090b_0%,#121215_100%)]">
         <div className="mx-auto max-w-5xl px-6 py-20 text-center">
