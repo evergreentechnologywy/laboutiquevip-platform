@@ -45,7 +45,6 @@ function useDebounce(value, delay) {
 
 const trustNotes = [
   "P411 Verified and Review Verified badges are earned from external signals — not sold with placement.",
-  "Imported listings require a P411 or review-site match before they appear in browse.",
   "Rates and contact methods are supplied by advertisers and can change after publication.",
 ];
 
