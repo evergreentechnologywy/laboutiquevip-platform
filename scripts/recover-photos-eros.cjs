@@ -177,6 +177,28 @@ async function fetchOneJina(jinaUrl, attempt) {
   }
 }
 
+async function fetchWithProxy(erosUrl) {
+  const proxyUrl = process.env.BRD_PROXY_URL;
+  if (!proxyUrl) return null;
+  try {
+    // Use native fetch with proxy via undici dispatcher or http agent
+    const { ProxyAgent } = require("undici");
+    const agent = new ProxyAgent(proxyUrl);
+    const res = await fetch(erosUrl, {
+      dispatcher: agent,
+      headers: { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (isHomepageShell(text)) return null;
+    if (/i\.eros\.com\//i.test(text)) return text;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchMarkdown(erosUrl) {
   const urls = mirrorUrls(erosUrl);
   // Round-robin: attempt 0..N-1 across all https/http variants
@@ -293,7 +315,12 @@ async function processOne(prisma, s3, bucket, provider, stats) {
     return;
   }
   await sleep(DELAY_MS + Math.floor(Math.random() * 120));
-  const md = await fetchMarkdown(erosUrl);
+  let md = await fetchMarkdown(erosUrl);
+  // Bright Data ISP proxy fallback when Jina fails
+  if (!md && process.env.BRD_PROXY_URL) {
+    const proxyMd = await fetchWithProxy(erosUrl);
+    if (proxyMd) md = proxyMd;
+  }
   if (!md) {
     stats.failFetch += 1;
     console.log(`FAIL fetch ${provider.display_name}`);
