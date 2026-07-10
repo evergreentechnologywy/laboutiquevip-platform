@@ -8,7 +8,7 @@ const faqs = [
   { question: "How do reviews work?", answer: "Reviews can be left by users who have interacted with an advertiser. All reviews undergo moderation before publication to meet our community standards." },
   { question: "Is my data private?", answer: "We take privacy seriously. Personal information is used only as described in our Privacy Policy and is protected with industry-standard security measures." },
   { question: "How much does it cost?", answer: "We offer several advertising packages starting from a free tier. Premium placement and additional visibility features are available on paid plans. See our Pricing page for details." },
-  { question: "How do I pay?", answer: "Payments are processed through our secure checkout. We accept major credit cards. Ad credits are allocated immediately after purchase and invoicing is handled electronically." },
+  { question: "How do I pay?", answer: "We accept cryptocurrency payments only at this time — Bitcoin (BTC), Ethereum (ETH), and USDT (TRC-20). Ad credits are allocated immediately after confirmation and invoicing is handled electronically." },
   { question: "Can I get a refund?", answer: "Package fees are for advertising visibility placement. Refunds are handled on a case-by-case basis. Contact support for questions about your specific situation." },
   { question: "How do I report a profile?", answer: "Use the Contact page with \"Report\" in the subject, or email support@laboutiquevip.net. Include the profile URL and reason for reporting." },
 ];
