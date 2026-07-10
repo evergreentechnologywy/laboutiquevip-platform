@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Recover empty Provider.photos for Eros listings.
- * 1) Scrape Eros via Jina (retry + https mirror)
+ * 1) Scrape Eros via Jina (https+http retries, 60s timeout, backoff, Accept: text/plain)
  * 2) ALWAYS write i.eros.com CDN URLs to DB (frontend proxies via /api/eros-photo)
  * 3) Best-effort mirror to R2; upgrade DB paths when upload succeeds
  *
@@ -11,6 +11,7 @@
  * Usage (VPS):
  *   set -a; . ./.env; set +a
  *   NODE_PATH=... node scripts/recover-photos-eros.cjs --workers=8 --limit=0
+ * Flags: --jina-timeout-ms=60000 --jina-attempts=4 --jina-backoff-ms=900
  */
 "use strict";
 
@@ -39,6 +40,9 @@ const DELAY_MS = Number(argVal("--delay-ms", 250));
 const LIMIT = Number(argVal("--limit", 0));
 const OFFSET = Number(argVal("--offset", 0));
 const WORKERS = Math.max(1, Math.min(20, Number(argVal("--workers", 6))));
+const JINA_TIMEOUT_MS = Number(argVal("--jina-timeout-ms", process.env.JINA_TIMEOUT_MS || 60000));
+const JINA_ATTEMPTS = Math.max(1, Number(argVal("--jina-attempts", process.env.JINA_ATTEMPTS || 4)));
+const JINA_BACKOFF_MS = Number(argVal("--jina-backoff-ms", process.env.JINA_BACKOFF_MS || 900));
 const DRY = process.argv.includes("--dry-run");
 const CDN_ONLY = process.argv.includes("--cdn-only");
 const PUBLIC_BASE = process.env.S3_PUBLIC_BASE_URL || "https://www.laboutiquevip.net/api/r2-photo";
@@ -70,42 +74,117 @@ function resolveErosUrl(provider) {
 function mirrorUrls(erosUrl) {
   const bare = erosUrl.replace(/^https?:\/\//i, "").replace(/\?.*$/, "");
   const withQuery = erosUrl.replace(/^https?:\/\//i, "");
-  return [
+  // Prefer https then http; bare first, then original query if present
+  const urls = [
     `https://r.jina.ai/https://${bare}`,
     `https://r.jina.ai/http://${bare}`,
-    `https://r.jina.ai/https://${withQuery}`,
-    `https://r.jina.ai/http://${withQuery}`,
   ];
+  if (withQuery !== bare) {
+    urls.push(`https://r.jina.ai/https://${withQuery}`, `https://r.jina.ai/http://${withQuery}`);
+  }
+  return urls;
+}
+
+function isHomepageShell(text) {
+  if (!text || text.length < 800) return true;
+  // Generic Eros homepage / city hub shells without profile photo CDN or profile body
+  const hasPhotos = /i\.eros\.com\//i.test(text);
+  const hasProfileMarker =
+    /\/profile\//i.test(text) ||
+    /files\/\d+\.htm/i.test(text) ||
+    /(?:Phone|Call|Text|Email|About Me|My Rates|Services)\b/i.test(text);
+  if (
+    /Female Escorts & Companions in the US, UK and Canada/i.test(text) &&
+    !hasPhotos &&
+    !hasProfileMarker
+  ) {
+    return true;
+  }
+  if (
+    /Escort Directory|Browse by City|Find Escorts Near You/i.test(text) &&
+    !hasPhotos &&
+    !hasProfileMarker
+  ) {
+    return true;
+  }
+  // Jina error / empty proxy shells
+  if (/^Warning: Target URL returned error \d+/m.test(text)) return true;
+  if (/\bSITEMAP_FETCH_ERROR\b/.test(text)) return true;
+  if (/^Title:\s*$/m.test(text) && text.length < 1500 && !hasPhotos) return true;
+  return false;
+}
+
+function looksLikeProfileMarkdown(text) {
+  if (!text || isHomepageShell(text)) return false;
+  return (
+    /i\.eros\.com\//i.test(text) ||
+    /\/profile\//i.test(text) ||
+    /files\/\d+\.htm/i.test(text) ||
+    /(?:Phone|Call|Text|Email|About Me|My Rates)\b/i.test(text)
+  );
+}
+
+async function fetchOneJina(jinaUrl, attempt) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), JINA_TIMEOUT_MS);
+  try {
+    const res = await fetch(jinaUrl, {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; lbv-photo-recover/3.0)",
+        Accept: "text/plain",
+        "x-respond-with": "markdown",
+      },
+    });
+
+    if (res.status === 429) {
+      const raw = await res.text().catch(() => "");
+      let waitMs = Math.max(JINA_BACKOFF_MS, 8000) * (attempt + 1);
+      try {
+        const parsed = JSON.parse(raw);
+        const retrySec = Number(parsed?.retryAfter ?? 0);
+        if (Number.isFinite(retrySec) && retrySec > 0) waitMs = retrySec * 1000 + 500;
+      } catch {
+        /* keep default */
+      }
+      await sleep(waitMs);
+      return { ok: false, retry: true, text: null };
+    }
+
+    if (!res.ok) {
+      await sleep(JINA_BACKOFF_MS * (attempt + 1));
+      return { ok: false, retry: res.status >= 500, text: null };
+    }
+
+    const text = await res.text();
+    if (isHomepageShell(text)) {
+      // try next mirror / attempt; shell often means soft-block or wrong scheme
+      await sleep(JINA_BACKOFF_MS * (attempt + 1));
+      return { ok: false, retry: true, text: null, shell: true };
+    }
+    if (looksLikeProfileMarkdown(text)) {
+      return { ok: true, retry: false, text };
+    }
+    // non-shell but no profile markers — still retry other variants
+    await sleep(Math.floor(JINA_BACKOFF_MS * 0.5) * (attempt + 1));
+    return { ok: false, retry: true, text: null };
+  } catch {
+    await sleep(JINA_BACKOFF_MS * (attempt + 1));
+    return { ok: false, retry: true, text: null };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchMarkdown(erosUrl) {
-  for (const jina of mirrorUrls(erosUrl)) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45000);
-      try {
-        const res = await fetch(jina, {
-          signal: controller.signal,
-          headers: { "user-agent": "Mozilla/5.0 (compatible; lbv-photo-recover/2.0)" },
-        });
-        if (!res.ok) {
-          await sleep(800 * (attempt + 1));
-          continue;
-        }
-        const text = await res.text();
-        // reject generic homepage shells
-        if (text.length < 800) continue;
-        if (/Female Escorts & Companions in the US, UK and Canada/i.test(text) && !/i\.eros\.com\//i.test(text)) {
-          continue;
-        }
-        if (/i\.eros\.com\//i.test(text) || /\/profile\//i.test(text) || /files\/\d+\.htm/i.test(text)) {
-          return text;
-        }
-      } catch {
-        await sleep(600 * (attempt + 1));
-      } finally {
-        clearTimeout(timer);
-      }
+  const urls = mirrorUrls(erosUrl);
+  // Round-robin: attempt 0..N-1 across all https/http variants
+  for (let attempt = 0; attempt < JINA_ATTEMPTS; attempt++) {
+    for (const jina of urls) {
+      const result = await fetchOneJina(jina, attempt);
+      if (result.ok && result.text) return result.text;
+      // on non-retryable client error, still try other URL variants this attempt
     }
   }
   return null;
@@ -258,7 +337,7 @@ async function main() {
   const s3 = getS3();
   const bucket = (process.env.S3_BUCKET || "laboutiquevip-images").trim();
   console.log(
-    `recover start workers=${WORKERS} dry=${DRY} cdnOnly=${CDN_ONLY} s3=${Boolean(s3)} bucket=${bucket} secretLen=${(process.env.S3_SECRET_ACCESS_KEY || "").length}`,
+    `recover start workers=${WORKERS} dry=${DRY} cdnOnly=${CDN_ONLY} s3=${Boolean(s3)} bucket=${bucket} secretLen=${(process.env.S3_SECRET_ACCESS_KEY || "").length} jinaTimeout=${JINA_TIMEOUT_MS} jinaAttempts=${JINA_ATTEMPTS} jinaBackoff=${JINA_BACKOFF_MS}`,
   );
 
   // quick R2 probe
