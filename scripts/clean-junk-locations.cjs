@@ -22,7 +22,7 @@ function isJunkCity(val) {
 
 function isJunkState(val) {
   if (!val || typeof val !== "string") return false;
-  const s = val.trim();
+  const s = val.trim().toUpperCase();
   // Valid US states are 2 chars or a recognized name
   if (s.length === 2 && /^[A-Z]{2}$/.test(s)) return false;
   const validStates = new Set([
@@ -33,8 +33,15 @@ function isJunkState(val) {
     "NEW YORK","NORTH CAROLINA","NORTH DAKOTA","OHIO","OKLAHOMA","OREGON","PENNSYLVANIA",
     "RHODE ISLAND","SOUTH CAROLINA","SOUTH DAKOTA","TENNESSEE","TEXAS","UTAH","VERMONT",
     "VIRGINIA","WASHINGTON","WEST VIRGINIA","WISCONSIN","WYOMING",
+    // Common non-standard but acceptable
+    "CAROLINAS","DISTRICT OF COLUMBIA","DC",
   ]);
-  return !validStates.has(s.toUpperCase());
+  if (validStates.has(s)) return false;
+  // Any state value >4 chars that isn't a recognized name is almost certainly junk
+  if (s.length > 4) return true;
+  // Mixed case or lowercase is suspect for an abbreviation
+  if (/[a-z]/.test(val.trim())) return true;
+  return true; // not a valid state = junk
 }
 
 (async () => {
