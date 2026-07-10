@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import pkgS3 from "@aws-sdk/client-s3";
+import sharp from "sharp";
 
 const { S3Client, PutObjectCommand } = pkgS3;
 
@@ -83,8 +84,17 @@ export async function uploadSourcePhotosToR2({
   dryRun = false,
 }) {
   const stored = [];
+  const blurPlaceholders = [];
   let index = 0;
   const urls = Array.isArray(sourceUrls) ? sourceUrls.filter(allowedSourceUrl) : [];
+
+  // Image size variants to generate (width, suffix)
+  const VARIANTS = [
+    [150, "thumb"],
+    [400, "sm"],
+    [800, "md"],
+    [1200, "lg"],
+  ];
 
   for (const sourceUrl of urls) {
     let imageResponse;
@@ -104,28 +114,63 @@ export async function uploadSourcePhotosToR2({
     const buffer = Buffer.from(await imageResponse.arrayBuffer());
     if (buffer.length < 2000) continue;
 
-    const ext = EXT_BY_TYPE[contentType.split(";")[0].toLowerCase()] || "jpg";
-    const filename = `${String(index).padStart(3, "0")}.${ext}`;
-    const key = `${getKeyPrefix()}/${providerId}/${filename}`;
-    const publicUrl = `${getPublicBase()}/${providerId}/${filename}`;
+    // Generate blur placeholder (10px thumbnail as base64 data URL)
+    let blurDataURL = null;
+    try {
+      const blurBuf = await sharp(buffer).resize(10).jpeg({ quality: 20 }).toBuffer();
+      blurDataURL = `data:image/jpeg;base64,${blurBuf.toString("base64")}`;
+    } catch { /* skip blur if sharp fails */ }
 
-    if (!dryRun) {
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: buffer,
-          ContentType: contentType,
-          CacheControl: "public, max-age=31536000, immutable",
-        }),
-      );
+    // Upload full-size WebP as primary
+    const ext = "webp";
+    const baseFilename = String(index).padStart(3, "0");
+    const prefix = getKeyPrefix();
+    const baseUrl = getPublicBase();
+
+    let primaryUrl = null;
+
+    for (const [width, suffix] of VARIANTS) {
+      let variantBuffer;
+      try {
+        variantBuffer = await sharp(buffer)
+          .resize(width, undefined, { fit: "cover", withoutEnlargement: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+      } catch {
+        continue;
+      }
+
+      const filename = `${baseFilename}-${suffix}.${ext}`;
+      const key = `${prefix}/${providerId}/${filename}`;
+      const publicUrl = `${baseUrl}/${providerId}/${filename}`;
+
+      if (!dryRun) {
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: key,
+            Body: variantBuffer,
+            ContentType: "image/webp",
+            CacheControl: "public, max-age=31536000, immutable",
+          }),
+        );
+      }
+
+      // Use the medium size (800w) as the primary display URL
+      if (width === 800) primaryUrl = publicUrl;
+      if (width === 1200 && !primaryUrl) primaryUrl = publicUrl;
     }
-    stored.push(publicUrl);
+
+    if (primaryUrl) {
+      stored.push(primaryUrl);
+      if (blurDataURL) blurPlaceholders.push(blurDataURL);
+    }
+
     index += 1;
     if (stored.length >= maxPhotos) break;
   }
 
-  return stored;
+  return { photoUrls: stored, blurPlaceholders };
 }
 
 function mimeFromPath(filePath) {

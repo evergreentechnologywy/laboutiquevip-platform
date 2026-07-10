@@ -148,10 +148,11 @@ async function uploadPhotos(providerId, sourceUrls, dryRun = false) {
   if (!s3 || !sourceUrls?.length) return [];
   const bucket = process.env.S3_BUCKET || process.env.CF_R2_BUCKET || "laboutiquevip";
   try {
-    const r2Urls = await uploadSourcePhotosToR2({
+    const result = await uploadSourcePhotosToR2({
       s3, bucket, providerId, sourceUrls,
       maxPhotos: MAX_PROVIDER_PHOTOS, dryRun,
     });
+    const r2Urls = result.photoUrls || result;
     stats.photosUploaded += r2Urls.length;
     return r2Urls;
   } catch (err) {
