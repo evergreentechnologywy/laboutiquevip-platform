@@ -9,7 +9,7 @@ export function getTrystCrawlLimits(env = process.env) {
   return {
     maxProfilesPerCity: parseImportLimit(env.TRYST_MAX_PROFILES_PER_CITY, 250),
     maxCitiesPerState: parseImportLimit(env.TRYST_MAX_CITIES_PER_STATE, 5),
-    maxListingPagesPerCity: parseImportLimit(env.TRYST_MAX_LISTING_PAGES_PER_CITY, 25),
+    maxListingPagesPerCity: parseImportLimit(env.TRYST_MAX_LISTING_PAGES_PER_CITY, 50),
     delayMs: Number(env.TRYST_DELAY_MS ?? "800"),
   };
 }
