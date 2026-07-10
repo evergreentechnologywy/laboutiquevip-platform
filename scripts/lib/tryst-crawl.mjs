@@ -71,10 +71,12 @@ export function extractListingPaginationLinks(markdown, currentUrl) {
 
 export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits) {
   const profileLimit = limits.maxProfilesPerCity;
-  const maxListingPages = limits.maxListingPagesPerCity;
+  const maxListingPages = limits.maxListingPagesPerCity || 50; // safety cap, auto-stop below
   const profileLinks = new Set();
   const visitedPages = new Set();
   const queue = [cityUrl.replace(/\/$/, "")];
+  let emptyPages = 0; // track consecutive pages with 0 new profiles
+  const MAX_EMPTY_PAGES = 2; // stop after 2 empty pages → reached end
 
   while (queue.length > 0 && visitedPages.size < maxListingPages) {
     const pageUrl = queue.shift();
@@ -84,12 +86,24 @@ export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits)
     const listingText = await fetchPageText(pageUrl);
     if (!listingText) continue;
 
+    let newOnThisPage = 0;
     for (const profileUrl of extractProfileLinksFromMarkdown(listingText, 0)) {
       if (profileLimit > 0 && profileLinks.size >= profileLimit) break;
-      profileLinks.add(profileUrl);
+      if (!profileLinks.has(profileUrl)) {
+        profileLinks.add(profileUrl);
+        newOnThisPage++;
+      }
     }
 
     if (profileLimit > 0 && profileLinks.size >= profileLimit) break;
+
+    // Auto-stop: if consecutive pages yield 0 new profiles, we've reached the end
+    if (newOnThisPage === 0) {
+      emptyPages++;
+      if (emptyPages >= MAX_EMPTY_PAGES) break;
+    } else {
+      emptyPages = 0;
+    }
 
     for (const nextPage of extractListingPaginationLinks(listingText, pageUrl)) {
       if (!visitedPages.has(nextPage) && !queue.includes(nextPage)) {
@@ -98,6 +112,7 @@ export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits)
     }
   }
 
+  console.log(`  [city-crawl] ${cityUrl.split("/").slice(-2).join("/")}: ${profileLinks.size} profiles / ${visitedPages.size} pages`);
   return sliceToLimit([...profileLinks], profileLimit);
 }
 

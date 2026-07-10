@@ -34,7 +34,7 @@ cd "$REPO"
 source ./.env 2>/dev/null
 export NODE_PATH="$PWD/node_modules"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
-export TRYST_MAX_LISTING_PAGES_PER_CITY="${TRYST_MAX_LISTING_PAGES_PER_CITY:-3}"
+# No TRYST_MAX_LISTING_PAGES_PER_CITY cap — auto-stop after 2 empty pages, 50 max
 export NODE_OPTIONS="--max-old-space-size=1024"
 
 STATES=(
