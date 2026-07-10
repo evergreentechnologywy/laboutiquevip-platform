@@ -19,6 +19,7 @@ export const PAGES = {
     "Privacy": React.lazy(() => import('./pages/Privacy')),
     "Contact": React.lazy(() => import('./pages/Contact')),
     "FAQ": React.lazy(() => import('./pages/FAQ')),
+    "DMCA": React.lazy(() => import('./pages/DMCA')),
 };
 
 export const pagesConfig = {
