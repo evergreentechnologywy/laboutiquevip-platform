@@ -36,36 +36,11 @@ export function ProfileImage({
 }) {
   const [error, setError] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
-  const imgRef = React.useRef(null);
-  const observerRef = React.useRef(null);
 
   React.useEffect(() => {
     setError(false);
     setLoaded(false);
   }, [src]);
-
-  // Intersection Observer for true lazy loading
-  React.useEffect(() => {
-    if (priority || !imgRef.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          const img = imgRef.current;
-          if (img && img.dataset.src) {
-            img.src = img.dataset.src;
-            if (img.dataset.srcset) img.srcset = img.dataset.srcset;
-            img.removeAttribute("data-src");
-            img.removeAttribute("data-srcset");
-          }
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(imgRef.current);
-    observerRef.current = observer;
-    return () => observer.disconnect();
-  }, [src, priority]);
 
   const initials = alt
     ? alt
@@ -93,8 +68,6 @@ export function ProfileImage({
 
   const isR2 = src.includes("/api/r2-photo/");
   const srcSetVal = srcSet(src);
-  const effectiveSrc = priority ? src : undefined;
-  const effectiveSrcSet = priority ? srcSetVal : undefined;
 
   return (
     <div className={`relative overflow-hidden bg-zinc-900 ${className}`}>
@@ -122,11 +95,8 @@ export function ProfileImage({
       </AnimatePresence>
 
       <img
-        ref={imgRef}
-        src={effectiveSrc}
-        srcSet={effectiveSrcSet}
-        data-src={!priority ? src : undefined}
-        data-srcset={!priority ? srcSetVal : undefined}
+        src={src}
+        srcSet={srcSetVal}
         alt={alt || ""}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
