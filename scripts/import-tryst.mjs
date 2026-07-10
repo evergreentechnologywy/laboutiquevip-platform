@@ -338,9 +338,10 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
 
   const existing = await prisma.provider.findFirst({
     where: {
+      verification_provider: "tryst",
       OR: [
-        { verification_provider: "tryst", verification_url: profile.sourceUrl },
         { verification_url: profile.sourceUrl },
+        { verification_username: profile.slug },
       ],
     },
   });
