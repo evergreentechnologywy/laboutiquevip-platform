@@ -196,11 +196,17 @@ function parseProfilePage(markdown, profileUrl) {
     const validCity = parts[0] && parts[0].length >= 2 && parts[0].length <= 50 &&
       !/^(?:https?|ftp|www|\.\.|[\[\](){}*#]|s\]\()/i.test(parts[0]);
     location_city = validCity ? parts[0] : null;
-    // State: 2-letter code or full name ≤ 30 chars
+    // State: validate against official US abbreviations only — reject junk bio text
     const stateCandidate = parts[1]?.trim().replace(/[^a-zA-Z\s]/g, "").trim();
-    location_state = stateCandidate && stateCandidate.length >= 2 && stateCandidate.length <= 30
-      ? stateCandidate.toUpperCase()
-      : null;
+    const validStates = new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
+    if (stateCandidate && stateCandidate.length === 2 && validStates.has(stateCandidate.toUpperCase())) {
+      location_state = stateCandidate.toUpperCase();
+    } else {
+      // Try matching full state name
+      const fullName = stateCandidate?.toUpperCase();
+      const fullNames = { "ALABAMA":"AL","ALASKA":"AK","ARIZONA":"AZ","ARKANSAS":"AR","CALIFORNIA":"CA","COLORADO":"CO","CONNECTICUT":"CT","DELAWARE":"DE","FLORIDA":"FL","GEORGIA":"GA","HAWAII":"HI","IDAHO":"ID","ILLINOIS":"IL","INDIANA":"IN","IOWA":"IA","KANSAS":"KS","KENTUCKY":"KY","LOUISIANA":"LA","MAINE":"ME","MARYLAND":"MD","MASSACHUSETTS":"MA","MICHIGAN":"MI","MINNESOTA":"MN","MISSISSIPPI":"MS","MISSOURI":"MO","MONTANA":"MT","NEBRASKA":"NE","NEVADA":"NV","NEW HAMPSHIRE":"NH","NEW JERSEY":"NJ","NEW MEXICO":"NM","NEW YORK":"NY","NORTH CAROLINA":"NC","NORTH DAKOTA":"ND","OHIO":"OH","OKLAHOMA":"OK","OREGON":"OR","PENNSYLVANIA":"PA","RHODE ISLAND":"RI","SOUTH CAROLINA":"SC","SOUTH DAKOTA":"SD","TENNESSEE":"TN","TEXAS":"TX","UTAH":"UT","VERMONT":"VT","VIRGINIA":"VA","WASHINGTON":"WA","WEST VIRGINIA":"WV","WISCONSIN":"WI","WYOMING":"WY","DISTRICT OF COLUMBIA":"DC" };
+      location_state = fullNames[fullName] || null;
+    }
   }
 
   // Extract only actual profile content — strip site boilerplate
