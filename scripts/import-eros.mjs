@@ -561,12 +561,13 @@ async function importProfile(profile, markdown = "") {
       is_premium: false,
     },
   });
-  // Upload photos immediately on creation
+  // Upload photos immediately on creation — only overwrite if R2 succeeds
   if (profile.photos?.length) {
     const r2Urls = await uploadPhotos(created.id, profile.photos, false);
     if (r2Urls.length) {
       await prisma.provider.update({ where: { id: created.id }, data: { photos: r2Urls } });
     }
+    // DB already has CDN URLs from create — keep them if R2 failed
   }
 }
 
