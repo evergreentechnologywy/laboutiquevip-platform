@@ -230,7 +230,7 @@ export default function Browse() {
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-              className="grid gap-3 rounded-[2rem] bg-white/5 backdrop-blur-2xl border border-white/10 p-5 sm:grid-cols-3 shadow-2xl"
+              className="grid gap-4 rounded-[2rem] bg-white/5 backdrop-blur-2xl border border-white/10 p-5 sm:grid-cols-3 shadow-2xl"
             >
               <StatCard label="Live listings" value={isLoading ? <span aria-hidden="true" className="animate-pulse">...</span> : `${total}`} helper="Approved & active" />
               <StatCard label="Trust layer" value="Checked" helper="Verification disclosure" />
@@ -589,10 +589,10 @@ export default function Browse() {
 
 function StatCard({ label, value, helper }) {
   return (
-    <div className="rounded-3xl border border-white/5 bg-zinc-950/40 p-5 transition-all duration-300 hover:bg-white/[0.04]">
-      <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500">{label}</p>
-      <p className="mt-3 text-3xl font-serif font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-xs font-medium text-zinc-400">{helper}</p>
+    <div className="rounded-3xl border border-white/5 bg-zinc-950/40 p-5 transition-all duration-300 hover:bg-white/[0.04] overflow-hidden min-w-0 flex-shrink-0">
+      <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500 truncate">{label}</p>
+      <p className="mt-3 text-base font-serif font-bold tracking-tight text-white truncate">{value}</p>
+      <p className="mt-2 text-xs font-medium text-zinc-400 truncate">{helper}</p>
     </div>
   );
 }
