@@ -32,6 +32,9 @@ const onlyId = process.argv.find((a) => a.startsWith("--id="))?.split("=")[1];
 const idsFile = process.argv.find((a) => a.startsWith("--ids-file="))?.split("=")[1];
 const dryRun = process.argv.includes("--dry-run");
 const missingOnly = process.argv.includes("--missing-only");
+const skipFile = process.argv.find((a) => a.startsWith("--skip-file="))?.split("=")[1]
+  || path.join("/var/log/laboutiquevip", "tryst-r2-skip.ids");
+const persistSkips = !process.argv.includes("--no-persist-skips");
 
 const PUBLIC_BASE = process.env.S3_PUBLIC_BASE_URL || "https://www.laboutiquevip.net/api/r2-photo";
 const KEY_PREFIX = process.env.S3_KEY_PREFIX || "laboutiquevip/providers";
@@ -172,10 +175,48 @@ function expandTrystUploadCandidates(url) {
   const value = String(url || "").trim();
   if (!value) return [];
   const match = value.match(/\/(small|medium|large)\.(avif|jpe?g|webp|png)$/i);
-  if (!match) return [value];
-  const ext = match[2];
+  if (!match) {
+    // Bare UUID asset: try common size/ext derivatives when present on CDN.
+    const bare = value.match(/^(https?:\/\/.+\/photos\/[0-9a-f-]{16,})(?:\.(avif|jpe?g|webp|png))?$/i);
+    if (!bare) return [value];
+    const root = bare[1];
+    const out = [value];
+    for (const size of ["large", "medium", "small"]) {
+      for (const ext of ["avif", "jpeg", "jpg", "webp"]) {
+        out.push(`${root}/${size}.${ext}`);
+      }
+    }
+    return [...new Set(out)];
+  }
+  const ext = match[2].toLowerCase();
   const base = value.slice(0, match.index);
-  return ["large", "medium", "small"].map((size) => `${base}/${size}.${ext}`);
+  const alts = ext === "avif" ? ["avif", "jpeg", "jpg"] : ext.startsWith("jp") ? ["jpeg", "jpg", "avif"] : [ext, "avif", "jpeg"];
+  const out = [];
+  for (const size of ["large", "medium", "small"]) {
+    for (const e of alts) out.push(`${base}/${size}.${e}`);
+  }
+  return [...new Set(out)];
+}
+
+function loadSkipIds(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return new Set();
+    return new Set(
+      fs.readFileSync(filePath, "utf8").split(/\r?\n/).map((l) => l.trim()).filter(Boolean),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function persistSkipId(filePath, id) {
+  if (!persistSkips || !id) return;
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.appendFileSync(filePath, `${id}\n`);
+  } catch (err) {
+    console.warn(`WARN could not persist skip ${id}: ${err.message}`);
+  }
 }
 
 function needsTrystPhotoRefresh(photos) {
@@ -220,13 +261,15 @@ async function main() {
   const hasNoPhotos = (p) => !Array.isArray(p.photos) || p.photos.length === 0;
   const hasExistingTrystCdn = (p) =>
     (Array.isArray(p.photos) ? p.photos : []).some((u) => TRST_HOST_RE.test(String(u)));
+  const skipIds = loadSkipIds(skipFile);
   // Prefer providers that already have Tryst CDN hotlinks (high success upload),
   // then empty galleries that need a live scrape. --missing-only restricts to empty.
   const targets = (missingOnly ? providers.filter(hasNoPhotos) : providers.filter((p) => needsTrystPhotoRefresh(p.photos)))
+    .filter((p) => !skipIds.has(p.id))
     .sort((a, b) => Number(hasExistingTrystCdn(b)) - Number(hasExistingTrystCdn(a)) || Number(hasNoPhotos(b)) - Number(hasNoPhotos(a)));
   const slice = limit > 0 ? targets.slice(offset, offset + limit) : targets.slice(offset);
   console.log(
-    `tryst_r2_targets=${providers.length} needs_refresh=${targets.length} no_photos=${providers.filter(hasNoPhotos).length} processing=${slice.length} dryRun=${dryRun} missingOnly=${missingOnly}`,
+    `tryst_r2_targets=${providers.length} needs_refresh=${targets.length} skipped_ids=${skipIds.size} no_photos=${providers.filter(hasNoPhotos).length} processing=${slice.length} dryRun=${dryRun} missingOnly=${missingOnly}`,
   );
 
   let updated = 0;
@@ -252,6 +295,8 @@ async function main() {
     const selected = extractTrystPhotos(markdown, provider.photos);
     if (selected.length === 0) {
       failed += 1;
+      persistSkipId(skipFile, provider.id);
+      skipIds.add(provider.id);
       console.log(`FAIL no-tryst-photos ${provider.display_name}`);
       continue;
     }
@@ -259,6 +304,8 @@ async function main() {
     const storedUrls = await uploadPhotos(s3, bucket, provider.id, selected);
     if (storedUrls.length === 0) {
       failed += 1;
+      persistSkipId(skipFile, provider.id);
+      skipIds.add(provider.id);
       console.log(`FAIL no-upload ${provider.display_name}`);
       continue;
     }
