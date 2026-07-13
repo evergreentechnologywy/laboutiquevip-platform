@@ -251,7 +251,7 @@ async function main() {
     if (!dryRun) {
       await prisma.$executeRawUnsafe(
         `UPDATE "Provider" SET photos = $1::jsonb, verification_provider = 'tryst',
-         verification_url = COALESCE(CASE WHEN verification_url ILIKE '%tryst.link%' THEN verification_url ELSE NULL END, $2),
+         verification_url = COALESCE(CASE WHEN verification_url ILIKE '%tryst.link%' THEN verification_url ELSE NULL END, $2, verification_url),
          updated_date = NOW() WHERE id = $3::uuid`,
         JSON.stringify(storedUrls),
         trystUrl,
