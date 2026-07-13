@@ -225,8 +225,7 @@ export function resolvePublicPhotoUrl(src, providerId) {
   }
 
   if (isTrystImageUrl(value)) {
-    const preferred = expandTrystSizeVariants(value)[0] || value;
-    const params = new URLSearchParams({ url: preferred });
+    const params = new URLSearchParams({ url: value });
     if (providerId) params.set("providerId", String(providerId));
     return `/api/tryst-photo?${params.toString()}`;
   }
