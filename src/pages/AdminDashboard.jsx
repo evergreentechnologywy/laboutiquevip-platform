@@ -23,21 +23,18 @@ export default function AdminDashboard() {
   const [adminNotes, setAdminNotes] = React.useState("");
   const queryClient = useQueryClient();
 
+  // Auth/role gating is handled by <RequireRole roles={['admin']} />.
   React.useEffect(() => {
-    const loadUser = async () => {
+    let cancelled = false;
+    (async () => {
       try {
         const currentUser = await base44.auth.me();
-        if (currentUser.role !== 'admin') {
-          window.location.href = '/';
-          return;
-        }
-        setUser(currentUser);
+        if (!cancelled) setUser(currentUser);
       } catch {
-        // Ensure unauthorized sessions are redirected consistently.
-        window.location.href = '/login?next=/admindashboard';
+        // RequireRole redirects unauthenticated users.
       }
-    };
-    loadUser();
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const { data: allProviders = [], isLoading } = useQuery({

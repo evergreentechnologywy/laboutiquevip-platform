@@ -1,6 +1,7 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { useAuth as useClerkAuth, useUser as useClerkUser } from '@clerk/react';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useAuth as useClerkAuth, useUser as useClerkUser } from "@clerk/react";
+import { buildLoginUrl, currentAppPath } from "@/lib/authUrls";
 
 const AuthContext = createContext();
 
@@ -11,9 +12,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(false);
+  const [isLoadingPublicSettings] = useState(false);
   const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null);
+  const [appPublicSettings] = useState(null);
 
   const checkAppState = async () => {
     setAuthError(null);
@@ -42,10 +43,13 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
         base44.auth.clearToken();
       }
-    } catch {
+    } catch (err) {
       setUser(null);
       setIsAuthenticated(false);
       base44.auth.clearToken();
+      if (err?.status === 404 || err?.code === "user_not_registered") {
+        setAuthError({ type: "user_not_registered" });
+      }
     } finally {
       setIsLoadingAuth(false);
     }
@@ -61,26 +65,29 @@ export const AuthProvider = ({ children }) => {
     base44.auth.clearToken();
     await signOut();
     if (shouldRedirect) {
-      window.location.href = '/';
+      window.location.href = "/";
     }
   };
 
-  const navigateToLogin = () => {
-    window.location.href = '/login';
+  const navigateToLogin = (next) => {
+    const target = next || currentAppPath();
+    window.location.href = buildLoginUrl(target);
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings,
-      logout,
-      navigateToLogin,
-      checkAppState,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoadingAuth,
+        isLoadingPublicSettings,
+        authError,
+        appPublicSettings,
+        logout,
+        navigateToLogin,
+        checkAppState,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -88,6 +95,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

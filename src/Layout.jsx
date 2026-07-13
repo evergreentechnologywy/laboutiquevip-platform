@@ -20,7 +20,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { base44 } from "@/api/base44Client";
+import { base44 } from "@/api/base44Client"
+import { buildLoginUrl, currentAppPath } from "@/lib/authUrls";;
 import { Footer } from "@/components/Footer";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -322,7 +323,7 @@ export default function Layout({ children, currentPageName }) {
                       </>
                     ) : !isAuthPage && (
                       <button
-                        onClick={() => base44.auth.redirectToLogin()}
+                        onClick={() => { window.location.href = buildLoginUrl(currentAppPath()); }}
                         className="min-h-11 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
                       >
                         Sign In

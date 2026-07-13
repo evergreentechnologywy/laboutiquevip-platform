@@ -16,6 +16,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     afterSignOutUrl="/"
     signInUrl="/login"
     signUpUrl="/register"
+    signInFallbackRedirectUrl="/auth/continue"
+    signUpFallbackRedirectUrl="/auth/continue"
     localization={{
       signIn: {
         start: {

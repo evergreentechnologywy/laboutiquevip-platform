@@ -1,18 +1,16 @@
-// @ts-nocheck
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buildLoginUrl } from "@/lib/authUrls";
+import { buildLoginUrl, defaultLandingForRole, sanitizeNextUrl } from "@/lib/authUrls";
 
 /**
- * Gate dashboard routes.
- * Clerk = identity; Postgres user.role = authorization source of truth.
+ * Post-Clerk landing: wait for Postgres role, then route to ?next= or role default.
  */
-export function RequireRole({ roles, children, loginNext }) {
+export default function AuthContinue() {
   const { user, isAuthenticated, isLoadingAuth } = useAuth();
   const location = useLocation();
-  const nextPath = loginNext || `${location.pathname}${location.search || ""}`;
+  const next = sanitizeNextUrl(new URLSearchParams(location.search).get("next"));
 
   if (isLoadingAuth) {
     return (
@@ -23,12 +21,8 @@ export function RequireRole({ roles, children, loginNext }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={buildLoginUrl(nextPath)} replace />;
+    return <Navigate to={buildLoginUrl(next)} replace />;
   }
 
-  if (!roles.includes(user?.role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
+  return <Navigate to={defaultLandingForRole(user?.role, next)} replace />;
 }

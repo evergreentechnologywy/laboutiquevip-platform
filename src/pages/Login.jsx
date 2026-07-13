@@ -1,27 +1,22 @@
-import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { SignIn } from '@clerk/react';
-import { Crown, ArrowLeft } from 'lucide-react';
-import { createPageUrl } from '@/utils';
-import { SEO } from '@/components/SEO';
-import { clerkAppearance } from '@/lib/clerkAppearance';
-
-function sanitizeNextUrl(rawNext) {
-  if (!rawNext || typeof rawNext !== "string") return "/";
-  if (!rawNext.startsWith("/")) return "/";
-  if (rawNext.startsWith("//")) return "/";
-  return rawNext;
-}
+import React from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { SignIn } from "@clerk/react";
+import { Crown, ArrowLeft } from "lucide-react";
+import { createPageUrl } from "@/utils";
+import { SEO } from "@/components/SEO";
+import { clerkAppearance } from "@/lib/clerkAppearance";
+import { buildAuthContinueUrl, buildRegisterUrl, sanitizeNextUrl } from "@/lib/authUrls";
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const next = sanitizeNextUrl(new URLSearchParams(location.search).get("next"));
-  const signUpUrl = `/register${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+  const continueUrl = buildAuthContinueUrl(next);
+  const signUpUrl = buildRegisterUrl(next);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-100 px-4 py-12 selection:bg-rose-500/35 selection:text-white">
-      <SEO 
+      <SEO
         title="Sign In | La Boutique VIP International"
         description="Sign in to your La Boutique VIP account to manage your provider profile or browse verified listings."
         ogTitle="Sign In | La Boutique VIP"
@@ -44,14 +39,17 @@ export default function Login() {
           routing="path"
           path="/login"
           signUpUrl={signUpUrl}
-          forceRedirectUrl={next}
-          signUpForceRedirectUrl={next}
+          forceRedirectUrl={continueUrl}
+          fallbackRedirectUrl={continueUrl}
+          signUpForceRedirectUrl={continueUrl}
+          signUpFallbackRedirectUrl={continueUrl}
           appearance={clerkAppearance}
         />
       </div>
 
-      <button 
-        onClick={() => navigate('/')} 
+      <button
+        type="button"
+        onClick={() => navigate("/")}
         className="mt-8 flex items-center gap-2 mx-auto text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors relative z-10"
       >
         <ArrowLeft className="h-4 w-4" />
