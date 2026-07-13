@@ -27,4 +27,13 @@ assert(gallery[0].includes("/api/r2-photo/"), "R2 first");
 assert(gallery.some((u) => u.includes("eros.com")), "keeps eros");
 assert(gallery.some((u) => isTrystImageUrl(u)), "keeps tryst");
 
+
+const proxied = {
+  id: "3",
+  display_name: "proxied",
+  photos: ["/api/tryst-photo?url=https%3A%2F%2Fmedia-v2.tryst.a4cdn.org%2Fx%2Flarge.avif"],
+};
+assert(!!getPrimaryProfilePhoto(proxied), "already-proxied tryst must display");
+assert(getPrimaryProfilePhoto(proxied).includes("/api/tryst-photo"), "passthrough proxy");
+
 console.log("ok profile photo display routing");

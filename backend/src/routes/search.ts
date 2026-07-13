@@ -12,6 +12,7 @@ import {
   stateDisplayName,
 } from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
+import { withPublicPhotos } from "../lib/publicPhotoUrls.js";
 
 interface SearchRouteContext {
   prisma: any;
@@ -234,7 +235,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       totalPages: Math.max(1, Math.ceil(Math.max(0, total - duplicateCount) / query.limit)),
       maxRate,
       cityGroups,
-      items: dedupedProviders,
+      items: dedupedProviders.map((provider: any) => withPublicPhotos(provider)),
       },
     };
   } catch (error) {

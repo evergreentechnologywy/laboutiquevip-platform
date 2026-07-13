@@ -6,6 +6,7 @@ import {
   publicProviderVisibilityWhere,
   publicSearchCacheHeaders,
 } from "./providerVisibility.js";
+import { withPublicPhotos } from "../lib/publicPhotoUrls.js";
 
 const publicProviderDetailSelect = {
   ...publicProviderProfileSelect,
@@ -87,7 +88,7 @@ export async function getProviderBySlugHandler(
     200,
     sanitizeProviderContactForAudience(
       {
-        ...provider,
+        ...withPublicPhotos(provider),
         public_slug: legacyProviderSlug(provider),
       },
       { exposeImportedContact: true },
