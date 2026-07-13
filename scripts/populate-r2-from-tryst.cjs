@@ -210,7 +210,7 @@ function loadSkipIds(filePath) {
 }
 
 function persistSkipId(filePath, id) {
-  if (!persistSkips || !id) return;
+  if (!persistSkips || !id || dryRun) return;
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.appendFileSync(filePath, `${id}\n`);
