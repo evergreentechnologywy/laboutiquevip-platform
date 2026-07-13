@@ -80,6 +80,10 @@ const options = {
   maxProfiles: parseImportLimit(args.get("max-profiles"), 0),
   profilesPerCity: parseImportLimit(args.get("profiles-per-city") ?? process.env.PROFILES_PER_CITY, 250),
   profilesPerState: parseImportLimit(args.get("profiles-per-state") ?? process.env.PROFILES_PER_STATE, 1250),
+  profilesPerTop5City: parseImportLimit(
+    args.get("profiles-per-top5-city") ?? process.env.EROS_TOP5_PROFILES_PER_CITY,
+    500,
+  ),
   startUrl: args.get("start-url") ?? null,
   fromCities: args.has("from-cities"),
   // --hubs=florida/miami,carolinas/carolinas — bound a --from-cities run to specific hubs
@@ -572,8 +576,13 @@ async function importProfile(profile, markdown = "") {
 }
 
 async function fetchCityHubs() {
-  const text = await fetchMirrorText("https://www.eros.com/sitemap-cities.xml");
-  if (!text) return [];
+  // Cities sitemap is XML — fetch directly (Jina fails/429s on sitemaps). Fall back to mirror.
+  let text = await fetchSitemapMirrorText("https://www.eros.com/sitemap-cities.xml");
+  if (!text) text = await fetchMirrorText("https://www.eros.com/sitemap-cities.xml");
+  if (!text) {
+    console.warn("[import-eros] sitemap-cities empty; will use --hubs / listing seeds if provided");
+    return [];
+  }
   const hubs = new Map();
   for (const m of text.matchAll(/https?:\/\/www\.eros\.com\/[^\s)\]]+\/eros\.htm/gi)) {
     const match = m[0].match(/eros\.com\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\/eros\.htm/i);
@@ -830,6 +839,14 @@ async function crawlProfileUrls() {
 
     if (options.hubs.length > 0) {
       hubs = sitemapHubs.filter((hub) => options.hubs.includes(hubKey(hub)));
+      // Explicit --hubs must still run when cities sitemap is blocked (403/429).
+      if (hubs.length === 0) {
+        hubs = options.hubs.map((key) => {
+          const [state, city] = key.split("/");
+          return { state, city: city || state };
+        }).filter((h) => h.state);
+        console.warn(`[import-eros] synthesized ${hubs.length} hubs from --hubs (sitemap-cities empty/unmatched)`);
+      }
     }
 
     const top5 = top5HubKeys();
@@ -892,6 +909,7 @@ async function crawlProfilesLegacy(seedUrls) {
 async function main() {
   console.log(`[import-eros] start fromCities=${options.fromCities} hubs=${options.hubs.length || "all"} ` +
     `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} ` +
+    `profilesPerTop5City=${formatCap(options.profilesPerTop5City)} ` +
     `maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
     `dryRun=${options.dryRun} cacheOnly=${options.cacheOnly} photos=${MAX_PROVIDER_PHOTOS}`);
 
