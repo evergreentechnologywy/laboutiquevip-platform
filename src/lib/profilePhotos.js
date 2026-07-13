@@ -178,3 +178,9 @@ export function getPrimaryProfilePhoto(provider) {
   const photos = getDisplayProfilePhotos(provider, 1);
   return photos[0] || null;
 }
+
+
+/** Ordered candidate URLs for UI display (R2 first). */
+export function getProfilePhotoCandidates(provider, max = 8) {
+  return getDisplayProfilePhotos(provider, max);
+}

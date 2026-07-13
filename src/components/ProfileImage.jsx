@@ -4,23 +4,34 @@ import { motion, AnimatePresence } from "framer-motion";
 
 /**
  * Profile photos are served from Cloudflare R2 via /api/r2-photo/...
- * Do NOT rewrite to /cdn-cgi/image/ — Cloudflare Image Resizing is not enabled.
+ * Optional `fallbacks` tries the next URL when one fails (dead Tryst CDN, etc.).
  */
 export function ProfileImage({
   src,
+  fallbacks = [],
   alt,
   className = "",
   priority = false,
   objectPosition = "center top",
   blurDataURL,
 }) {
+  const candidates = React.useMemo(() => {
+    const list = [src, ...(Array.isArray(fallbacks) ? fallbacks : [])]
+      .map((u) => String(u || "").trim())
+      .filter(Boolean);
+    return [...new Set(list)];
+  }, [src, fallbacks]);
+
+  const [index, setIndex] = React.useState(0);
   const [error, setError] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
+  const current = candidates[index] || null;
 
   React.useEffect(() => {
+    setIndex(0);
     setError(false);
     setLoaded(false);
-  }, [src]);
+  }, [candidates.join("|")]);
 
   const initials = alt
     ? alt
@@ -31,7 +42,7 @@ export function ProfileImage({
         .substring(0, 2)
     : "";
 
-  if (!src || error) {
+  if (!current || error) {
     return (
       <div
         className={`flex items-center justify-center bg-zinc-900 border border-white/5 relative overflow-hidden ${className}`}
@@ -71,7 +82,8 @@ export function ProfileImage({
       </AnimatePresence>
 
       <img
-        src={src}
+        key={current}
+        src={current}
         alt={alt || ""}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
@@ -82,8 +94,12 @@ export function ProfileImage({
         }`}
         style={{ objectPosition, contentVisibility: "auto" }}
         onLoad={() => setLoaded(true)}
-        onError={(event) => {
-          event.currentTarget.onerror = null;
+        onError={() => {
+          if (index + 1 < candidates.length) {
+            setLoaded(false);
+            setIndex((i) => i + 1);
+            return;
+          }
           setError(true);
           setLoaded(true);
         }}

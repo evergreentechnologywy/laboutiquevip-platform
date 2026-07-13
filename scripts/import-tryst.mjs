@@ -162,6 +162,32 @@ async function fetchPageText(url, attempts = 4) {
   return null;
 }
 
+
+const INVALID_TRYST_CITY_RE = /^(caters\s*to|additional\s*fee|see\s*you\s*soon|statewide|available|today|this\s*week|last\s*week|incall|outcall|donations?|rates?|services?|phone|email|website|menu|search|login|signup)\b/i;
+
+function isPlausibleTrystCity(value) {
+  const city = String(value || "").trim();
+  if (city.length < 2 || city.length > 40) return false;
+  if (INVALID_TRYST_CITY_RE.test(city)) return false;
+  if (/[🎰😘💋🔥❤️]/.test(city)) return false;
+  if (/https?:|www\./i.test(city)) return false;
+  if (/^[^a-zA-Z]*$/.test(city)) return false;
+  // Reject sentence fragments
+  if (/\b(the|and|with|your|from|that|this|have|will|please)\b/i.test(city) && city.includes(" ")) return false;
+  return true;
+}
+
+function parseCityStateFromTrystText(markdown) {
+  // Canonical Tryst card format: "Miami, FL, US"
+  const matches = [...String(markdown || "").matchAll(/\b([A-Z][A-Za-z .'\-]{1,40}),\s*([A-Z]{2}),\s*US\b/g)];
+  for (const m of matches) {
+    const city = m[1].trim();
+    const state = m[2].trim().toUpperCase();
+    if (isPlausibleTrystCity(city)) return { city, state };
+  }
+  return { city: null, state: null };
+}
+
 function parseProfilePage(markdown, profileUrl) {
   const slug = parseTrystProfileUrl(profileUrl);
   if (!slug) return null;
@@ -179,35 +205,32 @@ function parseProfilePage(markdown, profileUrl) {
   ];
   const photos = [...new Set(photoMatches.map((m) => m[0]))].slice(0, 24);
 
-  const locationLine = markdown.match(/(?:located in|based in|location)[:\s]*([^\n|]+)/i);
-  let location_city = null;
-  let location_state = null;
-  if (locationLine) {
-    // Strip markdown links, bold, italics, backticks, URLs, and extra punctuation
-    let raw = locationLine[1]
-      .replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")  // [text](url) → text
-      .replace(/\*\*([^*]+)\*\*/g, "$1")         // **bold** → bold
-      .replace(/\*([^*]+)\*/g, "$1")             // *italic* → italic
-      .replace(/(?:https?|ftp):\/\/[^\s)]+/gi, "") // strip raw URLs
-      .replace(/\|/g, ", ")                       // table pipes → commas
-      .replace(/\s+/g, " ");
-    const parts = raw.split(",").map((p) => cleanText(p)).filter(Boolean);
-    // Validate: city must be 2-40 chars, no URL fragments, no markdown artifacts
-    const validCity = parts[0] && parts[0].length >= 2 && parts[0].length <= 50 &&
-      !/^(?:https?|ftp|www|\.\.|[\[\](){}*#]|s\]\()/i.test(parts[0]);
-    location_city = validCity ? parts[0] : null;
-    // State: validate against official US abbreviations only — reject junk bio text
-    const stateCandidate = parts[1]?.trim().replace(/[^a-zA-Z\s]/g, "").trim();
-    const validStates = new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
-    if (stateCandidate && stateCandidate.length === 2 && validStates.has(stateCandidate.toUpperCase())) {
-      location_state = stateCandidate.toUpperCase();
-    } else {
-      // Try matching full state name
-      const fullName = stateCandidate?.toUpperCase();
-      const fullNames = { "ALABAMA":"AL","ALASKA":"AK","ARIZONA":"AZ","ARKANSAS":"AR","CALIFORNIA":"CA","COLORADO":"CO","CONNECTICUT":"CT","DELAWARE":"DE","FLORIDA":"FL","GEORGIA":"GA","HAWAII":"HI","IDAHO":"ID","ILLINOIS":"IL","INDIANA":"IN","IOWA":"IA","KANSAS":"KS","KENTUCKY":"KY","LOUISIANA":"LA","MAINE":"ME","MARYLAND":"MD","MASSACHUSETTS":"MA","MICHIGAN":"MI","MINNESOTA":"MN","MISSISSIPPI":"MS","MISSOURI":"MO","MONTANA":"MT","NEBRASKA":"NE","NEVADA":"NV","NEW HAMPSHIRE":"NH","NEW JERSEY":"NJ","NEW MEXICO":"NM","NEW YORK":"NY","NORTH CAROLINA":"NC","NORTH DAKOTA":"ND","OHIO":"OH","OKLAHOMA":"OK","OREGON":"OR","PENNSYLVANIA":"PA","RHODE ISLAND":"RI","SOUTH CAROLINA":"SC","SOUTH DAKOTA":"SD","TENNESSEE":"TN","TEXAS":"TX","UTAH":"UT","VERMONT":"VT","VIRGINIA":"VA","WASHINGTON":"WA","WEST VIRGINIA":"WV","WISCONSIN":"WI","WYOMING":"WY","DISTRICT OF COLUMBIA":"DC" };
-      location_state = fullNames[fullName] || null;
+  // Prefer canonical Tryst "City, ST, US" (avoid matching the word "location" in bios,
+  // which previously produced junk cities like "Caters to").
+  const fromCard = parseCityStateFromTrystText(markdown);
+  let location_city = fromCard.city;
+  let location_state = fromCard.state;
+
+  if (!location_city || !location_state) {
+    const locationLine = markdown.match(/(?:located in|based in)\s*[:\-]?\s*([^\n|]+)/i);
+    if (locationLine) {
+      let raw = locationLine[1]
+        .replace(/\[([^\]]*)\]\([^)]+\)/g, "$1")
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/\*([^*]+)\*/g, "$1")
+        .replace(/(?:https?|ftp):\/\/[^\s)]+/gi, "")
+        .replace(/\|/g, ", ")
+        .replace(/\s+/g, " ");
+      const parts = raw.split(",").map((p) => cleanText(p)).filter(Boolean);
+      if (!location_city && isPlausibleTrystCity(parts[0])) location_city = parts[0];
+      const stateCandidate = parts[1]?.trim().replace(/[^a-zA-Z\s]/g, "").trim();
+      const validStates = new Set(["AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"]);
+      if (!location_state && stateCandidate && stateCandidate.length === 2 && validStates.has(stateCandidate.toUpperCase())) {
+        location_state = stateCandidate.toUpperCase();
+      }
     }
   }
+  if (location_city && !isPlausibleTrystCity(location_city)) location_city = null;
 
   // Extract only actual profile content — strip site boilerplate
   const bio = extractTrystBio(markdown, displayName);
@@ -329,7 +352,9 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
     return;
   }
 
-  const location_city = profile.location_city ?? cityMeta.cityName;
+  const location_city = (profile.location_city && isPlausibleTrystCity(profile.location_city))
+    ? profile.location_city
+    : cityMeta.cityName;
   const location_state = profile.location_state ?? cityMeta.stateAbbrev;
 
   const contactExtract = extractContactAndSocialFromMarkdown(markdown);
