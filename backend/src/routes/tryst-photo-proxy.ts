@@ -13,8 +13,6 @@ function isAllowedTrystUrl(url: string): boolean {
     const host = parsed.hostname.toLowerCase();
     if (host === "tryst.link" || host.endsWith(".tryst.link")) return true;
     if (host.endsWith(".tryst.a4cdn.org") || host === "tryst.a4cdn.org") return true;
-    // media-v2.tryst.* style hosts
-    if (/^media-v\d*\.tryst\./.test(host)) return true;
     return ALLOWED_HOST_SUFFIXES.some((suffix) => host === suffix.replace(/^\./, "") || host.endsWith(suffix));
   } catch {
     return false;
