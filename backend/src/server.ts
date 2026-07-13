@@ -79,6 +79,7 @@ import { ImmutableAuditLogger } from "./utils/auditLogger.js";
 import { videoUploadHandler } from "./routes/base44Compat.js";
 import { r2PhotoProxyHandler } from "./routes/r2-photo-proxy.js";
 import { erosPhotoProxyHandler } from "./routes/eros-photo-proxy.js";
+import { trystPhotoProxyHandler } from "./routes/tryst-photo-proxy.js";
 import {
   guardPublicCatalogMaintenance,
   enrichPublicCatalogResponse,
@@ -236,6 +237,10 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/eros-photo" && request.method === "GET") {
     return erosPhotoProxyHandler(request);
+  }
+
+  if (request.pathname === "/api/tryst-photo" && request.method === "GET") {
+    return trystPhotoProxyHandler(request);
   }
 
   if (request.pathname.startsWith("/api/admin")) {

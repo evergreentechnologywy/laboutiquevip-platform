@@ -180,7 +180,7 @@ export function getProfilePhotos(photos, provider) {
 }
 
 /**
- * Returns a browser-safe photo URL: r2-photo passthrough, eros.com via backend proxy.
+ * Returns a browser-safe photo URL: r2-photo passthrough; Eros/Tryst CDNs via backend proxy.
  */
 export function resolvePublicPhotoUrl(src, providerId) {
   const value = String(src || "").trim();
@@ -196,6 +196,12 @@ export function resolvePublicPhotoUrl(src, providerId) {
     const params = new URLSearchParams({ url: value });
     if (providerId) params.set("providerId", String(providerId));
     return `/api/eros-photo?${params.toString()}`;
+  }
+
+  if (isTrystImageUrl(value)) {
+    const params = new URLSearchParams({ url: value });
+    if (providerId) params.set("providerId", String(providerId));
+    return `/api/tryst-photo?${params.toString()}`;
   }
 
   return value;

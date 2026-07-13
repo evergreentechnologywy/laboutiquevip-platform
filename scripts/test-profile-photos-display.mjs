@@ -17,7 +17,8 @@ const eros = "https://www.eros.com/i/1344283/profile/96a1a341-a766-4870-b98d-0bb
 assert(isTrystImageUrl(trystSmall), "tryst detector");
 const trystOnly = { id: "1", display_name: "hollieluxe", photos: [trystSmall] };
 assert(!!getPrimaryProfilePhoto(trystOnly), "tryst-only primary must not be null");
-assert(getPrimaryProfilePhoto(trystOnly).includes("/large.avif"), "prefer large");
+assert(getPrimaryProfilePhoto(trystOnly).includes("/api/tryst-photo?"), "proxy tryst");
+assert(decodeURIComponent(getPrimaryProfilePhoto(trystOnly)).includes("/large.avif"), "prefer large");
 assert(getProfilePhotoCandidates(trystOnly, 3).length >= 2, "size fallbacks");
 
 const mixed = { id: "2", display_name: "x", photos: [trystSmall, r2, eros] };
