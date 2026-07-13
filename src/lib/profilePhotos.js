@@ -11,6 +11,8 @@ const ALLOWED_HOST_PATTERNS = [
   /photos\.skipsweb\.com/i,
   /imagedelivery\.net/i,
   /i\.eros\.com/i,
+  /media-v\d*\.tryst\./i,
+  /tryst\.a4cdn\.org/i,
 ];
 
 export function isValidProfilePhoto(url) {
@@ -126,9 +128,38 @@ export function isErosImageUrl(url) {
   return /(?:^|\/\/)(?:[\w-]+\.)?eros\.com\/(?:i|profile)\//.test(lower);
 }
 
+/** Tryst CDN assets from the provider's own scraped gallery. */
+export function isTrystImageUrl(url) {
+  const lower = String(url || "").trim().toLowerCase();
+  if (!lower) return false;
+  return (
+    /media-v\d*\.tryst\./i.test(lower) ||
+    /tryst\.a4cdn\.org/i.test(lower) ||
+    /(?:^|\/\/)(?:[\w-]+\.)?tryst\.link\//i.test(lower)
+  );
+}
+
 /**
- * Gallery URLs for display. Prefers R2, keeps Eros CDN URLs (identity match is
- * for ultragfe cross-contamination only), then other provider-matched photos.
+ * Prefer larger Tryst derivatives when the scrape stored /small.*.
+ * Returns [preferred, ...fallbacks] for a single source URL.
+ */
+export function expandTrystSizeVariants(url) {
+  const value = String(url || "").trim();
+  if (!value || !isTrystImageUrl(value)) return [value].filter(Boolean);
+
+  const match = value.match(/\/(small|medium|large)\.(avif|jpe?g|webp|png)$/i);
+  if (!match) return [value];
+
+  const ext = match[2];
+  const base = value.slice(0, match.index);
+  // Prefer large for cards/profiles; keep medium/small as load fallbacks.
+  const order = ["large", "medium", "small"];
+  return dedupeUrls(order.map((size) => `${base}/${size}.${ext}`));
+}
+
+/**
+ * Gallery URLs for display. Prefers R2, keeps first-party scrape CDNs (Eros/Tryst),
+ * then other provider-matched photos (identity gate for ultragfe cross-contamination).
  */
 export function getProfilePhotos(photos, provider) {
   if (!Array.isArray(photos)) return [];
@@ -138,14 +169,18 @@ export function getProfilePhotos(photos, provider) {
   const valid = photos.filter(isValidProfilePhoto);
   if (!provider) return dedupeUrls([...r2, ...valid]);
 
-  // Eros CDN URLs are scraped from the provider's own listing — trust them.
+  // Eros/Tryst CDN URLs are scraped from the provider's own listing — trust them.
+  // photoMatchesProvider rejects UUID CDN filenames and was hiding most Tryst cards.
   const eros = valid.filter(isErosImageUrl);
-  const other = valid.filter((url) => !isErosImageUrl(url) && photoMatchesProvider(url, provider));
-  return dedupeUrls([...r2, ...eros, ...other]);
+  const tryst = valid.filter(isTrystImageUrl);
+  const other = valid.filter(
+    (url) => !isErosImageUrl(url) && !isTrystImageUrl(url) && photoMatchesProvider(url, provider),
+  );
+  return dedupeUrls([...r2, ...eros, ...tryst, ...other]);
 }
 
 /**
- * Returns a browser-safe photo URL: r2-photo passthrough, eros.com via backend proxy.
+ * Returns a browser-safe photo URL: r2-photo passthrough; Eros/Tryst CDNs via backend proxy.
  */
 export function resolvePublicPhotoUrl(src, providerId) {
   const value = String(src || "").trim();
@@ -163,12 +198,26 @@ export function resolvePublicPhotoUrl(src, providerId) {
     return `/api/eros-photo?${params.toString()}`;
   }
 
+  if (isTrystImageUrl(value)) {
+    const params = new URLSearchParams({ url: value });
+    if (providerId) params.set("providerId", String(providerId));
+    return `/api/tryst-photo?${params.toString()}`;
+  }
+
   return value;
 }
 
 export function getDisplayProfilePhotos(provider, max = 32) {
   const photos = getProfilePhotos(Array.isArray(provider?.photos) ? provider.photos : [], provider);
-  return photos
+  const expanded = [];
+  for (const url of photos) {
+    if (isTrystImageUrl(url)) {
+      expanded.push(...expandTrystSizeVariants(url));
+    } else {
+      expanded.push(url);
+    }
+  }
+  return dedupeUrls(expanded)
     .slice(0, max)
     .map((url) => resolvePublicPhotoUrl(url, provider?.id))
     .filter(Boolean);
@@ -179,8 +228,7 @@ export function getPrimaryProfilePhoto(provider) {
   return photos[0] || null;
 }
 
-
-/** Ordered candidate URLs for UI display (R2 first). */
+/** Ordered candidate URLs for UI display (R2 first, then best Tryst sizes). */
 export function getProfilePhotoCandidates(provider, max = 8) {
   return getDisplayProfilePhotos(provider, max);
 }
