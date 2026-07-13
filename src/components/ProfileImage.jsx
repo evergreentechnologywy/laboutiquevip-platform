@@ -1,31 +1,11 @@
 import React from "react";
-import { User, ImageOff } from "lucide-react";
+import { ImageOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * Generate responsive image URL variants from R2 public base.
- * Appends query params for width + format if the URL is an R2 photo.
+ * Profile photos are served from Cloudflare R2 via /api/r2-photo/...
+ * Do NOT rewrite to /cdn-cgi/image/ — Cloudflare Image Resizing is not enabled.
  */
-function responsiveSrc(src, width) {
-  if (!src) return null;
-  // Convert r2-photo URLs to Cloudflare Image Resizing variants
-  if (src.includes("/api/r2-photo/")) {
-    // Cloudflare Image Resizing via /cdn-cgi/image/
-    const base = src.replace("/api/r2-photo/", "/cdn-cgi/image/");
-    return `${base}?width=${width}&format=webp&fit=cover&quality=85`;
-  }
-  return src;
-}
-
-function srcSet(src, widths = [150, 400, 800, 1200]) {
-  if (!src) return undefined;
-  // Only generate srcset for R2 photos (not external URLs)
-  if (!src.includes("/api/r2-photo/")) return undefined;
-  return widths
-    .map((w) => `${responsiveSrc(src, w)} ${w}w`)
-    .join(", ");
-}
-
 export function ProfileImage({
   src,
   alt,
@@ -66,12 +46,8 @@ export function ProfileImage({
     );
   }
 
-  const isR2 = src.includes("/api/r2-photo/");
-  const srcSetVal = srcSet(src);
-
   return (
     <div className={`relative overflow-hidden bg-zinc-900 ${className}`}>
-      {/* Skeleton / Blur Placeholder */}
       <AnimatePresence>
         {!loaded && (
           <motion.div
@@ -96,16 +72,11 @@ export function ProfileImage({
 
       <img
         src={src}
-        srcSet={srcSetVal}
         alt={alt || ""}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
-        sizes={
-          isR2
-            ? "(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
-            : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        }
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
         className={`h-full w-full object-cover transform transition-all duration-[1000ms] ease-[0.16,1,0.3,1] ${
           loaded ? "opacity-100 scale-100 filter-none" : "opacity-0 scale-110 blur-sm"
         }`}
