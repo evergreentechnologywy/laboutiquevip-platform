@@ -41,7 +41,7 @@ const EXT_BY_TYPE = {
   "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
 };
 
-const TRST_HOST_RE = /(?:tryst\.link|discovery\.tryst|a4cdn\.(?:ch|org))/i;
+const TRST_HOST_RE = /(?:tryst\.link|discovery\.tryst|a4cdn\.(?:ch|org)|media-v\d*\.tryst\.)/i;
 const TRST_PROFILE_RE = /^https?:\/\/tryst\.link\/escort\/[^\s"'<>]+/i;
 
 function sleep(ms) {
@@ -203,10 +203,12 @@ async function main() {
   });
 
   const hasNoPhotos = (p) => !Array.isArray(p.photos) || p.photos.length === 0;
-  // Filter before slicing so --limit consumes real work; zero-photo rows
-  // (invisible on the site) always go first. --missing-only restricts to them.
+  const hasExistingTrystCdn = (p) =>
+    (Array.isArray(p.photos) ? p.photos : []).some((u) => TRST_HOST_RE.test(String(u)));
+  // Prefer providers that already have Tryst CDN hotlinks (high success upload),
+  // then empty galleries that need a live scrape. --missing-only restricts to empty.
   const targets = (missingOnly ? providers.filter(hasNoPhotos) : providers.filter((p) => needsTrystPhotoRefresh(p.photos)))
-    .sort((a, b) => Number(hasNoPhotos(b)) - Number(hasNoPhotos(a)));
+    .sort((a, b) => Number(hasExistingTrystCdn(b)) - Number(hasExistingTrystCdn(a)) || Number(hasNoPhotos(b)) - Number(hasNoPhotos(a)));
   const slice = limit > 0 ? targets.slice(offset, offset + limit) : targets.slice(offset);
   console.log(
     `tryst_r2_targets=${providers.length} needs_refresh=${targets.length} no_photos=${providers.filter(hasNoPhotos).length} processing=${slice.length} dryRun=${dryRun} missingOnly=${missingOnly}`,
@@ -219,13 +221,19 @@ async function main() {
   for (const provider of slice) {
     await sleep(delayMs);
     const trystUrl = resolveTrystUrl(provider);
-    if (!trystUrl) {
+    // Prefer live scrape, but always fall back to existing Tryst CDN / R2 URLs in DB.
+    // Many profiles 404 on Tryst yet still have working a4cdn hotlinks we can mirror.
+    let markdown = null;
+    if (trystUrl) {
+      markdown = await fetchTrystMarkdown(trystUrl);
+    } else if (!Array.isArray(provider.photos) || provider.photos.length === 0) {
       skipped += 1;
       console.log(`SKIP no-tryst-url ${provider.display_name}`);
       continue;
+    } else {
+      console.log(`WARN no-tryst-url using-existing ${provider.display_name}`);
     }
 
-    const markdown = await fetchTrystMarkdown(trystUrl);
     const selected = extractTrystPhotos(markdown, provider.photos);
     if (selected.length === 0) {
       failed += 1;
