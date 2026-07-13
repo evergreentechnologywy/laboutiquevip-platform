@@ -31,6 +31,8 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    setIsLoadingAuth(true);
+
     try {
       const token = await getToken();
       if (token) {
