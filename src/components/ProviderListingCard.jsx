@@ -5,7 +5,7 @@ import { createPageUrl } from "@/utils";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Star, ArrowRight } from "lucide-react";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
-import { getPrimaryProfilePhoto } from "@/lib/profilePhotos";
+import { getPrimaryProfilePhoto, getProfilePhotoCandidates } from "@/lib/profilePhotos";
 import { getProviderBadgeFlags } from "@/lib/verificationBadges";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
@@ -60,6 +60,7 @@ export function ProviderListingCard({ provider }) {
         <div className="relative aspect-[4/5] overflow-hidden rounded-t-[2rem]">
           <ProfileImage
             src={getPrimaryProfilePhoto(provider)}
+            fallbacks={getProfilePhotoCandidates(provider, 6).slice(1)}
             alt={provider.display_name}
             className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
