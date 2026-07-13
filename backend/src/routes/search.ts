@@ -212,12 +212,12 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const cityGroups = (Array.from(
       dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
-        const key = `${provider.location_city || "Unknown"}||${provider.location_state || "Unknown"}`;
-        const current = map.get(key) ?? {
-          city: provider.location_city || "Unknown",
-          state: provider.location_state || "Unknown",
-          count: 0,
-        };
+        const city = String(provider.location_city || "").trim();
+        const state = String(provider.location_state || "").trim();
+        // Skip junk / missing cities so filters stay clean
+        if (!city || /^(unknown|caters\s*to|statewide)$/i.test(city)) return map;
+        const key = `${city}||${state || ""}`;
+        const current = map.get(key) ?? { city, state: state || "", count: 0 };
         current.count += 1;
         map.set(key, current);
         return map;

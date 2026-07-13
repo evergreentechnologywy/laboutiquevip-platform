@@ -24,8 +24,18 @@ function sanitizeLocation(city) {
     .replace(/\s+/g, " ")
     .trim();
   if (!clean) return "";
+  if (/^(caters\s*to|unknown|statewide|additional\s*fee)\b/i.test(clean)) return "";
   if (clean.length > 30) return clean.slice(0, 27) + "...";
   return clean;
+}
+
+function formatProviderLocation(city, state) {
+  const c = sanitizeLocation(city);
+  const st = String(state ?? "").trim().toUpperCase();
+  if (c && st) return `${c}, ${st}`;
+  if (c) return c;
+  if (st) return st;
+  return "";
 }
 
 export function ProviderListingCard({ provider }) {
@@ -91,7 +101,7 @@ export function ProviderListingCard({ provider }) {
             <div className="mt-2 flex items-center justify-between gap-3">
               <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-300/80 truncate">
                 <MapPin className="h-4 w-4 text-zinc-400/80 shrink-0" aria-hidden="true" />
-                {sanitizeLocation(provider.location_city)}{provider.location_state ? `, ${provider.location_state}`.slice(0, 20) : ''}
+                {formatProviderLocation(provider.location_city, provider.location_state)}
               </span>
               {provider.rate_hourly && (
                 <span className="rounded-full border border-white/10 bg-white/5 backdrop-blur-md px-3 py-1.5 text-sm font-semibold text-white whitespace-nowrap shadow-lg">
