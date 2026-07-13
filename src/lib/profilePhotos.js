@@ -203,15 +203,14 @@ export function resolvePublicPhotoUrl(src, providerId) {
 
 export function getDisplayProfilePhotos(provider, max = 32) {
   const photos = getProfilePhotos(Array.isArray(provider?.photos) ? provider.photos : [], provider);
-  const expanded = [];
-  for (const url of photos) {
+  const display = photos.map((url) => {
     if (isTrystImageUrl(url)) {
-      expanded.push(...expandTrystSizeVariants(url));
-    } else {
-      expanded.push(url);
+      const variants = expandTrystSizeVariants(url);
+      return variants[0] || url;
     }
-  }
-  return dedupeUrls(expanded)
+    return url;
+  });
+  return dedupeUrls(display)
     .slice(0, max)
     .map((url) => resolvePublicPhotoUrl(url, provider?.id))
     .filter(Boolean);
@@ -222,7 +221,19 @@ export function getPrimaryProfilePhoto(provider) {
   return photos[0] || null;
 }
 
-/** Ordered candidate URLs for UI display (R2 first, then best Tryst sizes). */
+/** Ordered candidate URLs for image load fallbacks (includes Tryst size variants). */
 export function getProfilePhotoCandidates(provider, max = 8) {
-  return getDisplayProfilePhotos(provider, max);
+  const photos = getProfilePhotos(Array.isArray(provider?.photos) ? provider.photos : [], provider);
+  const candidates = [];
+  for (const url of photos) {
+    if (isTrystImageUrl(url)) {
+      candidates.push(...expandTrystSizeVariants(url));
+    } else {
+      candidates.push(url);
+    }
+  }
+  return dedupeUrls(candidates)
+    .slice(0, max)
+    .map((url) => resolvePublicPhotoUrl(url, provider?.id))
+    .filter(Boolean);
 }
