@@ -128,15 +128,19 @@ async function uploadPhotos(s3, bucket, providerId, sourceUrls) {
   let index = 0;
   for (const sourceUrl of sourceUrls) {
     if (!TRST_HOST_RE.test(sourceUrl) && !/^https?:\/\//i.test(sourceUrl)) continue;
-    let imageResponse;
-    try {
-      imageResponse = await fetch(sourceUrl, {
-        headers: { referer: "https://tryst.link/", "user-agent": "Mozilla/5.0 (compatible; lbv-tryst-r2/1.0)" },
-      });
-    } catch {
-      continue;
+    let imageResponse = null;
+    // Try large→medium→small so dead /small.* or bare UUID URLs still upload.
+    for (const candidate of expandTrystUploadCandidates(sourceUrl)) {
+      try {
+        const res = await fetch(candidate, {
+          headers: { referer: "https://tryst.link/", "user-agent": "Mozilla/5.0 (compatible; lbv-tryst-r2/1.0)" },
+        });
+        if (res.ok) { imageResponse = res; break; }
+      } catch {
+        // try next size
+      }
     }
-    if (!imageResponse.ok) continue;
+    if (!imageResponse) continue;
     const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
     if (!String(contentType).toLowerCase().startsWith("image/")) continue;
     const buffer = Buffer.from(await imageResponse.arrayBuffer());
@@ -161,6 +165,17 @@ async function uploadPhotos(s3, bucket, providerId, sourceUrls) {
     if (stored.length >= MAX_PHOTOS) break;
   }
   return stored;
+}
+
+
+function expandTrystUploadCandidates(url) {
+  const value = String(url || "").trim();
+  if (!value) return [];
+  const match = value.match(/\/(small|medium|large)\.(avif|jpe?g|webp|png)$/i);
+  if (!match) return [value];
+  const ext = match[2];
+  const base = value.slice(0, match.index);
+  return ["large", "medium", "small"].map((size) => `${base}/${size}.${ext}`);
 }
 
 function needsTrystPhotoRefresh(photos) {

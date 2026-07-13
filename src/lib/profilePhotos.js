@@ -121,6 +121,19 @@ export function isR2PhotoUrl(url) {
   return String(url || "").includes("/api/r2-photo/");
 }
 
+export function isErosProxyUrl(url) {
+  return String(url || "").includes("/api/eros-photo");
+}
+
+export function isTrystProxyUrl(url) {
+  return String(url || "").includes("/api/tryst-photo");
+}
+
+/** Same-origin picture path (R2 or CDN proxy). */
+export function isCanonicalPhotoUrl(url) {
+  return isR2PhotoUrl(url) || isErosProxyUrl(url) || isTrystProxyUrl(url);
+}
+
 export function isErosImageUrl(url) {
   const lower = String(url || "").trim().toLowerCase();
   if (!lower) return false;
@@ -164,10 +177,13 @@ export function expandTrystSizeVariants(url) {
 export function getProfilePhotos(photos, provider) {
   if (!Array.isArray(photos)) return [];
 
-  // R2 paths are listed in JUNK_SUBSTRINGS for scrape cleanup, but are valid for display.
+  // Canonical same-origin paths are listed in JUNK_SUBSTRINGS for scrape cleanup,
+  // but are the preferred display URLs (R2 + CDN proxies).
   const r2 = photos.filter(isR2PhotoUrl);
+  const erosProxy = photos.filter(isErosProxyUrl);
+  const trystProxy = photos.filter(isTrystProxyUrl);
   const valid = photos.filter(isValidProfilePhoto);
-  if (!provider) return dedupeUrls([...r2, ...valid]);
+  if (!provider) return dedupeUrls([...r2, ...erosProxy, ...trystProxy, ...valid]);
 
   // Eros/Tryst CDN URLs are scraped from the provider's own listing — trust them.
   // photoMatchesProvider rejects UUID CDN filenames and was hiding most Tryst cards.
@@ -176,7 +192,7 @@ export function getProfilePhotos(photos, provider) {
   const other = valid.filter(
     (url) => !isErosImageUrl(url) && !isTrystImageUrl(url) && photoMatchesProvider(url, provider),
   );
-  return dedupeUrls([...r2, ...eros, ...tryst, ...other]);
+  return dedupeUrls([...r2, ...erosProxy, ...eros, ...trystProxy, ...tryst, ...other]);
 }
 
 /**
@@ -192,6 +208,16 @@ export function resolvePublicPhotoUrl(src, providerId) {
     return idx >= 0 ? value.slice(idx) : value;
   }
 
+  if (isErosProxyUrl(value) || isTrystProxyUrl(value)) {
+    try {
+      if (value.startsWith("/")) return value;
+      const u = new URL(value);
+      return `${u.pathname}${u.search}`;
+    } catch {
+      return value;
+    }
+  }
+
   if (isErosImageUrl(value)) {
     const params = new URLSearchParams({ url: value });
     if (providerId) params.set("providerId", String(providerId));
@@ -199,7 +225,8 @@ export function resolvePublicPhotoUrl(src, providerId) {
   }
 
   if (isTrystImageUrl(value)) {
-    const params = new URLSearchParams({ url: value });
+    const preferred = expandTrystSizeVariants(value)[0] || value;
+    const params = new URLSearchParams({ url: preferred });
     if (providerId) params.set("providerId", String(providerId));
     return `/api/tryst-photo?${params.toString()}`;
   }
