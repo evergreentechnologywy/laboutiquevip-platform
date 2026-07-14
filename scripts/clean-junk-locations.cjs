@@ -14,6 +14,9 @@ function isJunkCity(val) {
   if (/^(?:https?|ftp|www|\.\.|[\[\](){}*#]|s\]\()/i.test(s)) return true;
   if (/tryst\.link|eros\.com|a4cdn|\.jpg|\.png|\.webp/i.test(s)) return true;
   if (/Caters to|Available|to be inviting|cleaned up/i.test(s)) return true;
+  if (/^(unknown|n\/?a|none|null)$/i.test(s)) return true;
+  if (/\bi create\b/i.test(s)) return true;
+  if (/[.!?]/.test(s) && s.split(/\s+/).length >= 3) return true;
   if (s.includes("](") || s.includes("**") || s.startsWith("*")) return true;
   // If it looks like a full sentence (has 8+ words), it's probably a bio, not a city
   if (s.split(/\s+/).length > 7) return true;

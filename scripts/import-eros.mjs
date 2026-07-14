@@ -42,6 +42,7 @@ import {
 import { uploadSourcePhotosToR2, getPublicBase, getKeyPrefix } from "./lib/r2-photo-upload.mjs";
 import pkgS3 from "@aws-sdk/client-s3";
 import { effectiveLimit, formatCap, parseImportLimit } from "./lib/import-limits.mjs";
+import { mergeHubCatalog } from "./lib/eros-hub-resolve.mjs";
 import {
   catalogSeenTouchFields,
   findCatalogDuplicateInCity,
@@ -849,10 +850,26 @@ async function crawlProfileUrls() {
       }
     }
 
-    const top5 = top5HubKeys();
+    // Prefer Census top-5 → Eros hub merge for priority caps; fall back to hardcoded majors.
+    let priorityKeys = top5HubKeys();
+    if (sitemapHubs.length > 0) {
+      try {
+        const merged = mergeHubCatalog(sitemapHubs, { includeTop5: true });
+        priorityKeys = new Set(merged.hubs.filter((hub) => hub.priority).map((hub) => hubKey(hub)));
+        console.log(
+          `[import-eros] hub priority: top5 matched=${merged.top5Matched} unmatched=${merged.top5Unmatched} priorityHubs=${priorityKeys.size}`,
+        );
+        if (options.hubs.length === 0) {
+          hubs = merged.hubs;
+        }
+      } catch (err) {
+        console.warn(`[import-eros] mergeHubCatalog failed, using hardcoded top5: ${err?.message || err}`);
+      }
+    }
+
     hubs = hubs.map((hub) => ({
       ...hub,
-      priority: top5.has(hubKey(hub)),
+      priority: Boolean(hub.priority) || priorityKeys.has(hubKey(hub)),
     }));
     hubs.sort((a, b) => Number(b.priority) - Number(a.priority));
 
@@ -879,7 +896,7 @@ async function crawlProfilesLegacy(seedUrls) {
   const queue = [...seedUrls.map((s) => normalizeUrl(s)).filter(Boolean)];
   const visited = new Set();
 
-  while (queue.length > 0 && visited.size < maxPagesBudget() && profileUrls.size < (options.maxProfiles || Infinity)) {
+  while (queue.length > 0 && visited.size < maxPagesBudget() && profileUrls.size < effectiveLimit(options.maxProfiles)) {
     const url = queue.shift();
     if (!url || visited.has(url)) continue;
     visited.add(url);
