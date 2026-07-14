@@ -16,7 +16,9 @@ function isJunkCity(val) {
   if (/Caters to|Available|to be inviting|cleaned up/i.test(s)) return true;
   if (/^(unknown|n\/?a|none|null)$/i.test(s)) return true;
   if (/\bi create\b/i.test(s)) return true;
-  if (/[.!?]/.test(s) && s.split(/\s+/).length >= 3) return true;
+  // Bio / tagline leaked into city ("Miami. Travel", "Miami. I create…")
+  if (/^[A-Za-z .'-]+\.\s+[A-Za-z]/.test(s)) return true;
+  if (/[.!?]/.test(s) && s.split(/\s+/).length >= 2) return true;
   if (s.includes("](") || s.includes("**") || s.startsWith("*")) return true;
   // If it looks like a full sentence (has 8+ words), it's probably a bio, not a city
   if (s.split(/\s+/).length > 7) return true;

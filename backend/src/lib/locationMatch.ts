@@ -146,8 +146,9 @@ export function isPlausiblePublicCityName(raw: string): boolean {
   if (/\bi create\b/i.test(city)) return false;
   if (/caters\s*to/i.test(city)) return false;
   if (city.split(/\s+/).length > 6) return false;
-  // Sentence / bio fragment: punctuation plus several words
-  if (/[.!?]/.test(city) && city.split(/\s+/).length >= 3) return false;
+  // Sentence / bio fragment: "Miami. Travel" or longer punctuated phrases
+  if (/^[A-Za-z .'-]+\.\s+[A-Za-z]/.test(city)) return false;
+  if (/[.!?]/.test(city) && city.split(/\s+/).length >= 2) return false;
   if (/\b(travel|relaxed|tempt|available|inviting)\b/i.test(city) && /[.!]/.test(city)) return false;
   return true;
 }

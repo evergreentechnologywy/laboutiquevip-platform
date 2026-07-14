@@ -11,6 +11,7 @@ test("isPlausiblePublicCityName rejects junk and bio fragments", () => {
   assert.equal(isPlausiblePublicCityName("New York"), true);
   assert.equal(isPlausiblePublicCityName("Unknown"), false);
   assert.equal(isPlausiblePublicCityName("Miami. I create a relaxed"), false);
+  assert.equal(isPlausiblePublicCityName("Miami. Travel"), false);
   assert.equal(isPlausiblePublicCityName("Caters to men"), false);
 });
 
