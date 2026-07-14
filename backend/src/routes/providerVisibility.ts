@@ -45,7 +45,7 @@ let photoProviderIdsCache: { ids: string[]; expiresAt: number } | null = null;
 
 async function loadPublicPhotoProviderIds(prisma: {
   $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
-}): Promise<string[]> {
+}): Promise<string[] | null> {
   const now = Date.now();
   if (photoProviderIdsCache && photoProviderIdsCache.expiresAt > now) {
     return photoProviderIdsCache.ids;
@@ -71,9 +71,9 @@ async function loadPublicPhotoProviderIds(prisma: {
     photoProviderIdsCache = { ids, expiresAt: now + PHOTO_ID_CACHE_TTL_MS };
     return ids;
   } catch (err) {
-    // Fallback: return empty — let browse work without photo filter on DB errors
+    // Transient DB error — caller may fail-open so browse stays available.
     console.warn("[providerVisibility] Photo filter query failed, showing all:", (err as Error).message);
-    return [];
+    return null;
   }
 }
 
@@ -82,8 +82,12 @@ export async function buildPublicPhotoSearchFilter(prisma: {
   $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
 }): Promise<Record<string, unknown>> {
   const ids = await loadPublicPhotoProviderIds(prisma);
+  if (ids === null) {
+    return {}; // Fail open on query errors only
+  }
   if (ids.length === 0) {
-    return {}; // No-op — don't restrict when photo filter fails or no photos exist
+    // Successful empty set — do not show the whole catalog without photos
+    return { id: { in: ["__no_public_photos__"] } };
   }
   return { id: { in: ids } };
 }

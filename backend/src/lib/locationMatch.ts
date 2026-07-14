@@ -134,6 +134,57 @@ export function titleCaseWords(value: string): string {
     .join(" ");
 }
 
+/**
+ * Reject bio fragments, placeholders, and other non-city values from public search UI.
+ * Keep real place names (including multi-word cities like "New York" / "Miami Beach").
+ */
+export function isPlausiblePublicCityName(raw: string): boolean {
+  const city = String(raw || "").trim();
+  if (!city || city.length < 2 || city.length > 40) return false;
+  if (/https?:\/\//i.test(city) || /tryst\.link|eros\.com|a4cdn/i.test(city)) return false;
+  if (/^(unknown|n\/?a|none|null|statewide|caters\s*to)$/i.test(city)) return false;
+  if (/\bi create\b/i.test(city)) return false;
+  if (/caters\s*to/i.test(city)) return false;
+  if (city.split(/\s+/).length > 6) return false;
+  // Sentence / bio fragment: punctuation plus several words
+  if (/[.!?]/.test(city) && city.split(/\s+/).length >= 3) return false;
+  if (/\b(travel|relaxed|tempt|available|inviting)\b/i.test(city) && /[.!]/.test(city)) return false;
+  return true;
+}
+
+/**
+ * Canonical city label for location pickers / autocomplete.
+ * Strips "City, ST" combos stuck in location_city and title-cases the result.
+ */
+export function canonicalizePublicCity(
+  rawCity: string,
+  stateCode?: string | null,
+): { slug: string; name: string } | null {
+  let city = String(rawCity || "").trim();
+  if (!city) return null;
+
+  if (city.includes(",")) {
+    const parsed = parseCityStateCombo(city);
+    if (parsed.city) city = parsed.city;
+  }
+
+  // "Miami FL" / "Miami TX" trailing state token
+  const trailingState = city.match(/^(.+?)\s+([A-Za-z]{2})$/);
+  if (trailingState) {
+    const maybeState = resolveStateAbbrev(trailingState[2]);
+    if (maybeState && (!stateCode || maybeState === String(stateCode).toUpperCase())) {
+      city = trailingState[1].trim();
+    }
+  }
+
+  if (!isPlausiblePublicCityName(city)) return null;
+
+  const name = titleCaseWords(city);
+  const slug = slugify(name);
+  if (!slug) return null;
+  return { slug, name };
+}
+
 export function parseCityStateCombo(raw: string): { city: string | null; state: string | null } {
   const text = String(raw || "").trim();
   const match = text.match(/^(.+?),\s*([A-Za-z.\s]{2,})$/);
@@ -231,6 +282,22 @@ export function buildLocationFilter(rawLocation: string): Record<string, unknown
   if (!location) return null;
 
   const parsed = parseCityStateCombo(location);
+  const stateOnlyAbbrev =
+    !location.includes(",") && resolveStateAbbrev(location) && !resolveStateFromCity(location)
+      ? resolveStateAbbrev(location)
+      : null;
+
+  // Bare state queries (e.g. "CO", "Texas") should not use city contains — abbrevs like "CO"
+  // substring-match half the catalog.
+  if (stateOnlyAbbrev) {
+    const branches: Record<string, unknown>[] = stateSearchTerms(stateOnlyAbbrev).map((term) => ({
+      location_state: { contains: term, mode: "insensitive" },
+    }));
+    const stateWideBranch = buildStateWideLocationBranch(stateOnlyAbbrev);
+    if (stateWideBranch) branches.push(stateWideBranch);
+    return { OR: branches };
+  }
+
   const stateTerms = stateSearchTerms(location);
   const citySlug = slugify(parsed.city ?? location);
 
@@ -245,24 +312,20 @@ export function buildLocationFilter(rawLocation: string): Record<string, unknown
     });
   }
 
-  const stateMatchers = stateTerms.flatMap((term) => [
-    { location_state: { contains: term, mode: "insensitive" } },
-    { location_city: { contains: term, mode: "insensitive" } },
-  ]);
+  // State terms match location_state only — matching location_city caused false positives
+  // (e.g. state abbrev substrings inside city names).
+  const stateMatchers = stateTerms.map((term) => ({
+    location_state: { contains: term, mode: "insensitive" },
+  }));
 
   const branches: Record<string, unknown>[] = [...cityMatchers, ...stateMatchers];
 
-  if (parsed.state) {
+  if (parsed.state && parsed.city) {
     for (const term of stateSearchTerms(parsed.state)) {
       branches.push({
         AND: [
-          { location_city: { contains: parsed.city ?? location, mode: "insensitive" } },
-          {
-            OR: [
-              { location_state: { contains: term, mode: "insensitive" } },
-              { location_city: { contains: term, mode: "insensitive" } },
-            ],
-          },
+          { location_city: { contains: parsed.city, mode: "insensitive" } },
+          { location_state: { contains: term, mode: "insensitive" } },
         ],
       });
     }

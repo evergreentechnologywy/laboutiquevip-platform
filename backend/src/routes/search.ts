@@ -8,8 +8,9 @@ import {
   suggestLocationQueries,
   isValidUsStateAbbrev,
   resolveStateAbbrev,
-  slugify,
   stateDisplayName,
+  canonicalizePublicCity,
+  isPlausiblePublicCityName,
 } from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
 import { withPublicPhotos } from "../lib/publicPhotoUrls.js";
@@ -56,41 +57,47 @@ export async function searchCitiesHandler(request: ApiRequest, context: SearchRo
     const prefix = `${searchTerm}%`;
     const partial = `%${searchTerm}%`;
 
+    // City names only — do not UNION state codes or "City, ST" combos (those created duplicate/junk autocomplete hits).
     const rows = await context.prisma.$queryRaw`
       SELECT DISTINCT city, city_slug
       FROM (
-        SELECT city, city_slug FROM provider_profiles
+        SELECT city, city_slug FROM provider_profiles WHERE city IS NOT NULL
         UNION ALL
-        SELECT city, city_slug FROM provider_availability_blocks
+        SELECT city, city_slug FROM provider_availability_blocks WHERE city IS NOT NULL
         UNION ALL
-        SELECT city, city_slug FROM provider_tours
+        SELECT city, city_slug FROM provider_tours WHERE city IS NOT NULL
         UNION ALL
-        SELECT location_city as city, lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_city IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
-        UNION ALL
-        SELECT location_state as city, lower(regexp_replace(location_state, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug FROM "Provider" WHERE location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
-        UNION ALL
-        SELECT concat(location_city, ', ', location_state) as city, lower(regexp_replace(concat(location_city, '-', location_state), '[^a-zA-Z0-9]+', '-', 'g')) as city_slug
+        SELECT location_city as city,
+               lower(regexp_replace(location_city, '[^a-zA-Z0-9]+', '-', 'g')) as city_slug
           FROM "Provider"
-          WHERE location_city IS NOT NULL AND location_state IS NOT NULL AND status = 'active' AND is_profile_approved = true AND verification_provider IN ('eros', 'evergreen', 'tryst')
+         WHERE location_city IS NOT NULL
+           AND status = 'active'
+           AND is_profile_approved = true
+           AND verification_provider IN ('eros', 'evergreen', 'tryst')
       ) city_pool
       WHERE lower(city) LIKE ${partial}
          OR lower(city_slug) LIKE ${prefix}
          OR lower(city_slug) LIKE ${partial}
       ORDER BY city ASC
-      LIMIT 25
+      LIMIT 40
     `;
 
     const staticSuggestions = suggestLocationQueries(query.q);
-    const merged = [...staticSuggestions, ...(rows as Array<{ city: string; city_slug: string }>).map((row) => ({
-      slug: row.city_slug,
-      displayName: String(row.city || "").replace(/,\s*$/g, "").trim(),
-    }))];
+    const fromDb = (rows as Array<{ city: string; city_slug: string }>)
+      .map((row) => {
+        const canonical = canonicalizePublicCity(String(row.city || ""));
+        if (!canonical) return null;
+        return { slug: canonical.slug, displayName: canonical.name };
+      })
+      .filter((row): row is { slug: string; displayName: string } => Boolean(row));
+
+    const merged = [...staticSuggestions, ...fromDb];
 
     return json(200, {
       query: query.q,
       items: merged
-        .filter((row) => row.displayName.length > 1)
-        .filter((row, index, all) => all.findIndex((item) => item.displayName.toLowerCase() === row.displayName.toLowerCase()) === index)
+        .filter((row) => row.displayName.length > 1 && isPlausiblePublicCityName(row.displayName))
+        .filter((row, index, all) => all.findIndex((item) => item.slug === row.slug || item.displayName.toLowerCase() === row.displayName.toLowerCase()) === index)
         .slice(0, 25),
     });
   } catch (error) {
@@ -154,13 +161,15 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       [{ is_premium: "desc" }, { created_date: "desc" }];
 
     const skip = (query.page - 1) * query.limit;
+    // Over-fetch so in-memory dedupe can still fill a full page when near-duplicates share a page.
+    const fetchTake = Math.min(100, Math.max(query.limit * 3, query.limit + 20));
 
     const [providers, total, aggregate] = await context.prisma.$transaction([
       context.prisma.provider.findMany({
         where,
         orderBy,
         skip,
-        take: query.limit,
+        take: fetchTake,
         select: {
           id: true,
           display_name: true,
@@ -208,17 +217,17 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const maxRate = aggregate._max.rate_hourly || 2000;
 
-    const dedupedProviders = dedupeProviders(providers);
-    const duplicateCount = providers.length - dedupedProviders.length;
+    const dedupedProviders = dedupeProviders(providers).slice(0, query.limit);
+    const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / query.limit));
+    const hasMore = query.page < totalPages;
 
     const cityGroups = (Array.from(
       dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
-        const city = String(provider.location_city || "").trim();
         const state = String(provider.location_state || "").trim();
-        // Skip junk / missing cities so filters stay clean
-        if (!city || /^(unknown|caters\s*to|statewide)$/i.test(city)) return map;
-        const key = `${city}||${state || ""}`;
-        const current = map.get(key) ?? { city, state: state || "", count: 0 };
+        const canonical = canonicalizePublicCity(String(provider.location_city || ""), state);
+        if (!canonical) return map;
+        const key = `${canonical.slug}||${state || ""}`;
+        const current = map.get(key) ?? { city: canonical.name, state: state || "", count: 0 };
         current.count += 1;
         map.set(key, current);
         return map;
@@ -231,8 +240,10 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       body: {
       page: query.page,
       limit: query.limit,
-      total: Math.max(0, total - duplicateCount),
-      totalPages: Math.max(1, Math.ceil(Math.max(0, total - duplicateCount) / query.limit)),
+      total,
+      totalPages,
+      hasMore,
+      nextOffset: hasMore ? query.page * query.limit : null,
       maxRate,
       cityGroups,
       items: dedupedProviders.map((provider: any) => withPublicPhotos(provider)),
@@ -296,16 +307,20 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
 
       const code = resolveStateAbbrev(rawState);
       if (!code || !isValidUsStateAbbrev(code)) continue;
-      if (rawCity.length > 80 || /https?:\/\//i.test(rawCity)) continue;
+
+      const canonical = canonicalizePublicCity(rawCity, code);
+      if (!canonical) continue;
 
       const stateName = stateDisplayName(code);
-      const citySlug = slugify(rawCity);
-      const cityName = rawCity;
+      const citySlug = canonical.slug;
+      const cityName = canonical.name;
 
       const stateEntry = stateMap.get(code) ?? { name: stateName, count: 0, cities: new Map<string, LocationCityRow>() };
       stateEntry.count += 1;
 
       const cityEntry = stateEntry.cities.get(citySlug) ?? { slug: citySlug, name: cityName, count: 0 };
+      // Prefer the shorter/cleaner display name when merging slug collisions
+      if (cityName.length < cityEntry.name.length) cityEntry.name = cityName;
       cityEntry.count += 1;
       stateEntry.cities.set(citySlug, cityEntry);
       stateMap.set(code, stateEntry);

@@ -94,6 +94,44 @@ test("searchLocationsHandler skips invalid state rows from bad imports", async (
   assert.equal(body.states[0].code, "FL");
 });
 
+test("searchLocationsHandler merges city duplicates and drops junk cities", async () => {
+  clearSearchLocationsCache();
+  const prisma = {
+    $queryRaw: async () => [{ id: "p1" }],
+    provider: {
+      findMany: async () => [
+        { location_state: "FL", location_city: "Miami" },
+        { location_state: "FL", location_city: "Miami, FL" },
+        { location_state: "FL", location_city: "Miami. I create a relaxed" },
+        { location_state: "FL", location_city: "Unknown" },
+        { location_state: "AZ", location_city: "Unknown" },
+        { location_state: "AZ", location_city: "Phoenix" },
+      ],
+    },
+  };
+
+  const res = await searchLocationsHandler(
+    makeReq("/api/v1/search/locations"),
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  const body = res.body as {
+    states: Array<{ code: string; count: number; cities: Array<{ slug: string; name: string; count: number }> }>;
+  };
+  const florida = body.states.find((s) => s.code === "FL");
+  assert.ok(florida);
+  assert.equal(florida.cities.length, 1);
+  assert.equal(florida.cities[0].slug, "miami");
+  assert.equal(florida.cities[0].count, 2);
+  assert.equal(florida.count, 2);
+
+  const arizona = body.states.find((s) => s.code === "AZ");
+  assert.ok(arizona);
+  assert.equal(arizona.cities.length, 1);
+  assert.equal(arizona.cities[0].slug, "phoenix");
+});
+
 test("searchLocationsHandler returns hierarchical states with cities", async () => {
   clearSearchLocationsCache();
   const prisma = {

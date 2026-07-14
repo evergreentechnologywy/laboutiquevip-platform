@@ -77,9 +77,9 @@ export async function collectProfileLinksForCity(cityUrl, fetchPageText, limits)
   const base = cityUrl.replace(/\/$/, "");
   const queue = [base];
   
-  // Force minimum pages — Jina often fails on page 1 but works on page 2+
-  const MIN_PAGES = 5;
-  const MAX_EMPTY_PAGES = 3;
+  // Force a couple of pages — Jina often fails on page 1 but works on page 2+
+  const MIN_PAGES = 2;
+  const MAX_EMPTY_PAGES = 2;
   let emptyPages = 0;
   let manualPageGen = 2; // synthetic page counter if pagination links not found
 

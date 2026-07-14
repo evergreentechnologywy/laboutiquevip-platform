@@ -41,7 +41,7 @@ export NODE_OPTIONS="--max-old-space-size=1024"
 REGIONS=(
   "california/los_angeles,california/san_francisco,nevada/las_vegas,arizona/phoenix,washington/seattle,oregon/portland"
   "texas/houston,texas/dallas,texas/austin,illinois/chicago,georgia/atlanta,florida/miami"
-  "florida/miami,florida/orlando,florida/tampa,carolinas/carolinas,virginia/virginia,tennessee/nashville"
+  "florida/orlando,florida/tampa,carolinas/carolinas,virginia/virginia,tennessee/nashville,colorado/denver"
   "new_york/new_york,new_jersey/new_jersey,pennsylvania/philadelphia,massachusetts/boston,washington_dc/washington_dc,maryland/baltimore"
 )
 
@@ -51,7 +51,7 @@ for i in "${!REGIONS[@]}"; do
   W=$((i+1))
   nohup node scripts/import-eros.mjs \
     --from-cities --hubs="${REGIONS[$i]}" \
-    --profiles-per-city=250 --max-pages=20 --delay-ms=300 \
+    --profiles-per-city=250 --max-pages=40 --delay-ms=250 \
     > "$LOG/eros-w${W}.log" 2>&1 &
   sleep 2
 done
