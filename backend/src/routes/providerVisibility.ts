@@ -87,7 +87,7 @@ export async function buildPublicPhotoSearchFilter(prisma: {
   }
   if (ids.length === 0) {
     // Successful empty set — do not show the whole catalog without photos
-    return { id: { in: ["__no_public_photos__"] } };
+    return { id: { in: [] } };
   }
   return { id: { in: ids } };
 }

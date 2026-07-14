@@ -160,9 +160,9 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       query.sort === "price_high" ? [{ is_premium: "desc" }, { rate_hourly: "desc" }, { created_date: "desc" }] :
       [{ is_premium: "desc" }, { created_date: "desc" }];
 
-    const skip = (query.page - 1) * query.limit;
     // Over-fetch so in-memory dedupe can still fill a full page when near-duplicates share a page.
     const fetchTake = Math.min(100, Math.max(query.limit * 3, query.limit + 20));
+    const skip = (query.page - 1) * fetchTake;
 
     const [providers, total, aggregate] = await context.prisma.$transaction([
       context.prisma.provider.findMany({
@@ -243,7 +243,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       total,
       totalPages,
       hasMore,
-      nextOffset: hasMore ? query.page * query.limit : null,
+      nextOffset: hasMore ? query.page * fetchTake : null,
       maxRate,
       cityGroups,
       items: dedupedProviders.map((provider: any) => withPublicPhotos(provider)),
@@ -293,7 +293,6 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
         status: "active",
         location_state: { not: null },
         location_city: { not: null },
-        NOT: { location_city: { equals: "Statewide", mode: "insensitive" } },
       },
       select: { location_state: true, location_city: true },
     });
@@ -308,14 +307,20 @@ export async function searchLocationsHandler(request: ApiRequest, context: Searc
       const code = resolveStateAbbrev(rawState);
       if (!code || !isValidUsStateAbbrev(code)) continue;
 
+      const stateName = stateDisplayName(code);
+      const stateEntry = stateMap.get(code) ?? { name: stateName, count: 0, cities: new Map<string, LocationCityRow>() };
+
+      if (rawCity.toLowerCase() === "statewide") {
+        stateEntry.count += 1;
+        stateMap.set(code, stateEntry);
+        continue;
+      }
+
       const canonical = canonicalizePublicCity(rawCity, code);
       if (!canonical) continue;
-
-      const stateName = stateDisplayName(code);
       const citySlug = canonical.slug;
       const cityName = canonical.name;
 
-      const stateEntry = stateMap.get(code) ?? { name: stateName, count: 0, cities: new Map<string, LocationCityRow>() };
       stateEntry.count += 1;
 
       const cityEntry = stateEntry.cities.get(citySlug) ?? { slug: citySlug, name: cityName, count: 0 };
