@@ -14,7 +14,7 @@ cd "$REPO_DIR"
 
 set -a
 # shellcheck disable=SC1091
-. ./.env
+. <(grep -v '^CONTENT_SECURITY_POLICY=' ./.env)
 set +a
 export NODE_PATH="$REPO_DIR/node_modules"
 
