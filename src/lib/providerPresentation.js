@@ -33,13 +33,30 @@ function normalizedDisplayName(provider) {
 }
 
 export function dedupeProvidersForDisplay(providers = []) {
-  const seen = new Set();
+  const result = [];
+  const positions = new Map();
 
-  return providers.filter((provider) => {
+  function presentationScore(provider) {
+    const photos = Array.isArray(provider?.photos) ? provider.photos : [];
+    const r2Photos = photos.filter((photo) => String(photo || "").startsWith("/api/r2-photo/")).length;
+    return (r2Photos * 1000) + (photos.length * 10) + (provider?.is_verified ? 2 : 0) + (provider?.is_premium ? 1 : 0);
+  }
+
+  providers.forEach((provider) => {
     const normalizedName = normalizedDisplayName(provider);
     const key = normalizedName ? `name:${normalizedName}` : `id:${provider?.id ?? ""}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+    const existingPosition = positions.get(key);
+
+    if (existingPosition === undefined) {
+      positions.set(key, result.length);
+      result.push(provider);
+      return;
+    }
+
+    if (presentationScore(provider) > presentationScore(result[existingPosition])) {
+      result[existingPosition] = provider;
+    }
   });
+
+  return result;
 }
