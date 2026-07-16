@@ -79,13 +79,23 @@ export default function ViewProfile() {
   const hasPhotos = displayPhotos.length > 0;
 
   const prevPhoto = useCallback(
-    () => setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1)),
+    () => {
+      if (displayPhotos.length < 2) return;
+      setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1));
+    },
     [displayPhotos.length],
   );
   const nextPhoto = useCallback(
-    () => setSelectedPhoto((p) => (p === displayPhotos.length - 1 ? 0 : p + 1)),
+    () => {
+      if (displayPhotos.length < 2) return;
+      setSelectedPhoto((p) => (p === displayPhotos.length - 1 ? 0 : p + 1));
+    },
     [displayPhotos.length],
   );
+
+  useEffect(() => {
+    if (selectedPhoto >= displayPhotos.length) setSelectedPhoto(0);
+  }, [displayPhotos.length, selectedPhoto]);
 
   // Touch swipe support
   const handleTouchStart = (e) => { touchStart.current = e.touches[0].clientX; };
@@ -172,7 +182,13 @@ export default function ViewProfile() {
       />
 
       {/* ── Immersive Photo Gallery ── */}
-      <section className="relative w-full h-[60vh] sm:h-[70vh] lg:h-[80vh] overflow-hidden" ref={galleryRef}>
+      <section
+        className={`relative w-full overflow-hidden ${
+          hasPhotos ? "h-[60vh] sm:h-[70vh] lg:h-[80vh]" : "h-[42vh] min-h-[340px] sm:h-[48vh] lg:h-[56vh]"
+        }`}
+        ref={galleryRef}
+        aria-label={`${provider.display_name} photo gallery`}
+      >
         {hasPhotos ? (
           <div
             className="relative w-full h-full cursor-grab active:cursor-grabbing bg-zinc-950"
@@ -191,6 +207,7 @@ export default function ViewProfile() {
               >
                 <ProfileImage
                   src={displayPhotos[selectedPhoto]}
+                  fallbacks={displayPhotos.filter((_, index) => index !== selectedPhoto)}
                   alt={`${provider.display_name} - Photo ${selectedPhoto + 1}`}
                   priority
                   className="w-full h-full object-cover"
@@ -234,6 +251,9 @@ export default function ViewProfile() {
                     <button
                       key={i}
                       onClick={() => setSelectedPhoto(i)}
+                      type="button"
+                      aria-label={`Show photo ${i + 1} of ${displayPhotos.length}`}
+                      aria-pressed={selectedPhoto === i}
                       className={`relative flex-shrink-0 w-12 h-16 sm:w-16 sm:h-20 rounded-xl overflow-hidden transition-all duration-300 ${
                         selectedPhoto === i ? "ring-2 ring-amber-400 scale-105" : "opacity-50 hover:opacity-100"
                       }`}
@@ -246,7 +266,7 @@ export default function ViewProfile() {
             )}
 
             {/* Breadcrumbs */}
-            <motion.div style={{ opacity }} className="absolute top-6 left-6 md:top-8 md:left-12 z-30 bg-black/20 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/10">
+            <motion.div style={{ opacity }} className="absolute top-6 left-4 right-4 md:top-8 md:left-12 md:right-auto z-30 bg-black/20 backdrop-blur-md px-4 md:px-5 py-2.5 rounded-full border border-white/10 overflow-x-auto">
               <Breadcrumb>
                 <BreadcrumbList className="text-sm font-medium text-zinc-400 [&_a]:text-zinc-300 [&_a]:hover:text-amber-400 [&_a]:transition-colors">
                   <BreadcrumbItem>
@@ -280,7 +300,7 @@ export default function ViewProfile() {
               <p className="mt-4 text-zinc-500 font-medium">No photos yet</p>
             </div>
             {/* Breadcrumbs */}
-            <div className="absolute top-6 left-6 md:top-8 md:left-12 z-30 bg-black/40 backdrop-blur-md px-5 py-2.5 rounded-full border border-white/5">
+            <div className="absolute top-6 left-4 right-4 md:top-8 md:left-12 md:right-auto z-30 bg-black/40 backdrop-blur-md px-4 md:px-5 py-2.5 rounded-full border border-white/5 overflow-x-auto">
               <Breadcrumb>
                 <BreadcrumbList className="text-sm font-medium text-zinc-400 [&_a]:text-zinc-300 [&_a]:hover:text-amber-400">
                   <BreadcrumbItem><BreadcrumbLink asChild><Link to={createPageUrl("Browse")}>Browse</Link></BreadcrumbLink></BreadcrumbItem>

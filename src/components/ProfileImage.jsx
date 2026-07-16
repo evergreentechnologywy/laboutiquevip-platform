@@ -89,10 +89,15 @@ export function ProfileImage({
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        className={`h-full w-full object-cover transform transition-all duration-[1000ms] ease-[0.16,1,0.3,1] ${
+        className={`h-full w-full object-cover transform transition-all ${
           loaded ? "opacity-100 scale-100 filter-none" : "opacity-0 scale-110 blur-sm"
         }`}
-        style={{ objectPosition, contentVisibility: "auto" }}
+        style={{
+          objectPosition,
+          contentVisibility: "auto",
+          transitionDuration: "1000ms",
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }}
         onLoad={() => setLoaded(true)}
         onError={() => {
           if (index + 1 < candidates.length) {

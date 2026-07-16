@@ -75,12 +75,15 @@ export function photoMatchesProvider(url, provider) {
 
   const lower = String(url).toLowerCase();
   const filename = lower.split("/").pop() || lower;
-  const pathBlob = lower.replace(/^https?:\/\/[^/]+\//, "").replace(/[^a-z0-9]/g, " ");
+  // Keep the hostname in the identity surface. Evergreen model sites often use
+  // generic asset filenames, while the model identity is carried by the host
+  // itself (for example, rubyvega.site/assets/photo_123.jpg).
+  const identityBlob = lower.replace(/^https?:\/\//, "").replace(/[^a-z0-9]/g, " ");
 
   const providerPhone = String(provider?.phone || "").replace(/\D/g, "");
   const urlPhone = extractPhoneFromPhotoUrl(url);
   const slugTokens = extractVerificationSlugTokens(provider?.verification_url);
-  const slugHits = slugTokens.filter((token) => pathBlob.includes(token)).length;
+  const slugHits = slugTokens.filter((token) => identityBlob.includes(token)).length;
 
   // Phone alone is not enough: URL path must also match verification slug when present.
   if (providerPhone && urlPhone) {
@@ -106,7 +109,7 @@ export function photoMatchesProvider(url, provider) {
     return true;
   }
 
-  const nameHits = nameTokens.filter((token) => pathBlob.includes(token)).length;
+  const nameHits = nameTokens.filter((token) => identityBlob.includes(token)).length;
   if (nameTokens.length >= 2 && nameHits >= 2) return true;
   if (nameTokens.length === 1 && nameHits >= 1) return true;
 

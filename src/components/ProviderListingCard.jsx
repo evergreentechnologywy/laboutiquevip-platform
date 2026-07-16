@@ -94,7 +94,10 @@ export function ProviderListingCard({ provider }) {
           </div>
 
           {/* Title & Location Overlay */}
-          <div className="absolute inset-x-0 bottom-0 z-10 px-6 pb-6 translate-y-3 group-hover:translate-y-0 transition-transform duration-500 ease-[0.16,1,0.3,1]">
+          <div
+            className="absolute inset-x-0 bottom-0 z-10 px-6 pb-6 translate-y-3 group-hover:translate-y-0 transition-transform duration-500"
+            style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
+          >
             <h3 className="text-3xl font-serif tracking-tight text-white/90 group-hover:text-amber-200 transition-colors duration-300">
               {provider.display_name}
             </h3>

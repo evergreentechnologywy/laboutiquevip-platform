@@ -219,7 +219,19 @@ function matchCalendarModel(domain, displayName, modelProfiles) {
   return bestScore >= 2 ? best : null;
 }
 
-async function findExistingProvider(displayName) {
+async function findExistingProvider(displayName, siteUrl) {
+  const normalizedSiteUrl = String(siteUrl || "").replace(/\/+$/, "");
+  if (normalizedSiteUrl) {
+    const bySite = await prisma.$queryRaw`
+      SELECT id, display_name, photos, verification_url, bio, location_city, location_state, social_media
+      FROM "Provider"
+      WHERE lower(regexp_replace(coalesce(verification_url, ''), '/+$', '')) = lower(${normalizedSiteUrl})
+      ORDER BY updated_date DESC
+      LIMIT 1
+    `;
+    if (bySite[0]) return bySite[0];
+  }
+
   const rows = await prisma.$queryRaw`
     SELECT id, display_name, photos, verification_url, bio, location_city, location_state, social_media
     FROM "Provider"
@@ -279,7 +291,7 @@ async function upsertEvergreenModel(site, modelProfiles, locationOverride = null
   const bio =
     extractDescription(html) || `${displayName} — verified Evergreen companion. Book via ${siteUrl}`;
 
-  const existing = await findExistingProvider(calendarMatch?.name || displayName);
+  const existing = await findExistingProvider(calendarMatch?.name || displayName, siteUrl);
   const photoSources = await buildPhotoSources(site, siteUrl, html, calendarMatch?.profile);
 
   if (photoSources.length === 0) {
@@ -333,7 +345,6 @@ async function upsertEvergreenModel(site, modelProfiles, locationOverride = null
           bio = ${payload.bio},
           verification_provider = ${payload.verification_provider},
           verification_url = ${payload.verification_url},
-          photos = ${JSON.stringify(payload.photos)}::jsonb,
           status = ${payload.status},
           is_premium = ${payload.is_premium},
           is_verified = ${payload.is_verified},

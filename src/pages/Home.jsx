@@ -11,6 +11,7 @@ import { ProviderListingCard } from "@/components/ProviderListingCard";
 import { SEO } from "@/components/SEO";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { motion, AnimatePresence } from "framer-motion";
+import { dedupeProvidersForDisplay } from "@/lib/providerPresentation";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
@@ -60,10 +61,14 @@ export default function Home() {
         verified: true,
         limit: 12,
       });
-      const withPhotos = (data.items || []).filter(p => p.photos && p.photos.length > 0);
+      const withPhotos = dedupeProvidersForDisplay(
+        (data.items || []).filter(p => p.photos && p.photos.length > 0),
+      );
       if (withPhotos.length >= 3) return withPhotos;
       const fallback = await searchProviders({ limit: 12, sort: "newest" });
-      return (fallback.items || []).filter(p => p.photos && p.photos.length > 0);
+      return dedupeProvidersForDisplay(
+        (fallback.items || []).filter(p => p.photos && p.photos.length > 0),
+      );
     },
     staleTime: 60_000,
     gcTime: 5 * 60_000,

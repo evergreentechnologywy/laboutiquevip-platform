@@ -24,3 +24,22 @@ export function normalizeOptionalUrl(value) {
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
+
+function normalizedDisplayName(provider) {
+  return String(provider?.display_name ?? provider?.displayName ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
+
+export function dedupeProvidersForDisplay(providers = []) {
+  const seen = new Set();
+
+  return providers.filter((provider) => {
+    const normalizedName = normalizedDisplayName(provider);
+    const key = normalizedName ? `name:${normalizedName}` : `id:${provider?.id ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
