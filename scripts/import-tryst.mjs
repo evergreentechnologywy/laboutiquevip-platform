@@ -18,7 +18,7 @@ import {
   extractContactAndSocialFromMarkdown,
   mergeImportedSocial,
 } from "./lib/extract-social-links.mjs";
-import { formatCap } from "./lib/import-limits.mjs";
+import { formatCap, parseBoundedInteger } from "./lib/import-limits.mjs";
 import {
   collectProfileLinksForCity,
   getTrystCrawlLimits,
@@ -54,6 +54,18 @@ const args = new Map(
     const [k, v = "true"] = arg.replace(/^--/, "").split("=");
     return [k, v];
   }),
+);
+const profileFetchAttempts = parseBoundedInteger(
+  args.get("profile-fetch-attempts") ?? process.env.TRYST_PROFILE_FETCH_ATTEMPTS,
+  2,
+  1,
+  4,
+);
+const profileProgressEvery = parseBoundedInteger(
+  process.env.TRYST_PROFILE_PROGRESS_EVERY,
+  10,
+  1,
+  100,
 );
 const statesArg = args.get("states") ?? process.env.TRYST_STATES ?? null;
 const filteredStates = statesArg ? statesArg.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : null;
@@ -494,23 +506,33 @@ async function importCity(stateSlug, citySlug) {
 
   stats.profilesDiscovered += profileLinks.length;
 
-  for (const profileUrl of profileLinks) {
-    await sleep(crawlLimits.delayMs);
-    const profileText = await fetchPageText(profileUrl);
-    if (!profileText) {
-      stats.errors += 1;
-      continue;
-    }
-    const profile = parseProfilePage(profileText, profileUrl);
-    if (!profile) {
-      stats.skipped += 1;
-      continue;
-    }
-    stats.profilesParsed += 1;
+  for (const [index, profileUrl] of profileLinks.entries()) {
     try {
-      await upsertTrystProvider(profile, cityMeta, profileText);
-    } catch {
-      stats.errors += 1;
+      await sleep(crawlLimits.delayMs);
+      const profileText = await fetchPageText(profileUrl, profileFetchAttempts);
+      if (!profileText) {
+        stats.errors += 1;
+        continue;
+      }
+      const profile = parseProfilePage(profileText, profileUrl);
+      if (!profile) {
+        stats.skipped += 1;
+        continue;
+      }
+      stats.profilesParsed += 1;
+      try {
+        await upsertTrystProvider(profile, cityMeta, profileText);
+      } catch {
+        stats.errors += 1;
+      }
+    } finally {
+      const completed = index + 1;
+      if (completed === profileLinks.length || completed % profileProgressEvery === 0) {
+        console.log(
+          `  [profile-progress] ${stateSlug}/${citySlug}: ${completed}/${profileLinks.length} ` +
+            `parsed=${stats.profilesParsed} cached=${stats.cached} errors=${stats.errors}`,
+        );
+      }
     }
   }
 }
@@ -523,7 +545,8 @@ async function main() {
   console.log(
     `Tryst import start pilotOnly=${pilotOnly} states=${filteredStates?.length || "all"} dryRun=${dryRun} cacheOnly=${cacheOnly} ` +
       `profilesPerCity=${formatCap(crawlLimits.maxProfilesPerCity)} ` +
-      `citiesPerState=${formatCap(crawlLimits.maxCitiesPerState)}`,
+      `citiesPerState=${formatCap(crawlLimits.maxCitiesPerState)} ` +
+      `profileFetchAttempts=${profileFetchAttempts}`,
   );
 
   const cities = await resolveTrystTargetCities({

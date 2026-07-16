@@ -26,6 +26,7 @@ export NODE_PATH="$REPO_DIR/node_modules"
 # shellcheck disable=SC1091
 . "$REPO_DIR/scripts/lib/lbv-import-defaults.sh"
 export DELAY_MS="${DELAY_MS:-600}"
+export TRYST_SCAN_TIMEOUT="${TRYST_SCAN_TIMEOUT:-3h}"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -54,7 +55,7 @@ set +e
   echo "=== $(date -u +"%Y-%m-%dT%H:%M:%SZ") US verified catalog scan (cache-only) start ==="
   echo "cacheDir=${CATALOG_SCAN_CACHE_DIR}"
   echo "eros caps: city=${PROFILES_PER_CITY} top5=${EROS_TOP5_PROFILES_PER_CITY} state=${PROFILES_PER_STATE} maxPages=${EROS_MAX_PAGES}"
-  echo "tryst caps: profilesPerCity=${TRYST_MAX_PROFILES_PER_CITY} citiesPerState=${TRYST_MAX_CITIES_PER_STATE}"
+  echo "tryst caps: profilesPerCity=${TRYST_MAX_PROFILES_PER_CITY} citiesPerState=${TRYST_MAX_CITIES_PER_STATE} timeout=${TRYST_SCAN_TIMEOUT}"
 
   node "$REPO_DIR/scripts/import-eros.mjs" \
     --cache-only \
@@ -66,7 +67,8 @@ set +e
     --profiles-per-state="$PROFILES_PER_STATE"
 
   write_scan_flag "tryst-import"
-  node "$REPO_DIR/scripts/import-tryst.mjs" --cache-only
+  timeout --foreground --signal=TERM --kill-after=2m "$TRYST_SCAN_TIMEOUT" \
+    node "$REPO_DIR/scripts/import-tryst.mjs" --cache-only
   write_scan_flag "finalize-cache"
 
   node -e "

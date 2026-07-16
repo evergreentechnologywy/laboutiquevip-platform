@@ -9,6 +9,12 @@ export function parseImportLimit(raw, fallback = 0) {
   return value <= 0 ? 0 : Math.floor(value);
 }
 
+export function parseBoundedInteger(raw, fallback, min, max) {
+  const value = Number.parseInt(String(raw ?? ""), 10);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
 export function effectiveLimit(limit) {
   return limit > 0 ? limit : Number.POSITIVE_INFINITY;
 }
