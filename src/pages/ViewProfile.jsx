@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
 import { getProviderReviewLinks } from "@/lib/reviewLinks";
+import { getProviderImportantLinks } from "@/lib/providerImportantLinks";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
@@ -117,7 +118,7 @@ export default function ViewProfile() {
     return () => window.removeEventListener("keydown", onKey);
   }, [prevPhoto, nextPhoto]);
 
-  const hasExternalReviewUrl = reviewLinks.any;
+  const hasExternalReviewUrl = Boolean(importantLinks.boards?.length || reviewLinks.any);
 
   const stats = [
     provider?.age && { label: "Age", value: provider.age },
@@ -339,21 +340,25 @@ export default function ViewProfile() {
                 </div>
               </div>
               
-              {provider.tagline && (
-                <p className="text-xl md:text-2xl text-zinc-300 font-light leading-relaxed max-w-3xl mb-6">{provider.tagline}</p>
+              {(provider.ad_headline || provider.tagline) && (
+                <p className="text-xl md:text-2xl text-zinc-300 font-light leading-relaxed max-w-3xl mb-6">{provider.ad_headline || provider.tagline}</p>
               )}
 
               {/* ── Quick stats bar ── */}
               <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-sm md:text-base border-y border-white/10 py-5">
+                {(provider.location_city || provider.location_state) && (
                 <div className="flex items-center gap-2 text-white font-medium">
                   <MapPin className="w-5 h-5 text-rose-400" />
-                  {provider.location_city}, {provider.location_state}
+                  {[provider.location_city, provider.location_state].filter(Boolean).join(", ")}
                 </div>
+                )}
+                {ratingMeta.hasReviews && (
                 <div className="flex items-center gap-2">
                   <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
                   <span className="text-white font-bold">{ratingMeta.value}</span>
                   <span className="text-zinc-500 font-medium">· {ratingMeta.detail}</span>
                 </div>
+                )}
                 {stats.slice(0, 3).map((s) => (
                   <span key={s.label} className="text-zinc-500">
                     <span className="text-zinc-300 font-medium">{s.value}</span>
@@ -365,7 +370,12 @@ export default function ViewProfile() {
             {/* ── Tabs ── */}
             <Tabs defaultValue="about" className="w-full">
               <TabsList className="w-full justify-start gap-2 bg-zinc-900/40 border border-white/5 rounded-2xl p-2 h-auto flex-wrap sticky top-24 z-30 backdrop-blur-2xl shadow-xl">
-                {['about', 'details', 'services', 'reviews'].map((tab) => (
+                {['about', 'details', 'services', 'reviews'].filter((tab) => {
+                  if (tab === 'reviews') return reviews.length > 0 || hasExternalReviewUrl;
+                  if (tab === 'services') return Array.isArray(provider.services_offered) && provider.services_offered.length > 0;
+                  if (tab === 'details') return Boolean(provider.age || provider.service_type || provider.ethnicity || provider.hair_color || provider.eye_color || provider.height || provider.body_type);
+                  return true;
+                }).map((tab) => (
                   <TabsTrigger
                     key={tab}
                     value={tab}
@@ -374,7 +384,7 @@ export default function ViewProfile() {
                     {tab === 'about' ? 'About' : tab}
                     {tab === 'reviews' && (reviews.length > 0 || hasExternalReviewUrl) && (
                       <span className="ml-2 rounded-full bg-rose-500/20 text-rose-300 text-xs px-2.5 py-0.5 font-bold">
-                        {reviews.length || 'ext'}
+                        {reviews.length || importantLinks.boards?.length || ''}
                       </span>
                     )}
                   </TabsTrigger>
@@ -609,90 +619,45 @@ export default function ViewProfile() {
               </div>
             </div>
 
-            {/* External trust references */}
-            {(reviewLinks.any || provider.verification_provider || provider.verification_url) && (
-              <Card className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden">
-                <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.02]">
-                  <CardTitle className="text-white font-serif text-lg">Trust References</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-5">
-                  {reviewLinks.p411 && (
-                    <a href={reviewLinks.p411} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-sky-500/40 hover:bg-sky-500/10 transition-all group">
-                      <span className="text-sm font-medium text-zinc-300 group-hover:text-sky-300">Preferred411{provider.p411_id ? ` · ${provider.p411_id}` : ''}</span>
-                      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-sky-400 transition-colors" />
-                    </a>
-                  )}
-                  {reviewLinks.ter && (
-                    <a href={reviewLinks.ter} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-all group">
-                      <span className="text-sm font-medium text-zinc-300 group-hover:text-emerald-300">The Erotic Review</span>
-                      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 transition-colors" />
-                    </a>
-                  )}
-                  {reviewLinks.pd && (
-                    <a href={reviewLinks.pd} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-violet-500/40 hover:bg-violet-500/10 transition-all group">
-                      <span className="text-sm font-medium text-zinc-300 group-hover:text-violet-300">PrivateDelights</span>
-                      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
-                    </a>
-                  )}
-                  {reviewLinks.tob && (
-                    <a href={reviewLinks.tob} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all group">
-                      <span className="text-sm font-medium text-zinc-300 group-hover:text-amber-300">TheOtherBoard</span>
-                      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-amber-400 transition-colors" />
-                    </a>
-                  )}
-                  {provider.verification_url && (
-                    <a href={provider.verification_url} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-rose-500/40 hover:bg-rose-500/10 transition-all group">
-                      <span className="text-sm font-medium text-zinc-300 group-hover:text-rose-300">
-                        {provider.verification_provider || 'Verification account'}
-                        {provider.verification_username ? ` · @${String(provider.verification_username).replace(/^@/, '')}` : ''}
-                      </span>
-                      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-rose-400 transition-colors" />
-                    </a>
-                  )}
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-zinc-600 leading-relaxed pt-2 text-center">
-                    Third-party links for reference only.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            
           </aside>
         </div>
       </div>
 
       {/* ── Mobile CTA bar (fixed bottom) with glassmorphism ── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/10 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.8)] pb-safe">
-        <div className="flex items-stretch gap-3 px-4 py-4 max-w-lg mx-auto">
-          {provider.phone && (
-            <>
-              <a
-                href={`tel:${provider.phone}`}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
-              >
-                <Phone className="w-4 h-4" /> Call
-              </a>
-              <a
-                href={`sms:${provider.phone}`}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold text-sm active:scale-95 transition-transform"
-              >
-                <MessageCircle className="w-4 h-4" /> Text
-              </a>
-            </>
-          )}
-          {!provider.phone && provider.email && (
-            <a
-              href={`mailto:${provider.email}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
-            >
-              <MessageCircle className="w-4 h-4" /> Send message
-            </a>
-          )}
-        </div>
-      </div>
+            <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/10 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.8)] pb-safe">
+              <div className="flex items-stretch gap-3 px-4 py-4 max-w-lg mx-auto">
+                {importantLinks.contact?.find((c) => c.key === "call" || c.key === "text") && (
+                  <>
+                    {importantLinks.contact.find((c) => c.key === "call" || c.key === "text") && (
+                      <a
+                        href={importantLinks.contact.find((c) => c.key === "call" || c.key === "text").href}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
+                      >
+                        <Phone className="w-4 h-4" /> {importantLinks.contact.some((c) => c.key === "text") ? "Text" : "Call"}
+                      </a>
+                    )}
+                    {importantLinks.contact.find((c) => c.key === "email") && (
+                      <a
+                        href={importantLinks.contact.find((c) => c.key === "email").href}
+                        className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold text-sm active:scale-95 transition-transform"
+                      >
+                        <MessageCircle className="w-4 h-4" /> Email
+                      </a>
+                    )}
+                  </>
+                )}
+                {!importantLinks.contact?.some((c) => c.key === "call" || c.key === "text") &&
+                  importantLinks.contact?.find((c) => c.key === "email") && (
+                  <a
+                    href={importantLinks.contact.find((c) => c.key === "email").href}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
+                  >
+                    <MessageCircle className="w-4 h-4" /> Email
+                  </a>
+                )}
+              </div>
+            </div>
     </div>
   );
 }

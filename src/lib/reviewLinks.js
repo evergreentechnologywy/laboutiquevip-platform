@@ -33,8 +33,20 @@ export function isUsableExternalProfileUrl(url) {
     }
   }
   // Host-specific: PD search root
-  if (host.includes("privatedelights") && /^\/search\/?$/i.test(parsed.pathname)) return false;
-  if (host.includes("theeroticreview") && /search\.asp$/i.test(parsed.pathname) && !parsed.search) return false;
+  if (host.includes("privatedelights")) {
+    if (/^\/search\/?$/i.test(parsed.pathname)) return false;
+    // Require a real profile path, not homepage
+    if (!parsed.pathname || parsed.pathname === "/") return false;
+  }
+  if (host.includes("theeroticreview")) {
+    if (/search\.asp$/i.test(parsed.pathname) && !/[?&](id|provider|review|member)=/i.test(parsed.search)) {
+      return false;
+    }
+  }
+  // Preferred411 bare domain without profile id
+  if ((host.includes("preferred411") || host.includes("p411")) && (!parsed.pathname || parsed.pathname === "/")) {
+    return false;
+  }
   return true;
 }
 

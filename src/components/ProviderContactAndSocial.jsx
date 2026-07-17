@@ -1,177 +1,118 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExternalLink, Globe, Mail, MessageSquare, Phone } from "lucide-react";
 import {
-  getContactActions,
-  getVisibleSocialLinks,
-} from "@/lib/socialLinks";
+  ExternalLink,
+  Globe,
+  Mail,
+  MessageCircle,
+  Phone,
+  Send,
+} from "lucide-react";
+import { getProviderImportantLinks } from "@/lib/providerImportantLinks";
 
-function isImportedCatalogProvider(provider) {
-  const source = String(provider?.verification_provider ?? "").toLowerCase();
-  return source === "eros" || source === "tryst";
+const ICONS = {
+  text: MessageCircle,
+  call: Phone,
+  email: Mail,
+  whatsapp: MessageCircle,
+  telegram: Send,
+  website: Globe,
+  listing: Globe,
+  default: ExternalLink,
+};
+
+function LinkRow({ href, label, display, tone = "zinc" }) {
+  const toneMap = {
+    zinc: "hover:border-white/20 hover:bg-white/[0.04] text-zinc-200",
+    rose: "hover:border-rose-500/40 hover:bg-rose-500/10 text-rose-100",
+    sky: "hover:border-sky-500/40 hover:bg-sky-500/10 text-sky-100",
+    emerald: "hover:border-emerald-500/40 hover:bg-emerald-500/10 text-emerald-100",
+    violet: "hover:border-violet-500/40 hover:bg-violet-500/10 text-violet-100",
+    amber: "hover:border-amber-500/40 hover:bg-amber-500/10 text-amber-100",
+  };
+  const Icon = ICONS[label.toLowerCase()] || ICONS.default;
+  return (
+    <a
+      href={href}
+      target={href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("sms:") ? undefined : "_blank"}
+      rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl bg-black/35 border border-white/5 transition-all group ${toneMap[tone] || toneMap.zinc}`}
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-white group-hover:text-inherit">{label}</span>
+        {display ? (
+          <span className="block text-xs text-zinc-500 truncate mt-0.5">{display}</span>
+        ) : null}
+      </span>
+      <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-current shrink-0" />
+    </a>
+  );
 }
 
-function formatPhoneDisplay(phone) {
-  const digits = String(phone ?? "").replace(/\D/g, "");
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return phone;
-}
-
-function maskPhone(phone) {
-  return phone ? phone.replace(/(\d{3})\d{4}(\d{3})/, "$1****$2") : "";
-}
-
-function maskEmail(email) {
-  return email ? email.replace(/(.{3}).*(@.*)/, "$1***$2") : "";
-}
-
+/**
+ * Only important, working contact + destination links.
+ */
 export function ProviderContactAndSocial({ provider }) {
-  const imported = isImportedCatalogProvider(provider);
-  const contactActions = getContactActions(provider);
-  const socialLinks = getVisibleSocialLinks(provider);
-  const website =
-    provider?.social_media?.website ||
-    provider?.website ||
-    null;
+  const links = getProviderImportantLinks(provider);
+  if (!links.hasAny) return null;
 
-  const extraLinks = Array.isArray(provider?.social_media?.extra_links)
-    ? provider.social_media.extra_links.filter(Boolean).filter((url) => {
-        // Skip image/CDN URLs — those are photos, not social links
-        const s = String(url).toLowerCase();
-        return !(
-          /\.(jpg|jpeg|png|webp|gif|avif|bmp|svg)(\?|$)/i.test(s) ||
-          /a4cdn\.(?:ch|org)\/profiles\//i.test(s) ||
-          /media.*\.tryst/i.test(s) ||
-          /tryst\.link\/media/i.test(s) ||
-          /cdn\.(?:tryst|imgbox|image)/i.test(s)
-        );
-      })
-    : [];
-
-  const hasContact =
-    provider?.phone ||
-    provider?.email ||
-    website ||
-    contactActions.length > 0;
-  const hasSocial = socialLinks.length > 0 || extraLinks.length > 0;
-
-  if (!hasContact && !hasSocial) return null;
+  const boardTone = { p411: "sky", ter: "emerald", pd: "violet", tob: "amber" };
 
   return (
-    <>
-      {hasContact && (
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardHeader>
-            <CardTitle className="text-zinc-100">Contact</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {provider.phone && (
-              <div className="flex items-center gap-2 text-zinc-400">
-                <Phone className="w-4 h-4 shrink-0" />
-                {imported ? (
-                  <a
-                    href={contactActions.find((a) => a.key === "text")?.href ?? contactActions.find((a) => a.key === "call")?.href}
-                    className="text-base font-semibold text-rose-300 hover:text-rose-200 transition-colors"
-                  >
-                    {formatPhoneDisplay(provider.phone)}
-                  </a>
-                ) : (
-                  <span className="text-sm">{maskPhone(provider.phone)}</span>
-                )}
-              </div>
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-white font-serif text-lg mb-3">Contact</h3>
+        {links.contact.length === 0 && !links.website && !links.listing ? (
+          <p className="text-sm text-zinc-500">No public contact methods listed.</p>
+        ) : (
+          <div className="space-y-2">
+            {links.contact.map((item) => (
+              <LinkRow
+                key={item.key}
+                href={item.href}
+                label={item.label}
+                display={item.display}
+                tone="rose"
+              />
+            ))}
+            {links.website && (
+              <LinkRow href={links.website} label="Website" display={links.website.replace(/^https?:\/\//, "")} tone="zinc" />
             )}
-            {provider.email && (
-              <div className="flex items-center gap-2 text-zinc-400">
-                <Mail className="w-4 h-4 shrink-0" />
-                {imported ? (
-                  <a
-                    href={contactActions.find((a) => a.key === "email")?.href}
-                    className="text-sm hover:text-rose-400 transition-colors break-all"
-                  >
-                    {provider.email}
-                  </a>
-                ) : (
-                  <span className="text-sm">{maskEmail(provider.email)}</span>
-                )}
-              </div>
+            {links.listing && (
+              <LinkRow href={links.listing.href} label={links.listing.label} display={links.listing.href.replace(/^https?:\/\//, "").slice(0, 48)} tone="zinc" />
             )}
-            {website && (
-              <div className="flex items-center gap-2 text-zinc-400">
-                <Globe className="w-4 h-4 shrink-0" />
-                <a
-                  href={website.startsWith("http") ? website : `https://${website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm hover:text-rose-400 transition-colors break-all"
-                >
-                  Website
-                </a>
-              </div>
-            )}
-            {contactActions.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {contactActions.map((action) => (
-                  <a
-                    key={action.key}
-                    href={action.href}
-                    target={action.key === "email" ? undefined : "_blank"}
-                    rel={action.key === "email" ? undefined : "noopener noreferrer"}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-950/60 px-3 py-1.5 text-xs font-medium text-zinc-200 transition-colors hover:border-rose-500/50 hover:text-rose-300"
-                  >
-                    {action.key === "text" ? (
-                      <MessageSquare className="h-3.5 w-3.5" />
-                    ) : (
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    )}
-                    {action.label}
-                  </a>
-                ))}
-              </div>
-            )}
-            {!imported && (provider.phone || provider.email) && (
-              <p className="text-[10px] leading-4 text-zinc-500">
-                Direct contact details are partially masked on La Boutique VIP listings. Use the action buttons above when available.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
+      </div>
+
+      {links.social.length > 0 && (
+        <div>
+          <h3 className="text-white font-serif text-lg mb-3">Social</h3>
+          <div className="space-y-2">
+            {links.social.map((item) => (
+              <LinkRow key={item.key} href={item.href} label={item.label} display={item.display} />
+            ))}
+          </div>
+        </div>
       )}
 
-      {hasSocial && (
-        <Card className="bg-zinc-900 border-zinc-800">
-          <CardHeader>
-            <CardTitle className="text-zinc-100">Social & links</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {socialLinks.map((link) => (
-              <a
-                key={link.key}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-rose-500/40 hover:text-rose-300"
-              >
-                <span>{link.label}</span>
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-              </a>
+      {links.boards.length > 0 && (
+        <div>
+          <h3 className="text-white font-serif text-lg mb-3">Reviews & boards</h3>
+          <div className="space-y-2">
+            {links.boards.map((item) => (
+              <LinkRow
+                key={item.key}
+                href={item.href}
+                label={item.label}
+                tone={boardTone[item.key] || "zinc"}
+              />
             ))}
-            {extraLinks.map((url) => (
-              <a
-                key={url}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-rose-500/40 hover:text-rose-300"
-              >
-                <span className="truncate">{url.replace(/^https?:\/\//, "")}</span>
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-              </a>
-            ))}
-          </CardContent>
-        </Card>
+          </div>
+          <p className="text-[11px] text-zinc-600 mt-3 leading-relaxed">
+            Board links open the provider&apos;s matched profile only — never a blank search page.
+          </p>
+        </div>
       )}
-    </>
+    </div>
   );
 }
