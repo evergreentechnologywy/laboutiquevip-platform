@@ -21,10 +21,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { base44 } from "@/api/base44Client"
-import { buildLoginUrl, currentAppPath } from "@/lib/authUrls";;
 import { Footer } from "@/components/Footer";
 import AdvertisingCopilot from "@/components/AdvertisingCopilot";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { SiteHeader } from "@/components/SiteHeader";
 
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home"), icon: Home },
@@ -93,13 +93,6 @@ export default function Layout({ children, currentPageName }) {
   const isAuthPage = currentPageName === "Login" || currentPageName === "Register";
   const fullPath = `${location.pathname}${location.search}`;
 
-  const isNavActive = (item) => {
-    if (location.pathname === item.url) return true;
-    if (item.title === "Browse") {
-      return location.pathname.startsWith("/city/") || location.pathname.toLowerCase().startsWith("/viewprofile") || location.pathname.startsWith("/profile/");
-    }
-    return false;
-  };
 
   const acceptAgeGate = () => {
     sessionStorage.setItem("lbv_age_gate_accepted", "yes");
@@ -127,7 +120,7 @@ export default function Layout({ children, currentPageName }) {
           --ring: 345 85% 55%;
         }
       `}</style>
-      <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100">
+      <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100 selection:bg-rose-500/30 selection:text-white">
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:bg-amber-500 focus:text-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold">Skip to main content</a>
         {!isProviderPage && !isAuthPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
@@ -255,85 +248,8 @@ export default function Layout({ children, currentPageName }) {
           </Sidebar>
         )}
 
-        <main className="flex-1 flex flex-col" id="main-content">
-          {!isProviderPage && (
-            <nav className="border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-2xl sticky top-0 z-30 shadow-sm shadow-black/50">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div className="flex h-16 sm:h-20 items-center justify-between">
-                  <Link to={createPageUrl("Home")} className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white">
-                      <Crown className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-sm sm:text-base font-serif font-bold tracking-tight text-zinc-100 text-gradient-gold">
-                        La Boutique VIP<span className="hidden sm:inline"> International</span>
-                      </span>
-                      <span className="hidden sm:block text-xs text-zinc-500">Curated, discreet discovery</span>
-                    </div>
-                  </Link>
-
-                  <div className="flex items-center gap-3 sm:gap-6">
-                    <div className="hidden sm:flex items-center gap-3 sm:gap-6">
-                    {publicNavigation.map((item) => (
-                      <Link
-                        key={item.title}
-                        to={item.url}
-                        aria-current={isNavActive(item) ? "page" : undefined}
-                        className={`text-xs sm:text-sm font-medium transition-colors ${isNavActive(item) ? "text-amber-400" : "text-zinc-400 hover:text-zinc-100"} ${item.title === "Home" ? "hidden sm:block" : ""}`}
-                      >
-                        {item.title}
-                      </Link>
-                    ))}
-                    </div>
-
-                    <Sheet>
-                      <SheetTrigger asChild className="sm:hidden">
-                        <Button variant="outline" size="icon" className="h-11 w-11 border-zinc-700 bg-zinc-900 text-zinc-200">
-                          <Menu className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="right" className="bg-zinc-950 border-zinc-800 text-zinc-100">
-                        <SheetHeader>
-                          <SheetTitle className="text-zinc-100">Menu</SheetTitle>
-                        </SheetHeader>
-                        <nav className="mt-6 flex flex-col gap-2">
-                          {publicNavigation.map((item) => (
-                            <Link
-                              key={item.title}
-                              to={item.url}
-                              aria-current={isNavActive(item) ? "page" : undefined}
-                              className={`flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium ${isNavActive(item) ? "bg-zinc-900 text-amber-400" : "text-zinc-300 hover:bg-zinc-900"}`}
-                            >
-                              {item.title}
-                            </Link>
-                          ))}
-                        </nav>
-                      </SheetContent>
-                    </Sheet>
-
-                    {user ? (
-                      <>
-                        <Link to={createPageUrl("ProviderDashboard")} className="text-sm font-medium text-zinc-200 transition-colors hover:text-amber-400">
-                          Dashboard
-                        </Link>
-                        <button onClick={() => base44.auth.logout()} className="text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-200">
-                          Logout
-                        </button>
-                      </>
-                    ) : !isAuthPage && (
-                      <button
-                        onClick={() => { window.location.href = buildLoginUrl(currentAppPath()); }}
-                        className="min-h-11 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
-                      >
-                        Sign In
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </nav>
-          )}
+        <main className="flex-1 flex flex-col min-w-0" id="main-content">
+          {!isProviderPage && <SiteHeader user={user} isAuthPage={isAuthPage} />}
 
           {isProviderPage && (
             <header className="bg-zinc-950 border-b border-zinc-800 px-6 py-4 md:hidden">
