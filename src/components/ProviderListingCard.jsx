@@ -66,8 +66,7 @@ export function ProviderListingCard({ provider }) {
         className="group relative overflow-hidden rounded-[2rem] bg-zinc-950/40 backdrop-blur-xl border border-white/5 hover:border-white/10 transition-colors duration-500 shadow-2xl"
         role="article"
         aria-label={provider.display_name}
-        whileHover={{ y: -4,
-        scale: 1.01, scale: 1.01,  rotateY: -2 }}
+        whileHover={{ y: -4, scale: 1.01 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-2xl pointer-events-none" />
