@@ -76,13 +76,16 @@ export default function ViewProfile() {
   });
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
-  const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
+    const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
     const hasPhotos = displayPhotos.length > 0;
     const reviewLinks = provider
       ? getProviderReviewLinks(provider)
       : { ter: null, pd: null, tob: null, p411: null, any: false };
+    const importantLinks = provider
+      ? getProviderImportantLinks(provider)
+      : { contact: [], social: [], boards: [], listing: null, website: null, hasAny: false };
 
-  const prevPhoto = useCallback(
+    const prevPhoto = useCallback(
     () => {
       if (displayPhotos.length < 2) return;
       setSelectedPhoto((p) => (p === 0 ? displayPhotos.length - 1 : p - 1));
