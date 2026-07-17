@@ -54,12 +54,12 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative bg-zinc-950 border-t border-white/5 text-zinc-400 overflow-hidden">
+    <footer className="relative bg-zinc-950 border-t border-white/5 text-zinc-400 overflow-hidden" role="contentinfo">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950 pointer-events-none" />
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-gradient-to-t from-rose-500/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-20 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <motion.div 
           initial="hidden" 
           whileInView="show" 
@@ -117,7 +117,7 @@ export function Footer() {
                   <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
-                  <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
                 </a>
               ))}
             </div>
@@ -133,7 +133,7 @@ export function Footer() {
                   <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
-                  <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
                 </a>
               ))}
             </div>
@@ -149,7 +149,7 @@ export function Footer() {
                   <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
-                  <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
                 </a>
               ))}
             </div>
@@ -161,7 +161,7 @@ export function Footer() {
                   <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
-                  <span className="group-hover:translate-x-1 transition-transform duration-300">{label}</span>
+                  <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
                 </a>
               ))}
             </div>

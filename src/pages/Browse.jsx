@@ -224,7 +224,7 @@ export default function Browse() {
         <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-[800px] h-[800px] bg-rose-500/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative z-10 mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] lg:items-end">
             <motion.div 
               initial={{ opacity: 0, x: -20 }} 
@@ -233,7 +233,7 @@ export default function Browse() {
               className="max-w-3xl"
             >
               <p className="text-xs font-semibold tracking-[0.25em] text-rose-400 uppercase">Browse the directory</p>
-              <h1 className="mt-4 text-4xl font-serif font-bold tracking-tight text-white sm:text-6xl leading-tight">
+              <h1 className="mt-3 text-3xl font-serif font-semibold tracking-tight text-white sm:text-5xl leading-[1.1]">
                 Refined discovery with <br className="hidden sm:block" />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-rose-400">stronger trust</span>
               </h1>
@@ -258,7 +258,7 @@ export default function Browse() {
             initial={{ opacity: 0, y: 30 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-            className="mt-10 rounded-[2rem] bg-zinc-900/40 backdrop-blur-3xl border border-white/10 p-6 shadow-2xl relative overflow-hidden"
+            className="mt-10 sticky top-20 z-20 rounded-[2rem] bg-zinc-950/80 backdrop-blur-3xl border border-white/10 p-4 sm:p-6 shadow-2xl relative overflow-hidden supports-[backdrop-filter]:bg-zinc-950/70"
           >
             {/* Subtle inner glow */}
             <div className="absolute inset-0 bg-gradient-to-r from-rose-500/5 to-amber-500/5 pointer-events-none" />
@@ -474,7 +474,7 @@ export default function Browse() {
         )}
 
         {isLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40 backdrop-blur-sm">
                 <Skeleton className="aspect-[4/5] w-full bg-white/5" />
@@ -532,7 +532,7 @@ export default function Browse() {
                   initial="hidden"
                   whileInView="show"
                   viewport={{ once: true }}
-                  className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                  className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6"
                 >
                   {cityProviders.map((provider) => (
                     <motion.div key={provider.id} variants={itemVariants}>

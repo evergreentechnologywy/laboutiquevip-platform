@@ -77,9 +77,10 @@ export default function Home() {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (searchQuery) params.append("q", searchQuery);
-    if (locationQuery) params.append("location", locationQuery);
-    window.location.href = createPageUrl(`Browse?${params.toString()}`);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (locationQuery.trim()) params.set("location", locationQuery.trim());
+    const qs = params.toString();
+    navigate(createPageUrl(qs ? `Browse?${qs}` : "Browse"));
   };
 
   return (
@@ -97,7 +98,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-500/15 via-rose-500/5 to-transparent opacity-80 pointer-events-none" />
         <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-[800px] h-[800px] bg-rose-500/15 rounded-full blur-[120px] pointer-events-none" />
         
-        <div className="relative z-10 mx-auto max-w-7xl px-6 py-28 sm:py-40 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-32 lg:px-8 lg:py-40">
           <div className="mx-auto max-w-5xl text-center">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: "easeOut" }}>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-bold tracking-[0.25em] text-zinc-300 uppercase shadow-xl backdrop-blur-md">
@@ -110,7 +111,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 30 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-              className="mt-8 text-5xl font-serif font-bold tracking-tight text-white sm:text-7xl lg:text-[5rem] leading-[1.1]"
+              className="mt-7 text-4xl font-serif font-semibold tracking-tight text-white sm:mt-8 sm:text-6xl lg:text-[4.75rem] leading-[1.08]"
             >
               Discover verified profiles with <br className="hidden sm:block" />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-rose-300 to-amber-200 bg-[length:200%_auto] animate-gradient">
@@ -144,7 +145,7 @@ export default function Home() {
                     aria-label="Search by name or service"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                     className="h-16 rounded-[1.5rem] border-transparent bg-white/5 pl-14 text-lg text-white placeholder:text-zinc-500 focus:border-amber-500/50 focus:bg-white/10 transition-all duration-300"
                   />
                 </div>
@@ -166,18 +167,31 @@ export default function Home() {
               </div>
             </motion.div>
 
-            <motion.p 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              transition={{ delay: 0.8, duration: 1 }}
-              className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs text-zinc-500 font-bold uppercase tracking-[0.25em]"
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.8 }}
+              className="mt-8 flex flex-col items-center gap-5"
             >
-              <span>Adults only</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
-              <span>Trusted presentation</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-700" />
-              <span>Clear profiles</span>
-            </motion.p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Link to={createPageUrl("Browse")}>
+                  <Button variant="outline" className="h-12 rounded-full border-white/10 bg-white/[0.03] px-6 text-sm font-semibold text-zinc-200 hover:bg-white/[0.07] hover:text-white">
+                    Browse all listings
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link to={createPageUrl("Trust")} className="text-sm font-medium text-zinc-500 underline-offset-4 hover:text-amber-300 hover:underline">
+                  How trust works
+                </Link>
+              </div>
+              <p className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                <span>Adults only</span>
+                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                <span>Discreet</span>
+                <span className="h-1 w-1 rounded-full bg-zinc-700" />
+                <span>Clear profiles</span>
+              </p>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -203,7 +217,7 @@ export default function Home() {
       </section>
 
       {/* Featured Selection */}
-      <section className="relative mx-auto max-w-7xl px-6 py-28 lg:px-8">
+      <section className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
         <div className="mb-16 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-rose-400">Featured selection</p>
@@ -222,13 +236,25 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {featuredProviders.length >= 3 ? (
+        {isLoadingFeatured ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40">
+                <div className="aspect-[4/5] animate-pulse bg-zinc-800/60" />
+                <div className="space-y-3 p-6">
+                  <div className="h-5 w-2/3 animate-pulse rounded bg-zinc-800/80" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-800/50" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : featuredProviders.length >= 3 ? (
           <motion.div 
             variants={staggerContainer} 
             initial="hidden" 
             whileInView="show" 
             viewport={{ once: true }}
-            className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8"
           >
             {featuredProviders.slice(0, 6).map((provider) => (
               <motion.div key={provider.id} variants={fadeUp}>
@@ -236,7 +262,7 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
-        ) : !isLoadingFeatured && (
+        ) : (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }} 
             whileInView={{ opacity: 1, scale: 1 }} 
@@ -262,7 +288,7 @@ export default function Home() {
       {/* Why Section */}
       <section className="relative border-y border-white/5 bg-zinc-950 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/[0.03] to-transparent pointer-events-none" />
-        <div className="relative z-10 mx-auto max-w-7xl px-6 py-28 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
           <motion.div 
             initial={{ opacity: 0, y: 20 }} 
             whileInView={{ opacity: 1, y: 0 }} 
@@ -299,7 +325,7 @@ export default function Home() {
       </section>
 
       {/* Provider CTA */}
-      <section className="mx-auto max-w-7xl px-6 py-32 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-28 lg:px-8 lg:py-32">
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }} 
           whileInView={{ opacity: 1, scale: 1 }} 
