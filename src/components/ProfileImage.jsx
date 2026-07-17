@@ -64,13 +64,13 @@ export function ProfileImage({
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.45 }}
             className="absolute inset-0 z-10"
           >
             {blurDataURL ? (
               <div
-                className="w-full h-full bg-cover bg-center scale-110"
-                style={{ backgroundImage: `url(${blurDataURL})`, filter: "blur(20px)" }}
+                className="w-full h-full bg-cover bg-center scale-105"
+                style={{ backgroundImage: `url(${blurDataURL})`, filter: "blur(16px)" }}
               />
             ) : (
               <div className="w-full h-full relative overflow-hidden bg-zinc-900">
@@ -89,14 +89,11 @@ export function ProfileImage({
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        className={`h-full w-full object-cover transform transition-all ${
-          loaded ? "opacity-100 scale-100 filter-none" : "opacity-0 scale-110 blur-sm"
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+          loaded ? "opacity-100" : "opacity-0"
         }`}
         style={{
           objectPosition,
-          contentVisibility: "auto",
-          transitionDuration: "1000ms",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
         onLoad={() => setLoaded(true)}
         onError={() => {
