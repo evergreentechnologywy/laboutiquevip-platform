@@ -84,7 +84,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-rose-500/35 selection:text-white pb-20 md:pb-0">
       <SEO
         title="La Boutique VIP International | Curated, Discreet Directory of Verified Profiles"
         description="Discover verified profiles with discretion and clarity. Browse polished listings, transparent rates, and direct enquiry options in a trusted premium environment."
@@ -103,7 +103,7 @@ export default function Home() {
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, ease: "easeOut" }}>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-bold tracking-[0.25em] text-zinc-300 uppercase shadow-xl backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Curated listings
+                Curated · Verified · Discreet
               </span>
             </motion.div>
 
@@ -123,7 +123,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }} 
               transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-              className="mx-auto mt-8 max-w-2xl text-lg sm:text-xl leading-relaxed text-zinc-400 font-light"
+              className="mx-auto mt-8 max-w-2xl text-lg sm:text-xl leading-relaxed text-zinc-300 font-normal"
             >
               Browse polished listings, transparent rates, and direct enquiry options in a trusted premium environment.
             </motion.p>
@@ -146,7 +146,7 @@ export default function Home() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                    className="h-16 rounded-[1.5rem] border-transparent bg-white/5 pl-14 text-lg text-white placeholder:text-zinc-500 focus:border-amber-500/50 focus:bg-white/10 transition-all duration-300"
+                    className="h-14 md:h-16 rounded-[1.5rem] border-transparent bg-white/5 pl-14 text-base md:text-lg text-white placeholder:text-zinc-500 focus:border-amber-500/50 focus:bg-white/10 transition-all duration-300"
                   />
                 </div>
                 <div className="relative group">
@@ -155,14 +155,14 @@ export default function Home() {
                     value={locationQuery}
                     onChange={setLocationQuery}
                     onEnter={handleSearch}
-                    className="h-16 w-full rounded-[1.5rem] border-transparent bg-white/5 pl-14 pr-4 text-lg text-white placeholder:text-zinc-500 focus:border-amber-500/50 focus:bg-white/10 focus:outline-none transition-all duration-300"
+                    className="h-14 md:h-16 w-full rounded-[1.5rem] border-transparent bg-white/5 pl-14 pr-4 text-base md:text-lg text-white placeholder:text-zinc-500 focus:border-amber-500/50 focus:bg-white/10 focus:outline-none transition-all duration-300"
                   />
                 </div>
                 <Button
                   onClick={handleSearch}
-                  className="h-16 rounded-[1.5rem] bg-gradient-to-r from-amber-500 to-rose-500 px-10 text-lg font-bold text-white shadow-xl shadow-rose-500/20 border-0 hover:scale-[1.02] active:scale-95 transition-all"
+                  className="h-14 md:h-16 w-full md:w-auto rounded-[1.5rem] bg-gradient-to-r from-amber-500 to-rose-500 px-10 text-base md:text-lg font-bold text-white shadow-xl shadow-rose-500/20 border-0 hover:scale-[1.02] active:scale-95 transition-all"
                 >
-                  Explore
+                  Search
                 </Button>
               </div>
             </motion.div>
@@ -196,9 +196,17 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Mobile sticky CTA */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-zinc-950/90 backdrop-blur-xl px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <Button onClick={handleSearch} className="lbv-cta h-12 w-full border-0">
+          <Search className="mr-2 h-4 w-4" />
+          Search profiles
+        </Button>
+      </div>
+
       {/* Trust Items Banner */}
       <section className="border-b border-white/5 bg-zinc-950 relative z-20">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
           <motion.div 
             variants={staggerContainer} 
             initial="hidden" 
@@ -207,7 +215,7 @@ export default function Home() {
             className="grid grid-cols-2 lg:grid-cols-4 gap-4"
           >
             {trustItems.map((item) => (
-              <motion.div key={item.label} variants={fadeUp} className="group flex items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] backdrop-blur-md px-6 py-5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
+              <motion.div key={item.label} variants={fadeUp} className="group flex items-center justify-center gap-3 rounded-2xl border border-white/5 bg-white/[0.04] backdrop-blur-md px-5 py-5 hover:bg-white/[0.07] hover:border-white/10 transition-all duration-300">
                 <item.icon className="h-5 w-5 text-rose-400 group-hover:text-amber-400 group-hover:scale-110 transition-all" />
                 <span className="text-sm font-semibold text-zinc-300 group-hover:text-white transition-colors">{item.label}</span>
               </motion.div>
@@ -222,13 +230,13 @@ export default function Home() {
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-rose-400">Featured selection</p>
             <h2 className="mt-4 text-4xl font-serif font-bold tracking-tight text-white sm:text-5xl">Verified Profiles</h2>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-zinc-400 font-light">
+            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-zinc-300 font-normal">
               Explore curated listings presented with clarity, trust, and premium discretion.
             </p>
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
             <Link to={createPageUrl("Browse")}>
-              <Button variant="outline" className="h-14 rounded-full border-white/10 bg-white/5 backdrop-blur-md px-8 text-white font-bold tracking-wide hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+              <Button variant="outline" className="h-12 rounded-full border-white/10 bg-white/5 backdrop-blur-md px-7 text-sm text-white font-semibold tracking-wide hover:bg-white/10 hover:border-white/20 transition-all duration-300">
                 Browse all profiles
                 <ArrowRight className="ml-3 h-5 w-5" />
               </Button>
@@ -238,7 +246,7 @@ export default function Home() {
 
         {isLoadingFeatured ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 9 }).map((_, i) => (
               <div key={i} className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40">
                 <div className="aspect-[4/5] animate-pulse bg-zinc-800/60" />
                 <div className="space-y-3 p-6">
@@ -256,7 +264,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8"
           >
-            {featuredProviders.slice(0, 6).map((provider) => (
+            {featuredProviders.slice(0, 9).map((provider) => (
               <motion.div key={provider.id} variants={fadeUp}>
                 <ProviderListingCard provider={provider} />
               </motion.div>
@@ -271,12 +279,12 @@ export default function Home() {
           >
             <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 to-transparent pointer-events-none" />
             <h2 className="text-3xl font-serif font-bold tracking-tight text-white">Curating exceptional profiles</h2>
-            <p className="mt-4 text-lg leading-relaxed text-zinc-400 font-light max-w-xl mx-auto">
+            <p className="mt-4 text-lg leading-relaxed text-zinc-300 font-normal max-w-xl mx-auto">
               Check back soon for new featured listings. 
             </p>
             <div className="mt-10 flex justify-center">
               <Link to={createPageUrl("Browse")}>
-                <Button className="rounded-full bg-gradient-to-r from-amber-500 to-rose-500 px-10 h-14 text-white font-bold shadow-xl shadow-rose-500/20 border-0">
+                <Button className="lbv-cta h-12 border-0">
                   Explore Directory
                 </Button>
               </Link>
@@ -296,7 +304,7 @@ export default function Home() {
             className="mx-auto max-w-3xl text-center"
           >
             <h2 className="text-4xl font-serif font-bold tracking-tight text-white sm:text-5xl">Why La Boutique VIP</h2>
-            <p className="mt-6 text-lg leading-relaxed text-zinc-400 font-light">
+            <p className="mt-6 text-lg leading-relaxed text-zinc-300 font-normal">
               A more refined way to discover trusted profiles with clarity, discretion, and premium presentation.
             </p>
           </motion.div>
@@ -316,7 +324,7 @@ export default function Home() {
                     <item.icon className="h-8 w-8 text-rose-400 group-hover:text-amber-400 transition-colors" />
                   </div>
                   <h3 className="text-2xl font-serif font-bold text-white group-hover:text-amber-300 transition-colors">{item.title}</h3>
-                  <p className="mt-4 text-base leading-relaxed text-zinc-400 font-light group-hover:text-zinc-300 transition-colors">{item.body}</p>
+                  <p className="mt-4 text-base leading-relaxed text-zinc-300 font-normal group-hover:text-zinc-300 transition-colors">{item.body}</p>
                 </div>
               </motion.div>
             ))}
@@ -338,7 +346,7 @@ export default function Home() {
             <h2 className="text-4xl font-serif font-bold tracking-tight text-white sm:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-rose-400">
               Are you a provider?
             </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-zinc-300 font-light">
+            <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl leading-relaxed text-zinc-300 font-normal">
               Join La Boutique VIP International and present your profile in a more polished, trusted, and premium environment.
             </p>
             <Button
