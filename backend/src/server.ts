@@ -231,15 +231,15 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/video/upload" && request.method === "POST") return videoUploadHandler(request);
 
-  if (request.pathname.startsWith("/api/r2-photo/") && request.method === "GET") {
+  if (request.pathname.startsWith("/api/r2-photo/") && (request.method === "GET" || request.method === "HEAD")) {
     return r2PhotoProxyHandler(request);
   }
 
-  if (request.pathname === "/api/eros-photo" && request.method === "GET") {
+  if (request.pathname === "/api/eros-photo" && (request.method === "GET" || request.method === "HEAD")) {
     return erosPhotoProxyHandler(request);
   }
 
-  if (request.pathname === "/api/tryst-photo" && request.method === "GET") {
+  if (request.pathname === "/api/tryst-photo" && (request.method === "GET" || request.method === "HEAD")) {
     return trystPhotoProxyHandler(request);
   }
 
