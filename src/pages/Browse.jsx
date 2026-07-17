@@ -25,15 +25,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { motion, AnimatePresence } from "framer-motion";
 import { AiSpotlight } from "@/components/AiSpotlight";
-
-function groupProvidersByCity(items) {
-  return items.reduce((acc, provider) => {
-    const key = `${provider.location_city || "Unknown"}, ${provider.location_state || "Unknown"}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(provider);
-    return acc;
-  }, {});
-}
+import {
+  groupProvidersForStateBrowse,
+  groupProvidersByCity,
+  isStateLocationQuery,
+} from "@/lib/cityGroups";
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = React.useState(value);
@@ -198,12 +194,23 @@ export default function Browse() {
   ]);
 
   const providers = data?.items || [];
-  const cityGroups = data?.cityGroups || [];
+  const apiCityGroups = data?.cityGroups || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
   const maxAllowedPrice = data?.maxRate || 2000;
-  const isStateSearch = !!location && providers.some((provider) => provider.location_state?.toLowerCase() === location.toLowerCase()) && new Set(providers.map((provider) => provider.location_city)).size > 1;
-  const groupedProviders = groupProvidersByCity(providers);
+
+  const stateBrowse = React.useMemo(
+    () => groupProvidersForStateBrowse(providers, debouncedLocation, { topCities: 5, maxCities: 12 }),
+    [providers, debouncedLocation],
+  );
+  // Prefer client canonical groups; fall back to API chips when needed
+  const isStateSearch = stateBrowse.isState || (isStateLocationQuery(debouncedLocation) && (apiCityGroups.length > 1 || stateBrowse.groups.length > 1));
+  const cityGroups = stateBrowse.cityChips.length
+    ? stateBrowse.cityChips
+    : apiCityGroups;
+  const stateCitySections = stateBrowse.groups;
+  const otherStateProviders = stateBrowse.otherProviders;
+
   const hasActiveFilters = Boolean(searchQuery || location || selectedFilters.verified || selectedFilters.premium || priceRange[0] > 0 || priceRange[1] < 2000);
   const hasLowResults = !isLoading && providers.length > 0 && providers.length <= 3;
   const touringProviders = providers.filter((provider) => provider.tour_plan?.cities?.length > 0).slice(0, 6);
@@ -459,12 +466,39 @@ export default function Browse() {
           </div>
 
           {isStateSearch && cityGroups.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {cityGroups.map((group) => (
-                <Badge key={`${group.city}-${group.state}`} className="rounded-full border border-white/10 bg-white/5 backdrop-blur-md px-4 py-1.5 text-zinc-300 font-medium shadow-sm">
-                  {group.city} <span className="ml-2 text-zinc-500">{group.count}</span>
-                </Badge>
-              ))}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Top cities{stateBrowse.stateName ? ` in ${stateBrowse.stateName}` : ""}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {cityGroups.map((group) => {
+                  const active = location.trim().toLowerCase() === String(group.city || "").toLowerCase();
+                  return (
+                    <button
+                      key={`${group.slug || group.city}-${group.state}`}
+                      type="button"
+                      onClick={() => setLocation(group.city)}
+                      className={`rounded-full border px-4 py-1.5 text-sm font-medium shadow-sm transition ${
+                        active
+                          ? "border-amber-400/40 bg-amber-500/15 text-amber-100"
+                          : "border-white/10 bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/10"
+                      }`}
+                    >
+                      {group.city}
+                      <span className="ml-2 text-zinc-500">{group.count}</span>
+                    </button>
+                  );
+                })}
+                {!isStateLocationQuery(location) && stateBrowse.stateCode ? (
+                  <button
+                    type="button"
+                    onClick={() => setLocation(stateBrowse.stateName || stateBrowse.stateCode)}
+                    className="rounded-full border border-white/10 bg-transparent px-4 py-1.5 text-sm text-zinc-500 hover:text-zinc-300"
+                  >
+                    All {stateBrowse.stateCode}
+                  </button>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
@@ -581,28 +615,39 @@ export default function Browse() {
           </motion.div>
         ) : isStateSearch ? (
           <div className="space-y-16">
-            {Object.entries(groupedProviders).map(([cityLabel, cityProviders], idx) => (
-              <motion.div 
-                key={cityLabel}
+            {stateCitySections.map((section, idx) => (
+              <motion.div
+                key={section.key}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.6, delay: idx * 0.1 }}
+                transition={{ duration: 0.6, delay: Math.min(idx * 0.08, 0.4) }}
               >
-                <div className="mb-6 flex items-center justify-between gap-4 border-b border-white/5 pb-4">
-                  <h3 className="text-3xl font-serif font-bold text-white">{cityLabel}</h3>
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setLocation(section.city)}
+                      className="text-left text-3xl font-serif font-bold text-white hover:text-amber-200 transition-colors"
+                    >
+                      {section.city}
+                      {section.state ? (
+                        <span className="ml-2 text-lg font-sans font-medium text-zinc-500">{section.state}</span>
+                      ) : null}
+                    </button>
+                  </div>
                   <Badge className="rounded-full border border-white/10 bg-white/5 backdrop-blur-md px-4 py-1.5 text-zinc-400 font-medium shadow-sm">
-                    {cityProviders.length} listing{cityProviders.length === 1 ? "" : "s"}
+                    {section.count} listing{section.count === 1 ? "" : "s"}
                   </Badge>
                 </div>
-                <motion.div 
+                <motion.div
                   variants={containerVariants}
                   initial="hidden"
                   whileInView="show"
                   viewport={{ once: true }}
                   className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6"
                 >
-                  {cityProviders.map((provider) => (
+                  {section.providers.map((provider) => (
                     <motion.div key={provider.id} variants={itemVariants}>
                       <ProviderListingCard provider={provider} />
                     </motion.div>
@@ -610,6 +655,25 @@ export default function Browse() {
                 </motion.div>
               </motion.div>
             ))}
+            {otherStateProviders.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+              >
+                <div className="mb-6 flex items-center justify-between gap-4 border-b border-white/5 pb-4">
+                  <h3 className="text-2xl font-serif font-semibold text-zinc-200">Other cities</h3>
+                  <Badge className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-zinc-500">
+                    {otherStateProviders.length}
+                  </Badge>
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
+                  {otherStateProviders.map((provider) => (
+                    <ProviderListingCard key={provider.id} provider={provider} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </div>
         ) : (
           <motion.div 

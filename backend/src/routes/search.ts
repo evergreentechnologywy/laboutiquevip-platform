@@ -257,18 +257,44 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
         const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / query.limit));
         const hasMore = query.page < totalPages;
 
-        const cityGroups = (Array.from(
-          dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
-            const state = String(provider.location_state || "").trim();
-            const canonical = canonicalizePublicCity(String(provider.location_city || ""), state);
+        // State-first city chips: canonical names, ranked by inventory (top 5, expand when dense).
+        const cityCountMap = dedupedProviders.reduce(
+          (map: Map<string, { city: string; state: string; slug: string; count: number }>, provider: any) => {
+            const rawState = String(provider.location_state || "").trim();
+            const stateCode = resolveStateAbbrev(rawState) || rawState.toUpperCase();
+            const canonical = canonicalizePublicCity(String(provider.location_city || ""), stateCode);
             if (!canonical) return map;
-            const key = `${canonical.slug}||${state || ""}`;
-            const current = map.get(key) ?? { city: canonical.name, state: state || "", count: 0 };
+            const key = `${canonical.slug}||${stateCode || ""}`;
+            const current = map.get(key) ?? {
+              city: canonical.name,
+              state: stateCode || "",
+              slug: canonical.slug,
+              count: 0,
+            };
             current.count += 1;
             map.set(key, current);
             return map;
-          }, new Map<string, { city: string; state: string; count: number }>()).values(),
-        ) as Array<{ city: string; state: string; count: number }>).sort((a, b) => a.city.localeCompare(b.city));
+          },
+          new Map<string, { city: string; state: string; slug: string; count: number }>(),
+        );
+        const rankedCities = (Array.from(cityCountMap.values()) as Array<{
+          city: string;
+          state: string;
+          slug: string;
+          count: number;
+        }>).sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
+        const MIN_TOP = 5;
+        const MAX_TOP = 12;
+        let take = Math.min(MIN_TOP, rankedCities.length);
+        while (
+          take < rankedCities.length &&
+          take < MAX_TOP &&
+          rankedCities[take].count >= 2
+        ) {
+          take += 1;
+        }
+        if (rankedCities.length <= MIN_TOP + 2) take = rankedCities.length;
+        const cityGroups = rankedCities.slice(0, take);
 
         return {
           statusCode: 200,
