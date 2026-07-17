@@ -257,11 +257,15 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
         const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / query.limit));
         const hasMore = query.page < totalPages;
 
-        // State-first city chips: canonical names, ranked by inventory (top 5, expand when dense).
-        const cityCountMap = dedupedProviders.reduce(
+        // State-first city chips from FULL inventory for this query (not just current page).
+        const locationRows = await context.prisma.provider.findMany({
+          where,
+          select: { location_city: true, location_state: true },
+        });
+        const cityCountMap = locationRows.reduce(
           (map: Map<string, { city: string; state: string; slug: string; count: number }>, provider: any) => {
             const rawState = String(provider.location_state || "").trim();
-            const stateCode = resolveStateAbbrev(rawState) || rawState.toUpperCase();
+            const stateCode = resolveStateAbbrev(rawState) || "";
             const canonical = canonicalizePublicCity(String(provider.location_city || ""), stateCode);
             if (!canonical) return map;
             const key = `${canonical.slug}||${stateCode || ""}`;
