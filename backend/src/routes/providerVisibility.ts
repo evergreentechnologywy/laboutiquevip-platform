@@ -53,28 +53,31 @@ async function loadPublicPhotoProviderIds(prisma: {
 
   try {
     const rows = await prisma.$queryRaw`
-        SELECT id FROM "Provider"
-        WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
-          AND photos IS NOT NULL
-          AND jsonb_typeof(photos) = 'array'
-          AND jsonb_array_length(photos) > 0
-          AND EXISTS (
-            SELECT 1 FROM jsonb_array_elements_text(photos) AS url
-            WHERE (
-              url LIKE '%/api/r2-photo/%'
-              OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
-              OR url ~* 'media-v[0-9]*\\.tryst\\.'
-              OR url ~* 'tryst\\.a4cdn\\.org'
-              OR url ~* 'tryst\\.link/'
-              OR url ~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?|$)'
-            )
-            AND url NOT ILIKE '%sharks_512%'
-            AND url NOT ILIKE '%/packs/static/%'
-            AND url NOT ILIKE '%placeholder%'
-            AND url NOT ILIKE '%default-avatar%'
-            AND url NOT ILIKE '%eros-logo%'
-          )
-      `;
+            SELECT id FROM "Provider"
+            WHERE verification_provider IN ('eros', 'evergreen', 'tryst')
+              AND photos IS NOT NULL
+              AND jsonb_typeof(photos) = 'array'
+              AND COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(photos) = 'array' THEN photos ELSE '[]'::jsonb END), 0) > 0
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(
+                  CASE WHEN jsonb_typeof(photos) = 'array' THEN photos ELSE '[]'::jsonb END
+                ) AS url
+                WHERE (
+                  url LIKE '%/api/r2-photo/%'
+                  OR url ~* '(i\\.eros\\.com|eros\\.com/i/)'
+                  OR url ~* 'media-v[0-9]*\\.tryst\\.'
+                  OR url ~* 'tryst\\.a4cdn\\.org'
+                  OR url ~* 'tryst\\.link/'
+                  OR url ~* '\\.(jpg|jpeg|png|webp|avif|gif)(\\?|$)'
+                )
+                AND url NOT ILIKE '%sharks_512%'
+                AND url NOT ILIKE '%/packs/static/%'
+                AND url NOT ILIKE '%placeholder%'
+                AND url NOT ILIKE '%default-avatar%'
+                AND url NOT ILIKE '%eros-logo%'
+              )
+          `;
 
     const ids = rows.map((row) => row.id);
     photoProviderIdsCache = { ids, expiresAt: now + PHOTO_ID_CACHE_TTL_MS };
