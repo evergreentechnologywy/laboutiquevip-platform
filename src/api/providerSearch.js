@@ -21,8 +21,9 @@ export async function searchProviders({
   if (location) params.set("location", location);
   if (verified) params.set("verified", "true");
   if (premium) params.set("premium", "true");
-  params.set("minPrice", String(minPrice));
-  params.set("maxPrice", String(maxPrice));
+  // Only send price bounds when user tightened them — keeps default browse broad.
+  if (minPrice > 0) params.set("minPrice", String(minPrice));
+  if (maxPrice < 2000) params.set("maxPrice", String(maxPrice));
   params.set("sort", sort);
   params.set("page", String(page));
   params.set("limit", String(limit));

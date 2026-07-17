@@ -105,7 +105,7 @@ export default function Browse() {
     setPage(1);
   }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
     queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, debouncedPriceRange, page],
     queryFn: () => searchProviders({
       q: debouncedSearchQuery,
@@ -118,7 +118,24 @@ export default function Browse() {
       page,
       limit: 60,
     }),
+    placeholderData: (prev) => prev,
+    staleTime: 20_000,
   });
+
+  // Keep URL shareable
+  React.useEffect(() => {
+    const params = new URLSearchParams();
+    if (debouncedSearchQuery) params.set("q", debouncedSearchQuery);
+    if (debouncedLocation) params.set("location", debouncedLocation);
+    if (selectedFilters.verified) params.set("verified", "1");
+    if (selectedFilters.premium) params.set("premium", "1");
+    if (sortBy && sortBy !== "newest") params.set("sort", sortBy);
+    if (page > 1) params.set("page", String(page));
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
+    if (next !== `${window.location.pathname}${window.location.search}`) {
+      window.history.replaceState({}, "", next);
+    }
+  }, [debouncedSearchQuery, debouncedLocation, selectedFilters.verified, selectedFilters.premium, sortBy, page]);
 
   const providers = data?.items || [];
   const cityGroups = data?.cityGroups || [];

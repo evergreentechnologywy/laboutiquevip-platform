@@ -130,15 +130,19 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     andFilters.push(await buildPublicPhotoSearchFilter(context.prisma));
 
     if (query.q) {
-      andFilters.push({
-        OR: [
-          { display_name: { contains: query.q, mode: "insensitive" } },
-          { bio: { contains: query.q, mode: "insensitive" } },
-          { tagline: { contains: query.q, mode: "insensitive" } },
-          { location_city: { contains: query.q, mode: "insensitive" } },
-        ],
-      });
-    }
+          andFilters.push({
+            OR: [
+              { display_name: { contains: query.q, mode: "insensitive" } },
+              { bio: { contains: query.q, mode: "insensitive" } },
+              { tagline: { contains: query.q, mode: "insensitive" } },
+              { ad_headline: { contains: query.q, mode: "insensitive" } },
+              { location_city: { contains: query.q, mode: "insensitive" } },
+              { location_state: { contains: query.q, mode: "insensitive" } },
+              { verification_username: { contains: query.q, mode: "insensitive" } },
+              { review_username: { contains: query.q, mode: "insensitive" } },
+            ],
+          });
+        }
 
     if (query.location) {
       const locationFilter = buildLocationFilter(query.location);
@@ -217,38 +221,71 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
 
     const maxRate = aggregate._max.rate_hourly || 2000;
 
-    const dedupedProviders = dedupeProviders(providers).slice(0, query.limit);
-    const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / query.limit));
-    const hasMore = query.page < totalPages;
+    const photoQuality = (provider: any): number => {
+          const photos = Array.isArray(provider?.photos) ? provider.photos : [];
+          let score = 0;
+          for (const raw of photos) {
+            const url = typeof raw === "string" ? raw : String((raw as any)?.url || "");
+            if (!url) continue;
+            if (url.includes("/api/r2-photo/")) score += 12;
+            else if (/eros\.com\/(?:i|profile)\//i.test(url)) score += 6;
+            else if (/media-v\d*\.tryst\.|tryst\.a4cdn\.org/i.test(url) && !/sharks_512|packs\/static/i.test(url)) score += 4;
+            else if (/\.(jpe?g|png|webp|avif)(\?|$)/i.test(url)) score += 2;
+          }
+          return Math.min(score, 120) + Math.min(photos.length, 12);
+        };
 
-    const cityGroups = (Array.from(
-      dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
-        const state = String(provider.location_state || "").trim();
-        const canonical = canonicalizePublicCity(String(provider.location_city || ""), state);
-        if (!canonical) return map;
-        const key = `${canonical.slug}||${state || ""}`;
-        const current = map.get(key) ?? { city: canonical.name, state: state || "", count: 0 };
-        current.count += 1;
-        map.set(key, current);
-        return map;
-      }, new Map<string, { city: string; state: string; count: number }>()).values(),
-    ) as Array<{ city: string; state: string; count: number }>).sort((a, b) => a.city.localeCompare(b.city));
+        // Prefer premium, then photo quality, then requested sort signal within the page window.
+        const dedupedProviders = dedupeProviders(providers)
+          .sort((a: any, b: any) => {
+            const prem = Number(Boolean(b.is_premium)) - Number(Boolean(a.is_premium));
+            if (prem !== 0) return prem;
+            const photo = photoQuality(b) - photoQuality(a);
+            if (photo !== 0) return photo;
+            if (query.sort === "rating") {
+              return Number(b.rating_average || 0) - Number(a.rating_average || 0);
+            }
+            if (query.sort === "price_low") {
+              return Number(a.rate_hourly ?? 1e9) - Number(b.rate_hourly ?? 1e9);
+            }
+            if (query.sort === "price_high") {
+              return Number(b.rate_hourly ?? 0) - Number(a.rate_hourly ?? 0);
+            }
+            return new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
+          })
+          .slice(0, query.limit);
+        const totalPages = Math.max(1, Math.ceil(Math.max(0, total) / query.limit));
+        const hasMore = query.page < totalPages;
 
-    return {
-      statusCode: 200,
-      headers: publicSearchCacheHeaders(),
-      body: {
-      page: query.page,
-      limit: query.limit,
-      total,
-      totalPages,
-      hasMore,
-      nextOffset: hasMore ? query.page * query.limit : null,
-      maxRate,
-      cityGroups,
-      items: dedupedProviders.map((provider: any) => withPublicPhotos(provider)),
-      },
-    };
+        const cityGroups = (Array.from(
+          dedupedProviders.reduce((map: Map<string, { city: string; state: string; count: number }>, provider: any) => {
+            const state = String(provider.location_state || "").trim();
+            const canonical = canonicalizePublicCity(String(provider.location_city || ""), state);
+            if (!canonical) return map;
+            const key = `${canonical.slug}||${state || ""}`;
+            const current = map.get(key) ?? { city: canonical.name, state: state || "", count: 0 };
+            current.count += 1;
+            map.set(key, current);
+            return map;
+          }, new Map<string, { city: string; state: string; count: number }>()).values(),
+        ) as Array<{ city: string; state: string; count: number }>).sort((a, b) => a.city.localeCompare(b.city));
+
+        return {
+          statusCode: 200,
+          headers: publicSearchCacheHeaders(),
+          body: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages,
+          hasMore,
+          nextOffset: hasMore ? query.page * query.limit : null,
+          maxRate,
+          cityGroups,
+          // Search cards only need a tight gallery; full sets load on profile.
+          items: dedupedProviders.map((provider: any) => withPublicPhotos(provider, 8)),
+          },
+        };
   } catch (error) {
     if (error instanceof ZodError) {
       return json(400, {
