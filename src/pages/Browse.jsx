@@ -82,28 +82,76 @@ function citySlugToReadable(slug) {
 }
 
 export default function Browse() {
-  const urlParams = new URLSearchParams(window.location.search);
   const { citySlug } = useParams();
-  const initialLocation =
-    urlParams.get("location") ||
-    urlParams.get("loc") ||
-    (citySlug ? citySlugToReadable(citySlug) : "");
-  const [searchQuery, setSearchQuery] = React.useState(urlParams.get("q") || "");
-  const [location, setLocation] = React.useState(initialLocation);
+  const bootstrap = React.useMemo(() => {
+    if (typeof window === "undefined") {
+      return {
+        q: "",
+        location: citySlug ? citySlugToReadable(citySlug) : "",
+        verified: false,
+        premium: false,
+        sort: "newest",
+        page: 1,
+        minPrice: 0,
+        maxPrice: 2000,
+      };
+    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const minP = Number(urlParams.get("minPrice"));
+    const maxP = Number(urlParams.get("maxPrice"));
+    return {
+      q: urlParams.get("q") || "",
+      location:
+        urlParams.get("location") ||
+        urlParams.get("loc") ||
+        (citySlug ? citySlugToReadable(citySlug) : ""),
+      verified: urlParams.get("verified") === "1",
+      premium: urlParams.get("premium") === "1",
+      sort: urlParams.get("sort") || "newest",
+      page: Math.max(1, Number(urlParams.get("page") || 1) || 1),
+      minPrice: Number.isFinite(minP) && minP >= 0 ? minP : 0,
+      maxPrice: Number.isFinite(maxP) && maxP > 0 ? maxP : 2000,
+    };
+  }, [citySlug]);
+
+  const [searchQuery, setSearchQuery] = React.useState(bootstrap.q);
+  const [location, setLocation] = React.useState(bootstrap.location);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const debouncedLocation = useDebounce(location, 300);
 
-  const [priceRange, setPriceRange] = React.useState([0, 2000]);
+  const [priceRange, setPriceRange] = React.useState([bootstrap.minPrice, bootstrap.maxPrice]);
   const debouncedPriceRange = useDebounce(priceRange, 400);
-  const [sortBy, setSortBy] = React.useState("newest");
-  const [selectedFilters, setSelectedFilters] = React.useState({ verified: false, premium: false });
-  const [page, setPage] = React.useState(1);
+  const [sortBy, setSortBy] = React.useState(bootstrap.sort);
+  const [selectedFilters, setSelectedFilters] = React.useState({
+    verified: bootstrap.verified,
+    premium: bootstrap.premium,
+  });
+  const [page, setPage] = React.useState(bootstrap.page);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchQuery, location, sortBy, selectedFilters.verified, selectedFilters.premium, priceRange[0], priceRange[1]]);
+  }, [
+    debouncedSearchQuery,
+    debouncedLocation,
+    sortBy,
+    selectedFilters.verified,
+    selectedFilters.premium,
+    debouncedPriceRange[0],
+    debouncedPriceRange[1],
+  ]);
+
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.getElementById("browse-search")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
     queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, debouncedPriceRange, page],
@@ -130,12 +178,23 @@ export default function Browse() {
     if (selectedFilters.verified) params.set("verified", "1");
     if (selectedFilters.premium) params.set("premium", "1");
     if (sortBy && sortBy !== "newest") params.set("sort", sortBy);
+    if (debouncedPriceRange[0] > 0) params.set("minPrice", String(debouncedPriceRange[0]));
+    if (debouncedPriceRange[1] < 2000) params.set("maxPrice", String(debouncedPriceRange[1]));
     if (page > 1) params.set("page", String(page));
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
     if (next !== `${window.location.pathname}${window.location.search}`) {
       window.history.replaceState({}, "", next);
     }
-  }, [debouncedSearchQuery, debouncedLocation, selectedFilters.verified, selectedFilters.premium, sortBy, page]);
+  }, [
+    debouncedSearchQuery,
+    debouncedLocation,
+    selectedFilters.verified,
+    selectedFilters.premium,
+    sortBy,
+    page,
+    debouncedPriceRange[0],
+    debouncedPriceRange[1],
+  ]);
 
   const providers = data?.items || [];
   const cityGroups = data?.cityGroups || [];
@@ -267,12 +326,16 @@ export default function Browse() {
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
                 <Input
+                  id="browse-search"
                   placeholder="Search by name or service"
                   aria-label="Search by name or service"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-14 rounded-2xl border-white/10 bg-zinc-950/50 backdrop-blur-xl pl-12 text-lg text-white placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 transition-all duration-300"
+                  className="h-14 rounded-2xl border-white/10 bg-zinc-950/50 backdrop-blur-xl pl-12 pr-16 text-lg text-white placeholder:text-zinc-500 focus:border-amber-500 focus:ring-amber-500/20 transition-all duration-300"
                 />
+                <kbd className="pointer-events-none absolute right-4 top-1/2 hidden -translate-y-1/2 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500 sm:inline-block">
+                  ⌘K
+                </kbd>
               </div>
               <div className="hidden md:block">
                 <LocationPicker value={location} onChange={setLocation} />
@@ -477,7 +540,7 @@ export default function Browse() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40 backdrop-blur-sm">
-                <Skeleton className="aspect-[4/5] w-full bg-white/5" />
+                <Skeleton className="aspect-[4/5] w-full bg-white/5 animate-pulse" />
                 <div className="space-y-4 p-6">
                   <Skeleton className="h-6 w-2/3 bg-white/10" />
                   <Skeleton className="h-4 w-1/2 bg-white/5" />
@@ -497,15 +560,15 @@ export default function Browse() {
               <Sparkles className="h-8 w-8 text-amber-400" />
             </div>
             <h3 className="mt-8 text-3xl font-serif font-bold text-white relative z-10">No matching listings yet</h3>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-400 font-light relative z-10">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-300 font-normal relative z-10">
               Try broadening your search or explore how verified placement works. New approved listings and reviews appear on a rolling basis.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row relative z-10">
-              <Button onClick={clearFilters} className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white font-bold tracking-wide hover:opacity-95 px-8 h-14 shadow-xl shadow-rose-500/20 border-0">
-                Reset filters
+              <Button onClick={clearFilters} className="rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white font-bold tracking-wide hover:opacity-95 px-8 h-12 sm:h-14 shadow-xl shadow-rose-500/20 border-0">
+                View all listings
               </Button>
               <Link to={createPageUrl("Trust")}>
-                <Button variant="outline" className="rounded-2xl border-white/10 bg-zinc-950/50 backdrop-blur-md px-6 h-14 text-zinc-300 hover:bg-white/10 hover:text-white transition-all duration-300">
+                <Button variant="outline" className="rounded-2xl border-white/10 bg-zinc-950/50 backdrop-blur-md px-6 h-12 sm:h-14 text-zinc-300 hover:bg-white/10 hover:text-white transition-all duration-300">
                   How verification works
                 </Button>
               </Link>
