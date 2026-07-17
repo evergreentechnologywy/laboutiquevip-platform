@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 
 const starterPrompts = {
   guest: [
-    "Help me understand the best package before I register.",
+    "Help me find verified profiles in Miami within a clear rate range.",
+    "How should I use Browse filters (city, verified, premium) effectively?",
+    "What package should a new advertiser choose for a city launch?",
     "What should I prepare before creating an advertiser profile?",
   ],
   signup: [
@@ -57,7 +59,7 @@ export default function AdvertisingCopilot({
   const askCopilot = async (prompt = message) => {
     const trimmed = prompt.trim();
     if (!trimmed) {
-      setError("Ask the copilot what you want to improve, compare, or plan.");
+      setError("Ask the concierge about discovery, packages, cities, or profile polish.");
       return;
     }
 
@@ -99,7 +101,7 @@ export default function AdvertisingCopilot({
         city: action.payload.city,
         startsAt: action.payload.startsAt,
         endsAt: action.payload.endsAt,
-        notes: "Created from the AI advertising copilot after advertiser confirmation.",
+        notes: "Created from the AI Concierge after advertiser confirmation.",
       });
       setAppliedActions((current) => ({ ...current, [key]: true }));
       setSuccess(`Tour saved for ${response?.tour?.city || action.payload.city}.`);
@@ -117,7 +119,7 @@ export default function AdvertisingCopilot({
           <div>
             <CardTitle className={`flex items-center gap-2 ${compact ? "text-base text-stone-900" : "text-zinc-100"}`}>
               <Bot className="h-4 w-4" />
-              AI advertising copilot
+              AI Concierge
             </CardTitle>
             <CardDescription className={compact ? "text-stone-500" : "text-zinc-400"}>
               Plan ads, tours, photos, packages, and city strategy.

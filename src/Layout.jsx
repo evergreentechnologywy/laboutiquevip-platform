@@ -278,16 +278,16 @@ export default function Layout({ children, currentPageName }) {
               <Button
                 type="button"
                 onClick={() => setCopilotOpen(true)}
-                aria-label="Open AI ad copilot"
+                aria-label="Open AI Concierge"
                 className={`fixed bottom-4 right-4 z-40 h-11 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-3 sm:px-5 py-2 text-white shadow-lg hover:opacity-95 border-0 text-xs sm:text-sm opacity-90 hover:opacity-100 transition-all duration-300 ${fabHidden && !copilotOpen ? "pointer-events-none translate-y-20 opacity-0" : ""}`}
               >
                 <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">AI ad copilot</span>
+                <span className="hidden sm:inline">AI Concierge</span>
               </Button>
               <Dialog open={copilotOpen} onOpenChange={setCopilotOpen}>
                 <DialogContent className="max-w-2xl border-stone-200 bg-stone-50 p-0 text-stone-900">
                   <DialogHeader className="sr-only">
-                    <DialogTitle>AI advertising copilot</DialogTitle>
+                    <DialogTitle>AI Concierge</DialogTitle>
                     <DialogDescription>Ask for help with registration, packages, tours, city competition, and advertising strategy.</DialogDescription>
                   </DialogHeader>
                   <AdvertisingCopilot surface={user ? "signup" : "guest"} compact />

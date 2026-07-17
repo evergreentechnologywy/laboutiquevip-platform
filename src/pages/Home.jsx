@@ -12,6 +12,7 @@ import { SEO } from "@/components/SEO";
 import { CityAutocomplete } from "@/components/CityAutocomplete";
 import { motion, AnimatePresence } from "framer-motion";
 import { dedupeProvidersForDisplay } from "@/lib/providerPresentation";
+import { AiSpotlight } from "@/components/AiSpotlight";
 
 const trustItems = [
   { label: "Verified Profiles", icon: BadgeCheck },
@@ -292,6 +293,8 @@ export default function Home() {
           </motion.div>
         )}
       </section>
+
+      <AiSpotlight />
 
       {/* Why Section */}
       <section className="relative border-y border-white/5 bg-zinc-950 overflow-hidden">

@@ -24,6 +24,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { motion, AnimatePresence } from "framer-motion";
+import { AiSpotlight } from "@/components/AiSpotlight";
 
 function groupProvidersByCity(items) {
   return items.reduce((acc, provider) => {
@@ -536,7 +537,11 @@ export default function Browse() {
           </motion.div>
         )}
 
-        {isLoading ? (
+        <div className="mb-8">
+          <AiSpotlight variant="compact" />
+        </div>
+
+                {isLoading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="overflow-hidden rounded-[2rem] border border-white/5 bg-zinc-900/40 backdrop-blur-sm">
