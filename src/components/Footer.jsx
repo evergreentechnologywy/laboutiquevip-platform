@@ -54,7 +54,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="relative bg-zinc-950 border-t border-white/5 text-zinc-400 overflow-hidden" role="contentinfo">
+    <footer className="relative bg-zinc-950 border-t border-white/5 text-zinc-400 overflow-hidden pb-[env(safe-area-inset-bottom)]" role="contentinfo">
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-zinc-950 pointer-events-none" />
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-gradient-to-t from-rose-500/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
@@ -65,10 +65,10 @@ export function Footer() {
           whileInView="show" 
           viewport={{ once: true, margin: "-50px" }}
           variants={{ show: { transition: { staggerChildren: 0.1 } } }}
-          className="grid gap-16 sm:grid-cols-2 lg:grid-cols-6"
+          className="grid gap-10 sm:gap-14 md:gap-16 sm:grid-cols-2 xl:grid-cols-6"
         >
           {/* Col 1: Brand */}
-          <motion.div variants={fadeUp} className="space-y-8 lg:col-span-2">
+          <motion.div variants={fadeUp} className="space-y-8 xl:col-span-2 sm:col-span-2">
             <Link to={createPageUrl("Home")} className="inline-flex items-center gap-4 group">
               <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-lg shadow-rose-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
                 <Crown className="h-6 w-6" />
@@ -113,8 +113,8 @@ export function Footer() {
             <div className="space-y-4">
               {privacyLinks.map(({ key, href, icon: Icon, label }) => (
                 <a key={key} href={href} target="_blank" rel="nofollow sponsored"
-                  className="group flex items-center gap-3 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                  className="group flex items-center gap-3 min-h-[44px] py-2 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
+                  <div className="w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
                   <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
@@ -129,8 +129,8 @@ export function Footer() {
             <div className="space-y-4">
               {businessLinks.map(({ key, href, icon: Icon, label }) => (
                 <a key={key} href={href} target="_blank" rel="nofollow sponsored"
-                  className="group flex items-center gap-3 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                  className="group flex items-center gap-3 min-h-[44px] py-2 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
+                  <div className="w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
                   <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
@@ -145,8 +145,8 @@ export function Footer() {
             <div className="space-y-4">
               {travelLinks.map(({ key, href, icon: Icon, label }) => (
                 <a key={key} href={href} target="_blank" rel="nofollow sponsored"
-                  className="group flex items-center gap-3 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                  className="group flex items-center gap-3 min-h-[44px] py-2 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
+                  <div className="w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
                   <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
@@ -157,8 +157,8 @@ export function Footer() {
             <div className="space-y-4">
               {wellnessLinks.map(({ key, href, icon: Icon, label }) => (
                 <a key={key} href={href} target="_blank" rel="nofollow sponsored"
-                  className="group flex items-center gap-3 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
+                  className="group flex items-center gap-3 min-h-[44px] py-2 text-sm text-zinc-400 font-light hover:text-white transition-colors duration-300">
+                  <div className="w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-white/10 group-hover:border-white/20 transition-all">
                     <Icon className="h-3.5 w-3.5 text-zinc-500 group-hover:text-white transition-colors" />
                   </div>
                   <span className="group-hover:translate-x-1 transition-transform duration-300 line-clamp-1">{label}</span>
@@ -176,7 +176,7 @@ export function Footer() {
           transition={{ duration: 1, delay: 0.5 }}
           className="mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4"
         >
-          <p className="text-xs leading-5 text-zinc-600 font-light max-w-2xl text-center md:text-left">
+          <p className="text-xs leading-5 text-zinc-500 font-light max-w-2xl text-center md:text-left">
             Some outbound links may be affiliate links. We may earn a commission at no extra cost to you.
           </p>
           <p className="text-xs text-zinc-500 font-medium">
@@ -192,13 +192,13 @@ export function Footer() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="mt-8 pt-8 border-t border-white/5"
         >
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-            <MapPin className="h-4 w-4 text-zinc-700 shrink-0" />
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:gap-x-4 sm:gap-y-3">
+            <MapPin className="h-4 w-4 text-zinc-700 shrink-0 hidden sm:block" />
             {hubCities.map(([city, state]) => (
               <Link
                 key={city}
                 to={`${createPageUrl("Browse")}?location=${encodeURIComponent(city)}`}
-                className="text-xs font-bold uppercase tracking-wider text-zinc-600 hover:text-amber-400 transition-colors duration-300"
+                className="inline-flex items-center min-h-[36px] px-2 rounded-lg text-xs font-bold uppercase tracking-wider text-zinc-600 hover:text-amber-400 hover:bg-white/5 transition-all duration-300"
               >
                 {city}, {state}
               </Link>

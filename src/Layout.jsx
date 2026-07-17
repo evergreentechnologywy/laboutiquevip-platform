@@ -120,7 +120,7 @@ export default function Layout({ children, currentPageName }) {
           --ring: 345 85% 55%;
         }
       `}</style>
-      <div className="min-h-screen flex w-full bg-zinc-950 text-zinc-100 selection:bg-rose-500/30 selection:text-white">
+      <div className="min-h-dvh flex w-full bg-zinc-950 text-zinc-100 selection:bg-rose-500/30 selection:text-white">
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-xl focus:bg-amber-500 focus:text-black focus:px-4 focus:py-2 focus:text-sm focus:font-semibold">Skip to main content</a>
         {!isProviderPage && !isAuthPage && (
           <Dialog open={!ageGateAccepted} modal={true} onOpenChange={() => {}}>
@@ -263,8 +263,10 @@ export default function Layout({ children, currentPageName }) {
             </header>
           )}
 
-          <div className="flex-1 overflow-auto">
-            {children}
+          <div className="flex-1 flex flex-col">
+            <div className="flex-1 overflow-auto">
+              {children}
+            </div>
             {!isProviderPage && <Footer />}
           </div>
 
@@ -311,7 +313,7 @@ function BackToTop() {
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       aria-label="Back to top"
-      className="fixed bottom-20 right-4 z-40 md:bottom-6 h-10 w-10 rounded-full bg-zinc-800/80 backdrop-blur-md border border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all shadow-lg"
+      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-4 z-40 md:bottom-6 h-10 w-10 rounded-full bg-zinc-800/80 backdrop-blur-md border border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-all shadow-lg"
     >
       <svg className="mx-auto h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
     </button>
