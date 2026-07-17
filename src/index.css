@@ -152,8 +152,22 @@ button:focus-visible {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground overflow-x-hidden;
+    @apply bg-zinc-950 text-zinc-100 overflow-x-hidden antialiased;
+    font-family: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, .font-serif {
+    font-family: "Playfair Display", ui-serif, Georgia, "Times New Roman", serif;
+  }
+  ::selection {
+    background: rgba(244, 63, 94, 0.35);
+    color: #fff;
   }
 }
 
@@ -199,8 +213,26 @@ button:focus-visible {
     background-size: 200% auto;
     animation: shine 4s linear infinite;
   }
+  .lbv-container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .lbv-surface {
+    @apply rounded-[2rem] border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 20px 50px -30px rgba(0,0,0,0.8);
+  }
+  .lbv-cta {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white;
+    box-shadow: 0 12px 36px -14px rgba(244, 63, 94, 0.65);
+  }
   @keyframes shine {
     to { background-position: 200% center; }
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 
