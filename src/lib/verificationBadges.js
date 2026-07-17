@@ -1,14 +1,12 @@
 /** Client-side badge flags for provider cards and profile headers. */
+import { getProviderReviewLinks } from "@/lib/reviewLinks";
 
 export function getProviderBadgeFlags(provider) {
   const evergreen = provider?.verification_provider === "evergreen";
-  const p411 = Boolean(provider?.p411_url || provider?.p411_verified_at);
-  const review = Boolean(
-    provider?.ter_url ||
-      provider?.pd_url ||
-      provider?.tob_url ||
-      provider?.review_verified_at,
-  );
+  const links = getProviderReviewLinks(provider);
+  const p411 = Boolean(links.p411 || provider?.p411_verified_at);
+  // Only real review profile URLs count — not generic /search stubs or empty verified timestamps alone
+  const review = links.any;
 
   return {
     evergreen,

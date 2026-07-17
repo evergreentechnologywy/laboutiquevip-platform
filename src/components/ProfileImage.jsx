@@ -1,10 +1,10 @@
 import React from "react";
 import { ImageOff } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 /**
- * Profile photos are served from Cloudflare R2 via /api/r2-photo/...
- * Optional `fallbacks` tries the next URL when one fails (dead Tryst CDN, etc.).
+ * Profile photos from R2 / CDN proxies.
+ * - `fit="cover"` for cards/thumbs
+ * - `fit="contain"` for hero gallery so full body isn't butchered
  */
 export function ProfileImage({
   src,
@@ -12,7 +12,8 @@ export function ProfileImage({
   alt,
   className = "",
   priority = false,
-  objectPosition = "center top",
+  objectPosition = "center center",
+  fit = "cover",
   blurDataURL,
 }) {
   const candidates = React.useMemo(() => {
@@ -57,29 +58,22 @@ export function ProfileImage({
     );
   }
 
+  const fitClass = fit === "contain" ? "object-contain" : "object-cover";
+
   return (
-    <div className={`relative overflow-hidden bg-zinc-900 ${className}`}>
-      <AnimatePresence>
-        {!loaded && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.45 }}
-            className="absolute inset-0 z-10"
-          >
-            {blurDataURL ? (
-              <div
-                className="w-full h-full bg-cover bg-center scale-105"
-                style={{ backgroundImage: `url(${blurDataURL})`, filter: "blur(16px)" }}
-              />
-            ) : (
-              <div className="w-full h-full relative overflow-hidden bg-zinc-900">
-                <div className="absolute inset-0 bg-zinc-800/50 animate-pulse" />
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className={`relative overflow-hidden bg-zinc-950 ${className}`}>
+      {!loaded && (
+        <div className="absolute inset-0 z-10">
+          {blurDataURL ? (
+            <div
+              className="w-full h-full bg-cover bg-center"
+              style={{ backgroundImage: `url(${blurDataURL})`, filter: "blur(12px)" }}
+            />
+          ) : (
+            <div className="w-full h-full bg-zinc-900 animate-pulse" />
+          )}
+        </div>
+      )}
 
       <img
         key={current}
@@ -88,13 +82,11 @@ export function ProfileImage({
         loading={priority ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 50vw"
+        className={`absolute inset-0 h-full w-full ${fitClass} transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
         }`}
-        style={{
-          objectPosition,
-        }}
+        style={{ objectPosition }}
         onLoad={() => setLoaded(true)}
         onError={() => {
           if (index + 1 < candidates.length) {

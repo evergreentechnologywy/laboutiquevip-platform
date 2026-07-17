@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getDisplayProfilePhotos } from "@/lib/profilePhotos";
+import { getProviderReviewLinks } from "@/lib/reviewLinks";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
@@ -51,8 +52,7 @@ export default function ViewProfile() {
   const galleryRef = useRef(null);
   const touchStart = useRef(0);
   const { scrollY } = useScroll();
-  const parallaxY = useTransform(scrollY, [0, 500], [0, 150]);
-  const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const opacity = useTransform(scrollY, [0, 280], [1, 0.15]);
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
@@ -76,7 +76,10 @@ export default function ViewProfile() {
 
   const ratingMeta = getProviderRatingMeta(provider, reviews.length);
   const displayPhotos = getDisplayProfilePhotos(provider, MAX_PROVIDER_PHOTOS);
-  const hasPhotos = displayPhotos.length > 0;
+    const hasPhotos = displayPhotos.length > 0;
+    const reviewLinks = provider
+      ? getProviderReviewLinks(provider)
+      : { ter: null, pd: null, tob: null, p411: null, any: false };
 
   const prevPhoto = useCallback(
     () => {
@@ -114,7 +117,7 @@ export default function ViewProfile() {
     return () => window.removeEventListener("keydown", onKey);
   }, [prevPhoto, nextPhoto]);
 
-  const hasExternalReviewUrl = !!(provider?.ter_url || provider?.pd_url || provider?.tob_url);
+  const hasExternalReviewUrl = reviewLinks.any;
 
   const stats = [
     provider?.age && { label: "Age", value: provider.age },
@@ -184,7 +187,7 @@ export default function ViewProfile() {
       {/* ── Immersive Photo Gallery ── */}
       <section
         className={`relative w-full overflow-hidden ${
-          hasPhotos ? "h-[60vh] sm:h-[70vh] lg:h-[80vh]" : "h-[42vh] min-h-[340px] sm:h-[48vh] lg:h-[56vh]"
+          hasPhotos ? "h-[52vh] min-h-[420px] sm:h-[62vh] lg:h-[68vh]" : "h-[36vh] min-h-[300px]"
         }`}
         ref={galleryRef}
         aria-label={`${provider.display_name} photo gallery`}
@@ -195,29 +198,29 @@ export default function ViewProfile() {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} mode="wait">
               <motion.div
                 key={selectedPhoto}
-                initial={{ opacity: 0, scale: 1.05 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute inset-0 w-full h-full"
-                style={{ y: parallaxY }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-0 w-full h-full flex items-center justify-center"
               >
                 <ProfileImage
                   src={displayPhotos[selectedPhoto]}
                   fallbacks={displayPhotos.filter((_, index) => index !== selectedPhoto)}
                   alt={`${provider.display_name} - Photo ${selectedPhoto + 1}`}
                   priority
-                  className="w-full h-full object-cover"
+                  fit="contain"
+                  objectPosition="center center"
+                  className="w-full h-full"
                 />
               </motion.div>
             </AnimatePresence>
 
-            {/* Cinematic Gradients */}
-            <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/80 via-transparent to-zinc-950 pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent pointer-events-none" />
+            {/* Soft edge vignette — do not cover the subject */}
+            <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/55 via-transparent to-zinc-950/90 pointer-events-none" />
 
             {/* Nav arrows with spring animation */}
             {displayPhotos.length > 1 && (
@@ -453,8 +456,8 @@ export default function ViewProfile() {
                         <div className="py-6">
                           {hasExternalReviewUrl ? (
                             <div className="grid gap-4">
-                              {provider.ter_url && (
-                                <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                              {reviewLinks.ter && (
+                                <a href={reviewLinks.ter} target="_blank" rel="noopener noreferrer"
                                   className="flex items-center gap-5 p-5 rounded-2xl bg-black/40 border border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all duration-300 group">
                                   <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Star className="w-6 h-6 text-emerald-400" />
@@ -466,8 +469,8 @@ export default function ViewProfile() {
                                   <ExternalLink className="w-5 h-5 text-zinc-600 group-hover:text-emerald-400 shrink-0 transition-colors" />
                                 </a>
                               )}
-                              {provider.pd_url && (
-                                <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                              {reviewLinks.pd && (
+                                <a href={reviewLinks.pd} target="_blank" rel="noopener noreferrer"
                                   className="flex items-center gap-5 p-5 rounded-2xl bg-black/40 border border-violet-500/20 hover:border-violet-500/50 hover:bg-violet-500/10 transition-all duration-300 group">
                                   <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Star className="w-6 h-6 text-violet-400" />
@@ -479,8 +482,8 @@ export default function ViewProfile() {
                                   <ExternalLink className="w-5 h-5 text-zinc-600 group-hover:text-violet-400 shrink-0 transition-colors" />
                                 </a>
                               )}
-                              {provider.tob_url && (
-                                <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                              {reviewLinks.tob && (
+                                <a href={reviewLinks.tob} target="_blank" rel="noopener noreferrer"
                                   className="flex items-center gap-5 p-5 rounded-2xl bg-black/40 border border-amber-500/20 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all duration-300 group">
                                   <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                                     <Star className="w-6 h-6 text-amber-400" />
@@ -525,20 +528,20 @@ export default function ViewProfile() {
                             <div className="mt-8 pt-8 border-t border-white/10">
                               <p className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-4">Also see reviews on</p>
                               <div className="flex flex-wrap gap-3">
-                                {provider.ter_url && (
-                                  <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                                {reviewLinks.ter && (
+                                  <a href={reviewLinks.ter} target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all">
                                     <Star className="w-4 h-4" /> TER
                                   </a>
                                 )}
-                                {provider.pd_url && (
-                                  <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                                {reviewLinks.pd && (
+                                  <a href={reviewLinks.pd} target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-500/10 border border-violet-500/20 text-sm font-semibold text-violet-400 hover:bg-violet-500/20 hover:border-violet-500/40 transition-all">
                                     <Star className="w-4 h-4" /> PD
                                   </a>
                                 )}
-                                {provider.tob_url && (
-                                  <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                                {reviewLinks.tob && (
+                                  <a href={reviewLinks.tob} target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm font-semibold text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40 transition-all">
                                     <Star className="w-4 h-4" /> TOB
                                   </a>
@@ -607,35 +610,35 @@ export default function ViewProfile() {
             </div>
 
             {/* External trust references */}
-            {(provider.p411_url || provider.ter_url || provider.pd_url || provider.tob_url || provider.verification_provider) && (
+            {(reviewLinks.any || provider.verification_provider || provider.verification_url) && (
               <Card className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-[2rem] shadow-2xl overflow-hidden">
                 <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.02]">
                   <CardTitle className="text-white font-serif text-lg">Trust References</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-5">
-                  {provider.p411_url && (
-                    <a href={provider.p411_url} target="_blank" rel="noopener noreferrer"
+                  {reviewLinks.p411 && (
+                    <a href={reviewLinks.p411} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-sky-500/40 hover:bg-sky-500/10 transition-all group">
                       <span className="text-sm font-medium text-zinc-300 group-hover:text-sky-300">Preferred411{provider.p411_id ? ` · ${provider.p411_id}` : ''}</span>
                       <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-sky-400 transition-colors" />
                     </a>
                   )}
-                  {provider.ter_url && (
-                    <a href={provider.ter_url} target="_blank" rel="noopener noreferrer"
+                  {reviewLinks.ter && (
+                    <a href={reviewLinks.ter} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition-all group">
                       <span className="text-sm font-medium text-zinc-300 group-hover:text-emerald-300">The Erotic Review</span>
                       <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-emerald-400 transition-colors" />
                     </a>
                   )}
-                  {provider.pd_url && (
-                    <a href={provider.pd_url} target="_blank" rel="noopener noreferrer"
+                  {reviewLinks.pd && (
+                    <a href={reviewLinks.pd} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-violet-500/40 hover:bg-violet-500/10 transition-all group">
                       <span className="text-sm font-medium text-zinc-300 group-hover:text-violet-300">PrivateDelights</span>
                       <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-violet-400 transition-colors" />
                     </a>
                   )}
-                  {provider.tob_url && (
-                    <a href={provider.tob_url} target="_blank" rel="noopener noreferrer"
+                  {reviewLinks.tob && (
+                    <a href={reviewLinks.tob} target="_blank" rel="noopener noreferrer"
                       className="flex items-center justify-between px-4 py-3.5 rounded-xl bg-black/40 border border-white/5 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all group">
                       <span className="text-sm font-medium text-zinc-300 group-hover:text-amber-300">TheOtherBoard</span>
                       <ExternalLink className="w-4 h-4 text-zinc-600 group-hover:text-amber-400 transition-colors" />
