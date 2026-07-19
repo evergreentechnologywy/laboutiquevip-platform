@@ -59,6 +59,23 @@ export const AuthProvider = ({ children }) => {
     checkAppState();
   }, [isUserLoaded, isAuthLoaded, isSignedIn, clerkUser]);
 
+  // Public directory must never gate on auth infra: if Clerk hasn't resolved
+  // within 4s (missing/invalid key, blocked CDN, Clerk outage), proceed as
+  // anonymous rather than spinning forever.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setIsLoadingAuth((cur) => {
+        if (cur) {
+          setUser(null);
+          setIsAuthenticated(false);
+          try { base44.auth.clearToken(); } catch { /* noop */ }
+        }
+        return false;
+      });
+    }, 4000);
+    return () => clearTimeout(t);
+  }, []);
+
   const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
