@@ -44,6 +44,8 @@ import {
   findCatalogDuplicateInCity,
   shouldSkipCatalogInsert,
 } from "./lib/catalog-sync-policy.mjs";
+import { applyGeoValidation } from "./lib/geo-validation.mjs";
+import { ProxyAgent, fetch as undiciFetch } from "undici";
 
 const JINA_PREFIX = "https://r.jina.ai/https://";
 const crawlLimits = getTrystCrawlLimits();
@@ -171,7 +173,31 @@ async function fetchPageText(url, attempts = 4) {
       clearTimeout(timer);
     }
   }
+  // Fallback: same Bright Data ISP proxy as the Eros scrape when Jina fails.
+  const proxied = await fetchTrystViaBrdProxy(url);
+  if (proxied) return proxied;
   return null;
+}
+
+async function fetchTrystViaBrdProxy(url, timeoutMs = 30000) {
+  const proxyUrl = process.env.BRD_PROXY_URL;
+  if (!proxyUrl) return null;
+  try {
+    const agent = new ProxyAgent(proxyUrl);
+    const response = await undiciFetch(url, {
+      dispatcher: agent,
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!response.ok) return null;
+    const text = await response.text();
+    return text || null;
+  } catch {
+    return null;
+  }
 }
 
 
@@ -464,6 +490,7 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
       }
     }
   } else {
+    applyGeoValidation(payload);
     const duplicateInCity = await findCatalogDuplicateInCity(prisma, {
       verification_provider: "tryst",
       verification_url: profile.sourceUrl,
@@ -479,7 +506,23 @@ async function upsertTrystProvider(profile, cityMeta, markdown = "") {
       });
       return;
     }
-    const created = await prisma.provider.create({ data: payload });
+    let created;
+    try {
+      created = await prisma.provider.create({ data: payload });
+    } catch (e) {
+      if (e && e.code === "P2002") {
+        created = await prisma.provider.findFirst({
+          where: { verification_provider: "tryst", verification_url: profile.sourceUrl },
+        });
+        if (created) {
+          await prisma.provider.update({ where: { id: created.id }, data: payload });
+        } else {
+          throw e;
+        }
+      } else {
+        throw e;
+      }
+    }
     stats.created += 1;
     if (profile.photos?.length) {
       const r2Urls = await uploadPhotos(created.id, profile.photos);

@@ -48,6 +48,7 @@ import {
   findCatalogDuplicateInCity,
   shouldSkipCatalogInsert,
 } from "./lib/catalog-sync-policy.mjs";
+import { applyGeoValidation } from "./lib/geo-validation.mjs";
 
 const MAX_PROVIDER_PHOTOS = 48;
 const JINA_PREFIX = "https://r.jina.ai/http://";
@@ -510,6 +511,7 @@ async function importProfile(profile, markdown = "") {
   }
 
   const data = buildProviderPayload(profile, existing ?? null);
+  applyGeoValidation(data);
 
   if (options.cacheOnly && options.cacheDir) {
     appendCacheRecord(options.cacheDir, "eros", {
@@ -560,12 +562,31 @@ async function importProfile(profile, markdown = "") {
 
   stats.created += 1;
   if (options.dryRun) return;
-  const created = await prisma.provider.create({
-    data: {
-      ...data,
-      is_premium: false,
-    },
-  });
+  let created;
+  try {
+    created = await prisma.provider.create({
+      data: {
+        ...data,
+        is_premium: false,
+      },
+    });
+  } catch (e) {
+    // P2002 unique violation (verification_provider+verification_url) — parallel worker
+    // beat us to the insert. Fetch the winner and update it instead of crashing.
+    if (e && e.code === "P2002") {
+      created = await prisma.provider.findFirst({
+        where: { verification_provider: "eros", verification_url: profile.sourceUrl },
+      });
+      if (created) {
+        stats.created -= 1; stats.updated += 1;
+        await prisma.provider.update({ where: { id: created.id }, data });
+      } else {
+        throw e;
+      }
+    } else {
+      throw e;
+    }
+  }
   // Upload photos immediately on creation — only overwrite if R2 succeeds
   if (profile.photos?.length) {
     const r2Urls = await uploadPhotos(created.id, profile.photos, false);
