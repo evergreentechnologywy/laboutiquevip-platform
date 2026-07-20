@@ -1,8 +1,31 @@
 /**
  * Extract phone, email, social links, and directory URLs from scraped markdown/HTML text.
+ * Aggregates ALL social/contact/review links into social_media field for unified storage.
  */
 
 import { extractP411FromMarkdown, extractReviewUrlsFromMarkdown } from "./verification-match.mjs";
+
+/** Review-site hostnames that should be captured in social_media.review_links */
+const REVIEW_SITE_HOSTS = [
+  "theeroticreview.com",
+  "ter.com",
+  "privatedelights.ch",
+  "privatedelights.com",
+  "theotherboard.com",
+  "theotherboard.net",
+  "preferred411.com",
+  "tryst.link",
+  "eros.com",
+];
+
+function isReviewSiteUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    return REVIEW_SITE_HOSTS.some((entry) => host === entry || host.endsWith(`.${entry}`));
+  } catch {
+    return false;
+  }
+}
 
 const LINK_IN_BIO_HOSTS = [
   "linktr.ee",
@@ -135,14 +158,39 @@ export function extractContactAndSocialFromMarkdown(markdown) {
   const social_media = {};
   const directory = { ...extractP411FromMarkdown(markdown), ...extractReviewUrlsFromMarkdown(markdown) };
   const extra_links = [];
+  const review_links = [];
 
   const { phone, email } = extractPhoneEmail(markdown);
 
+  // Aggregate review site URLs from directory extraction into social_media
+  if (directory.p411_url) {
+    social_media.p411_url = directory.p411_url;
+    social_media.p411_id = directory.p411_id;
+  }
+  if (directory.ter_url) social_media.ter_url = directory.ter_url;
+  if (directory.pd_url) social_media.pd_url = directory.pd_url;
+  if (directory.tob_url) social_media.tob_url = directory.tob_url;
+
   for (const url of collectUrls(markdown)) {
     const lower = url.toLowerCase();
-    if (/eros\.com|tryst\.link|preferred411\.com|theeroticreview\.|ter\.com|privatedelights\.|theotherboard\.com|laboutiquevip\./i.test(lower)) {
+
+    // Capture review site URLs in social_media.review_links
+    if (isReviewSiteUrl(url)) {
+      review_links.push(url);
       continue;
     }
+
+    // Skip image/CDN URLs — those are stored as photos, not social links
+    if (
+      /\.(jpg|jpeg|png|webp|gif|avif|bmp|svg)(\?|$)/i.test(lower) ||
+      /a4cdn\.(?:ch|org)\/profiles\//i.test(lower) ||
+      /media.*\.tryst/i.test(lower) ||
+      /tryst\.link\/media/i.test(lower) ||
+      /cdn\.(?:tryst|imgbox|image)/i.test(lower)
+    ) continue;
+
+    // Skip site-internal URLs (eros.com, tryst.link, lboutiquevip) unless already captured
+    if (/lboutiquevip\./i.test(lower)) continue;
 
     const classified = classifyUrl(url);
     if (classified && !social_media[classified.key]) {
@@ -151,20 +199,22 @@ export function extractContactAndSocialFromMarkdown(markdown) {
     }
 
     if (!classified && /^https?:\/\//i.test(url)) {
-      // Skip image/CDN URLs — those are stored as photos, not social links
-      const lower = url.toLowerCase();
-      if (
-        /\.(jpg|jpeg|png|webp|gif|avif|bmp|svg)(\?|$)/i.test(lower) ||
-        /a4cdn\.(?:ch|org)\/profiles\//i.test(lower) ||
-        /media.*\.tryst/i.test(lower) ||
-        /tryst\.link\/media/i.test(lower) ||
-        /cdn\.(?:tryst|imgbox|image)/i.test(lower)
-      ) continue;
       extra_links.push(url);
     }
   }
 
+  if (review_links.length) {
+    social_media.review_links = unique(review_links).slice(0, 12);
+  }
+
   if (extra_links.length) {
+    // Separate personal website URLs from generic links
+    const websiteUrls = extra_links.filter(
+      (url) => !/eros\.com|tryst\.link|preferred411\.com|theeroticreview\.|ter\.com|privatedelights\.|theotherboard\.com|laboutiquevip\./i.test(url)
+    );
+    if (websiteUrls.length > 0) {
+      social_media.website = websiteUrls[0]; // Primary website URL
+    }
     social_media.extra_links = unique(extra_links).slice(0, 12);
   }
 
