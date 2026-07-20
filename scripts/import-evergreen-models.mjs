@@ -30,6 +30,7 @@ const DOMAIN_IMAGE_SLUG = {
   rubyvega: "diosa-rubi",
   larablake: "larablake",
   luzferrero: "luz-ferrero",
+  samanthatrevi: "luz-ferrero", // legacy rebrand — reverted to Luz Ferrero 2026-07-20
 };
 
 const args = new Map(
