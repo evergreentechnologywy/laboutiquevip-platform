@@ -420,6 +420,7 @@ model Provider {
   @@index([last_seen_at])
   @@index([display_name])
   @@index([status, is_profile_approved, location_state, location_city, created_date])
+  @@unique([verification_provider, verification_url], name: "provider_source_url_unique")
 }
 
 model Booking {
