@@ -286,7 +286,7 @@ export async function statsHandler(request: ApiRequest, context: BrowseRouteCont
           CASE WHEN jsonb_typeof(photos) = 'array' THEN photos ELSE '[]'::jsonb END
         )), 0)::bigint AS total
         FROM "Provider"
-        WHERE id = ANY(${eligibleIds})
+        WHERE id = ANY(${eligibleIds}::uuid[])
       `) as Array<{ total: bigint | number | string }>;
       photos = Number(sumRows[0]?.total ?? 0);
     }
