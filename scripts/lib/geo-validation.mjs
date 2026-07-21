@@ -87,6 +87,8 @@ const CITY_STATE_MAP = {
   "modesto": "CA",
   "santa barbara": "CA",
   "pasadena": "CA",
+  "beverly hills": "CA",
+  "west hollywood": "CA",
   "palm springs": "CA",
   "huntington beach": "CA",
   "irvine": "CA",
@@ -106,10 +108,14 @@ const CITY_STATE_MAP = {
   "galveston": "TX",
 
   // Illinois
+  "chicago": "IL",
   "naperville": "IL",
   "rockford": "IL",
   "peoria": "IL",
   "evanston": "IL",
+  "schaumburg": "IL",
+  "oak brook": "IL",
+  "skokie": "IL",
 
   // Nevada
   "las vegas": "NV",
@@ -119,9 +125,12 @@ const CITY_STATE_MAP = {
   "sparks": "NV",
 
   // Georgia
+  "atlanta": "GA",
   "savannah": "GA",
   "augusta": "GA",
   "macon": "GA",
+  "sandy springs": "GA",
+  "marietta": "GA",
 
   // Colorado
   "denver": "CO",
@@ -176,12 +185,13 @@ const CITY_STATE_MAP = {
   "greensboro": "NC",
   "durham": "NC",
   "asheville": "NC",
-
   // Ohio
+  "columbus": "OH",
   "cleveland": "OH",
   "cincinnati": "OH",
   "toledo": "OH",
-  "dayton": "OH",
+  "akron": "OH",
+  "youngstown": "OH",
 
   // Indiana
   "indianapolis": "IN",
@@ -198,6 +208,9 @@ const CITY_STATE_MAP = {
   "baltimore": "MD",
   "annapolis": "MD",
   "bethesda": "MD",
+
+  // Missouri (kansas city excluded — ambiguous with Kansas City KS)
+  "st. louis": "MO",
 
   // Virginia
   "virginia beach": "VA",
@@ -241,8 +254,7 @@ const CITY_STATE_MAP = {
   "omaha": "NE",
   "lincoln": "NE",
 
-  // New Jersey
-  "newark": "NJ",
+  // New Jersey (newark excluded — ambiguous: Newark DE exists)
   "jersey city": "NJ",
   "atlantic city": "NJ",
 
@@ -275,14 +287,14 @@ const CITY_STATE_MAP = {
   // Alaska
   "anchorage": "AK",
 
-  // New Hampshire
-  "manchester": "NH",
+  // New Hampshire (manchester excluded — ambiguous: Manchester CT)
+  "nashua": "NH",
 
   // Rhode Island
   "providence": "RI",
 
-  // Vermont
-  "burlington": "VT",
+  // Vermont (burlington excluded — ambiguous: Burlington NC/MA/IA/NJ)
+  "montpelier": "VT",
 
   // Wyoming
   "cheyenne": "WY",
@@ -304,16 +316,42 @@ const AMBIGUOUS_CITY_STATES = new Set([
   "springfield",   // IL, MA, MO, OR
   "rochester",     // NY, MN
   "columbus",      // GA, OH, IN, TX
+  "madison",       // WI, AL, IN, TN, NJ, MS
+  "kansas city",   // MO, KS
   "portland",      // OR, ME
   "salem",         // MA, OR
   "charleston",    // SC, WV
   "arlington",     // TX, VA
   "austin",        // TX, MN
   "jackson",       // MS, TN, FL, WY, MI
-  "houston",       // TX, MN — already unique for TX above, removed from TX list if needed
-  "madison",       // WI, AL, IN, TN — already unique for WI
-  "tallahassee",   // FL only — kept
-  "washington",    // DC, WA — already handled via "washington dc" only
+  "columbia",      // SC, MD, MO
+  "richmond",      // VA, CA, IN, KY
+  "newark",        // NJ, DE, OH
+  "dayton",        // OH, TN, NV
+  "manchester",    // NH, CT, MA
+  "burlington",    // VT, NC, MA, IA, NJ
+  "greenville",    // SC, NC, MS, TX
+  "glendale",      // CA, AZ
+  "pasadena",      // CA, TX
+  "alexandria",    // VA, LA
+  "clinton",       // IA, MD, MI, MS, NJ, NY
+  "auburn",        // AL, ME, NY, WA
+  "dover",         // DE, NH, NJ
+  "franklin",      // TN, WI, MA, IN, many others
+  "marion",        // IN, OH, IL, IA
+  "troy",          // NY, MI, AL, OH
+  "lancaster",     // PA, CA, OH, NY
+  "florence",      // AL, SC, KY, AZ
+  "oxford",        // MS, OH, AL, CT, MA
+  "bristol",       // CT, TN, VA, RI
+  "canton",        // OH, GA, IL, MA, MI
+  "chester",       // PA, VA, MD, NJ, NY
+  "bloomington",   // IN, IL, MN, CA
+  "georgetown",    // DC, TX, KY, SC
+  "newport",       // RI, KY, OR, CA
+  "milford",       // CT, MA, DE, MI, NH
+  "fairfield",     // CT, CA, IA, NJ, OH
+  "riverside",     // CA (primary) — also small towns elsewhere; kept ambiguous
 ]);
 
 /**
