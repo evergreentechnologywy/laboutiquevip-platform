@@ -37,7 +37,7 @@ export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
 # No TRYST_MAX_LISTING_PAGES_PER_CITY cap — auto-stop after 2 empty pages, 50 max
 export NODE_OPTIONS="--max-old-space-size=1024"
 
-STATES=(
+ALL_STATES=(
   "alabama,alaska,arizona,arkansas,california,colorado"
   "connecticut,delaware,district-of-columbia,florida,georgia,hawaii"
   "idaho,illinois,indiana,iowa,kansas,kentucky,louisiana"
@@ -47,6 +47,18 @@ STATES=(
   "pennsylvania,rhode-island,south-carolina,south-dakota,tennessee,texas"
   "utah,vermont,virginia,washington,west-virginia,wisconsin,wyoming"
 )
+
+# 2-day shard rotation: full 50-state scan exceeds the time cap in one run,
+# so even days take shards 0-3, odd days shards 4-7. Every state covered every 2 days.
+if [ "${TRYST_FULL_SCAN:-0}" = "1" ]; then
+  STATES=("${ALL_STATES[@]}")
+else
+  DAY=$((10#$(date +%j) % 2))
+  STATES=()
+  for i in "${!ALL_STATES[@]}"; do
+    if [ $((i % 2)) -eq "$DAY" ]; then STATES+=("${ALL_STATES[$i]}"); fi
+  done
+fi
 
 echo "$(date): Starting Tryst import ($(free -h | awk 'NR==2{print $7}') avail)" >> "$LOG/cron-tryst.log"
 
@@ -60,8 +72,8 @@ done
 sleep 5
 echo "$(date): Launched $(pgrep -cf 'import-tryst' || echo 0) Tryst workers" >> "$LOG/cron-tryst.log"
 
-# Wait up to 4 hours
-DEADLINE=$((SECONDS + 14400))
+# Wait up to 6 hours (shard rotation halves the workload; 6h headroom for full scans)
+DEADLINE=$((SECONDS + 21600))
 while pgrep -f "import-tryst" > /dev/null 2>&1; do
   if [ $SECONDS -gt $DEADLINE ]; then
     echo "$(date): TIMEOUT — killing Tryst" >> "$LOG/cron-tryst.log"
