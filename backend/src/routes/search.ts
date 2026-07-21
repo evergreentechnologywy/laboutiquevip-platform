@@ -34,10 +34,38 @@ const providerSearchSchema = z.object({
   premium: z.coerce.boolean().optional().default(false),
   minPrice: z.coerce.number().min(0).max(100000).optional().default(0),
   maxPrice: z.coerce.number().min(0).max(100000).optional().default(2000),
-  sort: z.enum(["newest", "rating", "price_low", "price_high"]).optional().default("newest"),
+  ethnicity: z.string().trim().min(1).max(60).optional(),
+  ageMin: z.coerce.number().int().min(18).max(100).optional(),
+  ageMax: z.coerce.number().int().min(18).max(100).optional(),
+  hasReviews: z.coerce.boolean().optional().default(false),
+  sort: z.enum(["newest", "rating", "reviews", "price_low", "price_high"]).optional().default("newest"),
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(60),
 });
+
+/** Phone-shaped queries: "+1 (555) 123-4567", "555.123.4567", "5551234567" etc. */
+const PHONE_QUERY_PATTERN = /^[+()\-\.\s\d]{7,}$/;
+
+/**
+ * Match provider.phone by digit substring, ignoring stored formatting.
+ * Returns null on transient DB error so the caller can fall back to a
+ * plain Prisma contains filter.
+ */
+async function findPhoneMatchProviderIds(prisma: any, digits: string): Promise<string[] | null> {
+  try {
+    const like = `%${digits}%`;
+    const rows = (await prisma.$queryRaw`
+      SELECT id FROM "Provider"
+      WHERE phone IS NOT NULL
+        AND regexp_replace(phone, '[^0-9]', '', 'g') LIKE ${like}
+      LIMIT 500
+    `) as Array<{ id: string }>;
+    return rows.map((row) => row.id);
+  } catch (err) {
+    console.warn("[search] Phone match query failed, falling back to contains:", (err as Error).message);
+    return null;
+  }
+}
 
 function searchPayload(profile: any): Record<string, unknown> {
   return {
@@ -122,6 +150,10 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
       minPrice: request.query.get("minPrice") ?? undefined,
       maxPrice: request.query.get("maxPrice") ?? undefined,
       sort: request.query.get("sort") ?? undefined,
+      ethnicity: request.query.get("ethnicity") ?? undefined,
+      ageMin: request.query.get("ageMin") ?? undefined,
+      ageMax: request.query.get("ageMax") ?? undefined,
+      hasReviews: request.query.get("hasReviews") ?? undefined,
       page: request.query.get("page") ?? undefined,
       limit: request.query.get("limit") ?? undefined,
     });
@@ -130,18 +162,37 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     andFilters.push(await buildPublicPhotoSearchFilter(context.prisma));
 
     if (query.q) {
-          andFilters.push({
-            OR: [
-              { display_name: { contains: query.q, mode: "insensitive" } },
-              { bio: { contains: query.q, mode: "insensitive" } },
-              { tagline: { contains: query.q, mode: "insensitive" } },
-              { ad_headline: { contains: query.q, mode: "insensitive" } },
-              { location_city: { contains: query.q, mode: "insensitive" } },
-              { location_state: { contains: query.q, mode: "insensitive" } },
-              { verification_username: { contains: query.q, mode: "insensitive" } },
-              { review_username: { contains: query.q, mode: "insensitive" } },
-            ],
-          });
+          const orBranches: any[] = [];
+
+          // Phone-shaped query: match phone digits first, then fall through to text fields.
+          if (PHONE_QUERY_PATTERN.test(query.q)) {
+            const digits = query.q.replace(/\D/g, "");
+            if (digits.length >= 7) {
+              const phoneIds = await findPhoneMatchProviderIds(context.prisma, digits);
+              if (phoneIds) {
+                orBranches.push(
+                  phoneIds.length > 0
+                    ? { id: { in: phoneIds } }
+                    : { id: { in: ["__no_phone_match__"] } },
+                );
+              } else {
+                orBranches.push({ phone: { contains: digits } });
+              }
+            }
+          }
+
+          orBranches.push(
+            { display_name: { contains: query.q, mode: "insensitive" } },
+            { bio: { contains: query.q, mode: "insensitive" } },
+            { tagline: { contains: query.q, mode: "insensitive" } },
+            { ad_headline: { contains: query.q, mode: "insensitive" } },
+            { location_city: { contains: query.q, mode: "insensitive" } },
+            { location_state: { contains: query.q, mode: "insensitive" } },
+            { verification_username: { contains: query.q, mode: "insensitive" } },
+            { review_username: { contains: query.q, mode: "insensitive" } },
+          );
+
+          andFilters.push({ OR: orBranches });
         }
 
     if (query.location) {
@@ -155,13 +206,29 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
         OR: [{ is_premium: true }, { ad_package: "elite" }],
       });
     }
+    if (query.ethnicity) {
+      andFilters.push({ ethnicity: { equals: query.ethnicity, mode: "insensitive" } });
+    }
+    if (query.ageMin !== undefined || query.ageMax !== undefined) {
+      const ageFilter: Record<string, number> = {};
+      if (query.ageMin !== undefined) ageFilter.gte = query.ageMin;
+      if (query.ageMax !== undefined) ageFilter.lte = query.ageMax;
+      andFilters.push({ age: ageFilter });
+    }
+    if (query.hasReviews) {
+      andFilters.push({
+        OR: [{ reviews_count: { gt: 0 } }, { review_site_count: { gt: 0 } }],
+      });
+    }
     andFilters.push({ OR: [{ rate_hourly: null }, { rate_hourly: { gte: query.minPrice, lte: query.maxPrice } }] });
 
     const where = { AND: andFilters };
     const orderBy =
       query.sort === "rating" ? [{ is_premium: "desc" }, { rating_average: "desc" }, { created_date: "desc" }] :
+      query.sort === "reviews" ? [{ is_premium: "desc" }, { reviews_count: "desc" }, { review_site_count: "desc" }, { created_date: "desc" }] :
       query.sort === "price_low" ? [{ is_premium: "desc" }, { rate_hourly: "asc" }, { created_date: "desc" }] :
       query.sort === "price_high" ? [{ is_premium: "desc" }, { rate_hourly: "desc" }, { created_date: "desc" }] :
+      query.q ? [{ is_premium: "desc" }, { reviews_count: "desc" }, { created_date: "desc" }] :
       [{ is_premium: "desc" }, { created_date: "desc" }];
 
     const skip = (query.page - 1) * query.limit;
@@ -207,6 +274,8 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           views_count: true,
           rating_average: true,
           reviews_count: true,
+          review_site_rating: true,
+          review_site_count: true,
           rate_hourly: true,
           created_date: true,
           updated_date: true,
@@ -236,20 +305,38 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
         };
 
         // Prefer premium, then photo quality, then requested sort signal within the page window.
+        const normalizedQuery = query.q.trim().toLowerCase();
         const dedupedProviders = dedupeProviders(providers)
           .sort((a: any, b: any) => {
             const prem = Number(Boolean(b.is_premium)) - Number(Boolean(a.is_premium));
             if (prem !== 0) return prem;
+            // Exact display_name match boost when a text query is present.
+            if (normalizedQuery) {
+              const aExact = String(a.display_name || "").trim().toLowerCase() === normalizedQuery ? 1 : 0;
+              const bExact = String(b.display_name || "").trim().toLowerCase() === normalizedQuery ? 1 : 0;
+              if (aExact !== bExact) return bExact - aExact;
+            }
             const photo = photoQuality(b) - photoQuality(a);
             if (photo !== 0) return photo;
             if (query.sort === "rating") {
               return Number(b.rating_average || 0) - Number(a.rating_average || 0);
+            }
+            if (query.sort === "reviews") {
+              return (
+                (Number(b.reviews_count || 0) + Number(b.review_site_count || 0)) -
+                (Number(a.reviews_count || 0) + Number(a.review_site_count || 0))
+              );
             }
             if (query.sort === "price_low") {
               return Number(a.rate_hourly ?? 1e9) - Number(b.rate_hourly ?? 1e9);
             }
             if (query.sort === "price_high") {
               return Number(b.rate_hourly ?? 0) - Number(a.rate_hourly ?? 0);
+            }
+            // Relevance-flavored default for text queries: most-reviewed first.
+            if (normalizedQuery) {
+              const reviews = Number(b.reviews_count || 0) - Number(a.reviews_count || 0);
+              if (reviews !== 0) return reviews;
             }
             return new Date(b.created_date || 0).getTime() - new Date(a.created_date || 0).getTime();
           })

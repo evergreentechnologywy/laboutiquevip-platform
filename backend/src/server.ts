@@ -67,6 +67,7 @@ import {
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
 import { searchCitiesHandler, searchLocationsHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
+import { browseStateCitiesHandler, browseStatesHandler, statsHandler } from "./routes/browse.js";
 import { getProviderBySlugHandler } from "./routes/providerPublic.js";
 import { nowpaymentsWebhookHandler } from "./routes/webhookNowpayments.js";
 import {
@@ -327,6 +328,19 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/search/providers" && request.method === "GET") {
     return searchProvidersHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/browse/states" && request.method === "GET") {
+    return browseStatesHandler(request, context);
+  }
+
+  const browseStateMatch = request.pathname.match(/^\/api\/v1\/browse\/states\/([a-zA-Z0-9-]+)$/);
+  if (browseStateMatch && request.method === "GET") {
+    return browseStateCitiesHandler(request, browseStateMatch[1], context);
+  }
+
+  if (request.pathname === "/api/v1/stats" && request.method === "GET") {
+    return statsHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/system/status" && request.method === "GET") {

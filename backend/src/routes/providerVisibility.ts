@@ -109,6 +109,16 @@ export function clearPublicPhotoProviderIdsCache(): void {
   photoProviderIdsCache = null;
 }
 
+/**
+ * Cached (60s) list of provider IDs with displayable public photos.
+ * Returns null on transient DB error so callers can fail open.
+ */
+export function getPublicPhotoProviderIds(prisma: {
+  $queryRaw: (query: TemplateStringsArray) => Promise<Array<{ id: string }>>;
+}): Promise<string[] | null> {
+  return loadPublicPhotoProviderIds(prisma);
+}
+
 export function publicProviderVisibilityWhere(): Record<string, unknown> {
   const blockedNames = parseConfiguredBlockedNames();
   const exclusionBranches: Record<string, unknown>[] = [
