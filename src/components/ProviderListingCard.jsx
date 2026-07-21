@@ -137,6 +137,11 @@ export function ProviderListingCard({ provider }) {
                 </span>
               )}
             </div>
+            {(provider.ethnicity || provider.age) && (
+              <p className="mt-1.5 text-xs font-light tracking-wide text-zinc-400/90">
+                {[provider.ethnicity, provider.age ? `${provider.age} yrs` : null].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
         </div>
 
