@@ -8,6 +8,10 @@ import {
   verifyTimestampedHmacSha256Signature,
 } from "../services/webhooks.js";
 import { diditWebhookSchema } from "../validation/webhooks.js";
+import {
+  applyVerificationApproval,
+  isVerificationTransitionAllowed,
+} from "../lib/verificationApproval.js";
 
 interface DiditContext {
   prisma: any;
@@ -309,6 +313,18 @@ export async function diditWebhookHandler(
   }
 
   const status = mapDiditStatus(payload.status ?? payload.event ?? "pending");
+
+  if (!isVerificationTransitionAllowed(verification.status, status)) {
+    // Stale/out-of-order event — do not regress a further-along verification.
+    await appendVerificationEventImmutable(context.prisma, verification.id, `didit.stale_ignored`, {
+      eventKey,
+      currentStatus: verification.status,
+      ignoredStatus: status,
+      requestId: request.requestId,
+    });
+    return json(200, { ok: true, stale: true });
+  }
+
   await context.prisma.verification.update({
     where: { id: verification.id },
     data: {
@@ -319,15 +335,7 @@ export async function diditWebhookHandler(
   });
 
   if (status === "approved") {
-    await context.prisma.provider.updateMany({
-      where: { user_id: verification.userId },
-      data: {
-        is_verified: true,
-        is_profile_approved: true,
-        status: "active",
-        rejection_reason: null,
-      },
-    });
+    await applyVerificationApproval(context.prisma, verification.userId);
   }
 
   await appendVerificationEventImmutable(context.prisma, verification.id, `didit.${status}`, {

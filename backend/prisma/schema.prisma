@@ -130,6 +130,7 @@ model Profile {
   profileTags  ProfileTag[]
   products     Product[]
 
+  @@index([userId])
   @@map("profiles")
 }
 
@@ -141,6 +142,7 @@ model ProfilePhoto {
   createdAt  DateTime @default(now()) @map("created_at")
   profile    Profile  @relation(fields: [profileId], references: [id])
 
+  @@index([profileId])
   @@map("profile_photos")
 }
 
@@ -152,6 +154,7 @@ model ProfileTour {
   createdAt  DateTime @default(now()) @map("created_at")
   profile    Profile  @relation(fields: [profileId], references: [id])
 
+  @@index([profileId])
   @@map("profile_tours")
 }
 
@@ -173,6 +176,7 @@ model ProfileTag {
   tag        Tag      @relation(fields: [tagId], references: [id])
 
   @@id([profileId, tagId])
+  @@index([tagId])
   @@map("profile_tags")
 }
 
@@ -187,6 +191,7 @@ model Verification {
   user             User                @relation(fields: [userId], references: [id])
   verificationLogs VerificationEvent[]
 
+  @@index([userId])
   @@map("verifications")
 }
 
@@ -198,6 +203,7 @@ model VerificationEvent {
   createdAt      DateTime     @default(now()) @map("created_at")
   verification   Verification @relation(fields: [verificationId], references: [id])
 
+  @@index([verificationId])
   @@map("verification_events")
 }
 
@@ -215,6 +221,7 @@ model Product {
   profile     Profile  @relation(fields: [profileId], references: [id])
   orders      Order[]
 
+  @@index([profileId])
   @@map("products")
 }
 
@@ -232,6 +239,8 @@ model Order {
   invoices      Invoice[]
   entitlements  Entitlement[]
 
+  @@index([userId])
+  @@index([productId])
   @@map("orders")
 }
 
@@ -249,6 +258,7 @@ model Invoice {
   order          Order          @relation(fields: [orderId], references: [id])
   invoiceEvents  InvoiceEvent[]
 
+  @@index([orderId])
   @@map("invoices")
 }
 
@@ -260,6 +270,7 @@ model InvoiceEvent {
   createdAt   DateTime @default(now()) @map("created_at")
   invoice     Invoice  @relation(fields: [invoiceId], references: [id])
 
+  @@index([invoiceId])
   @@map("invoice_events")
 }
 
@@ -273,6 +284,7 @@ model Entitlement {
   metadata     Json?
   order        Order    @relation(fields: [orderId], references: [id])
 
+  @@index([orderId])
   @@map("entitlements")
 }
 
@@ -288,6 +300,8 @@ model Report {
   reporter      User     @relation("reports_filed_by", fields: [reporterId], references: [id])
   targetUser    User?    @relation("reports_target_user", fields: [targetUserId], references: [id])
 
+  @@index([reporterId])
+  @@index([targetUserId])
   @@map("reports")
 }
 
@@ -301,6 +315,7 @@ model Block {
   blockedUser   User     @relation("blocks_target", fields: [blockedUserId], references: [id])
 
   @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId])
   @@map("blocks")
 }
 
@@ -317,6 +332,7 @@ model AuditEvent {
   createdAt    DateTime @default(now()) @map("created_at")
   actor        User?    @relation(fields: [actorId], references: [id])
 
+  @@index([actorId])
   @@map("audit_events")
 }
 

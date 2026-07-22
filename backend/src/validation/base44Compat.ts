@@ -74,7 +74,7 @@ export const bookingCreateSchema = z.object({
   client_email: guestEmailSchema,
   client_phone: z.string().max(50).optional().nullable(),
   special_requests: z.string().max(2000).optional().nullable(),
-}).passthrough();
+}).strict();
 
 export const messageCreateSchema = z.object({
   provider_id: z.string().uuid(),
@@ -82,14 +82,14 @@ export const messageCreateSchema = z.object({
   sender_email: guestEmailSchema,
   subject: z.string().min(1).max(160),
   message: z.string().min(3).max(3000),
-}).passthrough();
+}).strict();
 
 export const reviewCreateSchema = z.object({
   provider_id: z.string().uuid(),
   reviewer_name: z.string().min(1).max(120).optional().nullable(),
   rating: z.number().int().min(1).max(5),
   comment: z.string().min(3).max(2000).optional().nullable(),
-}).passthrough();
+}).strict();
 
 export const uploadSchema = z.object({
   filename: z.string().min(1).max(200),

@@ -10,7 +10,7 @@ initFrontendObservability()
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  // <React.StrictMode>
+  <React.StrictMode>
   <ClerkProvider
     publishableKey={PUBLISHABLE_KEY}
     afterSignOutUrl="/"
@@ -43,7 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   >
     <App />
   </ClerkProvider>
-  // </React.StrictMode>,
+  </React.StrictMode>,
 )
 
 if (import.meta.hot) {

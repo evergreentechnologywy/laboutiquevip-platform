@@ -163,23 +163,6 @@ export default function ProviderDashboard() {
   }, [tab]);
 
   React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentState = params.get("payment");
-    if (paymentState === "success") {
-      setCheckoutStatus({
-        type: "success",
-        message: "Payment callback received. We are confirming your package activation now.",
-      });
-      refetchOrders();
-    } else if (paymentState === "cancelled") {
-      setCheckoutStatus({
-        type: "error",
-        message: "Payment was cancelled. You can restart checkout whenever you're ready.",
-      });
-    }
-  }, [refetchOrders]);
-
-  React.useEffect(() => {
     const loadData = async () => {
       try {
         const currentUser = await base44.auth.me();
@@ -217,6 +200,23 @@ export default function ProviderDashboard() {
     queryFn: () => base44.orders.list(),
     enabled: !!user,
   });
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentState = params.get("payment");
+    if (paymentState === "success") {
+      setCheckoutStatus({
+        type: "success",
+        message: "Payment callback received. We are confirming your package activation now.",
+      });
+      refetchOrders();
+    } else if (paymentState === "cancelled") {
+      setCheckoutStatus({
+        type: "error",
+        message: "Payment was cancelled. You can restart checkout whenever you're ready.",
+      });
+    }
+  }, [refetchOrders]);
 
   const syncProviderState = React.useCallback((savedProvider) => {
     setProvider(savedProvider);
@@ -334,7 +334,7 @@ export default function ProviderDashboard() {
     if (!user) return;
 
     if (!formData.display_name.trim() || !formData.location_city.trim() || !formData.location_state.trim()) {
-      const message = "Display name, country, and city are required.";
+      const message = "Display name, state, and city are required.";
       setError(message);
       setSaveStatus({ type: "error", message });
       return;
@@ -673,14 +673,14 @@ export default function ProviderDashboard() {
                 <Field label="Bio"><Textarea value={formData.bio || ""} onChange={(e) => handleChange("bio", e.target.value)} rows={5} className="bg-zinc-800 border-zinc-700 text-zinc-100" /></Field>
 
                 <div className="grid md:grid-cols-3 gap-6">
-                  <Field label="Country *">
+                  <Field label="State *">
                     <Select value={formData.location_state || undefined} onValueChange={(value) => {
                       handleChange("location_state", value);
                       handleChange("location_city", "");
                       setCityChoice(OTHER_CITY_OPTION);
                     }}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-100">
-                        <SelectValue placeholder="Select a country" />
+                        <SelectValue placeholder="Select a state" />
                       </SelectTrigger>
                       <SelectContent>
                         {stateOptions.map((state) => (
@@ -717,7 +717,7 @@ export default function ProviderDashboard() {
                       <Input value={formData.location_city || ""} onChange={(e) => handleChange("location_city", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="Enter city" />
                     )}
                   </Field>
-                  <Field label="Region / state"><Input value={formData.location_country || ""} onChange={(e) => handleChange("location_country", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="Optional region or state" /></Field>
+                  <Field label="Country"><Input value={formData.location_country || ""} onChange={(e) => handleChange("location_country", e.target.value)} className="bg-zinc-800 border-zinc-700 text-zinc-100" placeholder="Optional country" /></Field>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-6">

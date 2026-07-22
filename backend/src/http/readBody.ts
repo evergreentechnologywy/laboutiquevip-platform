@@ -2,6 +2,9 @@ import type { IncomingMessage } from "node:http";
 
 export const MAX_JSON_BODY_BYTES = 6 * 1024 * 1024;
 export const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
+// Video uploads are multipart and capped by storage/video.ts MAX_VIDEO_BYTES
+// (500MB) — allow that plus multipart framing overhead.
+export const MAX_VIDEO_UPLOAD_BODY_BYTES = 501 * 1024 * 1024;
 
 export class BodyTooLargeError extends Error {
   readonly maxBytes: number;
@@ -16,6 +19,9 @@ export class BodyTooLargeError extends Error {
 function resolveBodyLimit(pathname: string): number {
   if (pathname.startsWith("/api/v1/webhooks")) {
     return MAX_WEBHOOK_BODY_BYTES;
+  }
+  if (pathname === "/api/video/upload") {
+    return MAX_VIDEO_UPLOAD_BODY_BYTES;
   }
   return MAX_JSON_BODY_BYTES;
 }

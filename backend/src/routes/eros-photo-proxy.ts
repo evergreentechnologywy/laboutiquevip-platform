@@ -1,4 +1,5 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
+import { fetchProxiedImage } from "../lib/proxyFetch.js";
 
 const ALLOWED_EROS_HOSTS = new Set([
   "www.eros.com",
@@ -23,33 +24,22 @@ export async function erosPhotoProxyHandler(request: ApiRequest): Promise<ApiRes
     return { statusCode: 400, body: { error: "bad_request" } };
   }
 
-  try {
-    const response = await fetch(upstream, {
-      headers: {
-        referer: "https://www.eros.com/",
-        "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-photo-proxy/1.0)",
-      },
-      redirect: "follow",
-    });
+  const result = await fetchProxiedImage(upstream, isAllowedErosUrl, {
+    referer: "https://www.eros.com/",
+    "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-photo-proxy/1.0)",
+  });
 
-    if (!response.ok) {
-      return { statusCode: response.status === 404 ? 404 : 502, body: { error: "upstream_error" } };
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-
-    return {
-      statusCode: 200,
-      headers: {
-        "content-type": contentType,
-        "cache-control": "public, max-age=86400",
-        "content-length": String(buffer.length),
-      },
-      rawBuffer: buffer,
-    };
-  } catch (error) {
-    console.error("Eros photo proxy error:", error);
-    return { statusCode: 502, body: { error: "proxy_error" } };
+  if (!result.ok) {
+    return { statusCode: result.status, body: { error: result.error } };
   }
+
+  return {
+    statusCode: 200,
+    headers: {
+      "content-type": result.contentType,
+      "cache-control": "public, max-age=86400",
+      "content-length": String(result.buffer.length),
+    },
+    rawBuffer: result.buffer,
+  };
 }

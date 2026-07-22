@@ -6,6 +6,12 @@ const setToken = (token) => {
 };
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+// Optional async token provider (registered by AuthContext). Clerk session
+// tokens expire ~60s; calling getToken() per request lets the SDK refresh
+// transparently instead of 401-ing on the stale localStorage copy.
+let tokenRefresher = null;
+export const setTokenRefresher = (fn) => { tokenRefresher = fn; };
+
 /**
  * @typedef {Error & {
  *   status?: number,
@@ -19,7 +25,17 @@ const clearToken = () => localStorage.removeItem(TOKEN_KEY);
  */
 async function api(path, { method = 'GET', body, auth = false } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  if (auth && getToken()) headers.Authorization = `Bearer ${getToken()}`;
+  if (auth) {
+    let token = null;
+    if (tokenRefresher) {
+      try { token = await tokenRefresher(); } catch { token = null; }
+    }
+    if (!token) token = getToken();
+    if (token) {
+      setToken(token);
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
 
   const res = await fetch(path, {
     method,

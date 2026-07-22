@@ -1,12 +1,12 @@
 // @ts-nocheck
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Star, ArrowRight, Images } from "lucide-react";
 import { getProviderRatingMeta } from "@/lib/providerPresentation";
 import { getPrimaryProfilePhoto, getProfilePhotoCandidates } from "@/lib/profilePhotos";
 import { getProviderBadgeFlags } from "@/lib/verificationBadges";
+import { providerProfilePath } from "@/lib/providerSlug";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { PremiumBadge } from "@/components/PremiumBadge";
@@ -38,7 +38,7 @@ function formatProviderLocation(city, state) {
   return "";
 }
 
-export function ProviderListingCard({ provider }) {
+function ProviderListingCardComponent({ provider }) {
   const ratingMeta = getProviderRatingMeta(provider);
   const flags = getProviderBadgeFlags(provider);
   const hasTrustChips =
@@ -55,7 +55,7 @@ export function ProviderListingCard({ provider }) {
 
   return (
     <Link
-      to={createPageUrl(`ViewProfile?id=${provider.id}`)}
+      to={providerProfilePath(provider)}
       className="block perspective-[1200px]"
       aria-label={`View profile of ${provider.display_name}`}
       onMouseEnter={() => setIsHovered(true)}
@@ -185,3 +185,5 @@ export function ProviderListingCard({ provider }) {
     </Link>
   );
 }
+
+export const ProviderListingCard = React.memo(ProviderListingCardComponent);

@@ -7,7 +7,6 @@ export default function Terms() {
       <SEO
         title="Terms of Service | La Boutique VIP International"
         description="Read the Terms of Service for using La Boutique VIP International."
-        noindex
       />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-serif font-bold tracking-tight text-zinc-100 mb-8">Terms of Service</h1>

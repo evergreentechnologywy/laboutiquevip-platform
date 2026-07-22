@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { setTokenRefresher } from "@/api/base44Client";
 import { useAuth as useClerkAuth, useUser as useClerkUser } from "@clerk/react";
 import { buildLoginUrl, currentAppPath } from "@/lib/authUrls";
 
@@ -8,6 +9,17 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const { getToken, signOut, isLoaded: isAuthLoaded } = useClerkAuth();
   const { user: clerkUser, isLoaded: isUserLoaded, isSignedIn } = useClerkUser();
+
+  // Register per-request token refresh so API calls never use an expired
+  // session token (Clerk refreshes transparently when near expiry).
+  useEffect(() => {
+    if (!isSignedIn) {
+      setTokenRefresher(null);
+      return;
+    }
+    setTokenRefresher(() => getToken());
+    return () => setTokenRefresher(null);
+  }, [isSignedIn, getToken]);
 
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);

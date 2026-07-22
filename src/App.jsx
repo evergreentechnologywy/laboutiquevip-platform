@@ -90,16 +90,17 @@ const AuthenticatedApp = () => {
 };
 
 function App() {
+  const isDev = import.meta.env.DEV;
   return (
     <AppErrorBoundary>
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <Router>
-            <NavigationTracker />
+            {isDev && <NavigationTracker />}
             <AuthenticatedApp />
           </Router>
           <Toaster />
-          <VisualEditAgent />
+          {isDev && <VisualEditAgent />}
         </QueryClientProvider>
       </AuthProvider>
     </AppErrorBoundary>

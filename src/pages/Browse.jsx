@@ -30,6 +30,22 @@ import {
   groupProvidersByCity,
   isStateLocationQuery,
 } from "@/lib/cityGroups";
+import { providerProfilePath } from "@/lib/providerSlug";
+
+// Hoisted to module scope: framer-motion variant objects recreated per render
+// cause unnecessary re-renders of the grid.
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05, delayChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = React.useState(value);
@@ -150,7 +166,7 @@ export default function Browse() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const { data, isLoading, isFetching, isPlaceholderData } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData, isError, refetch } = useQuery({
     queryKey: ["provider-search", debouncedSearchQuery, debouncedLocation, sortBy, selectedFilters, debouncedPriceRange, page],
     queryFn: () => searchProviders({
       q: debouncedSearchQuery,
@@ -233,19 +249,6 @@ export default function Browse() {
     (selectedFilters.verified ? 1 : 0) +
     (selectedFilters.premium ? 1 : 0) +
     (priceRange[0] > 0 || priceRange[1] < 2000 ? 1 : 0);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05, delayChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
@@ -521,7 +524,7 @@ export default function Browse() {
               {touringProviders.map((provider) => {
                 const nextStop = provider.tour_plan.cities[0];
                 return (
-                  <Link key={`tour-${provider.id}`} to={createPageUrl(`ViewProfile?id=${provider.id}`)} className="group rounded-[1.5rem] border border-white/5 bg-zinc-950/60 backdrop-blur-xl p-5 transition-all duration-300 hover:border-rose-500/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-rose-500/10">
+                  <Link key={`tour-${provider.id}`} to={providerProfilePath(provider)} className="group rounded-[1.5rem] border border-white/5 bg-zinc-950/60 backdrop-blur-xl p-5 transition-all duration-300 hover:border-rose-500/40 hover:-translate-y-1 hover:shadow-2xl hover:shadow-rose-500/10">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-serif text-lg font-bold text-white group-hover:text-rose-300 transition-colors">{provider.display_name}</p>
@@ -587,6 +590,16 @@ export default function Browse() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : isError ? (
+          <div className="rounded-[3rem] border border-rose-500/20 bg-rose-500/[0.04] backdrop-blur-2xl px-6 py-20 text-center shadow-2xl">
+            <h3 className="text-3xl font-serif font-bold text-white">Listings failed to load</h3>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-zinc-300">
+              The directory could not be reached. Check your connection and try again.
+            </p>
+            <Button onClick={() => refetch()} className="mt-8 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white font-bold tracking-wide hover:opacity-95 px-8 h-12 shadow-xl shadow-rose-500/20 border-0">
+              Retry
+            </Button>
           </div>
         ) : providers.length === 0 ? (
           <motion.div 

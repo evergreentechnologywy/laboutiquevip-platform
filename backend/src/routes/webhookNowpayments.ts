@@ -159,7 +159,10 @@ function resolvePaidAmountCents(payload: NowpaymentsWebhookPayload, rawBody: unk
   }
 
   const raw = rawBody as Record<string, unknown>;
-  const priceAmount = raw.price_amount ?? raw.actually_paid_at_fiat;
+  // Prefer the actually-paid amount: price_amount is the full invoice price
+  // echoed even on underpaid "finished" payments, so trusting it first lets
+  // underpayments pass as fully paid.
+  const priceAmount = raw.actually_paid_at_fiat ?? raw.price_amount;
   if (typeof priceAmount === "number" && Number.isFinite(priceAmount)) {
     return Math.round(priceAmount * 100);
   }

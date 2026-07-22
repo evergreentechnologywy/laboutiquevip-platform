@@ -37,26 +37,37 @@ export default function DiditVerification({ onVerificationComplete, onVerificati
   }, [onVerificationStatusChange]);
 
   // Poll verification status from either active session or callback query.
+  // Stops polling once a terminal status (approved/rejected) is reached.
   useEffect(() => {
     const verificationId = session?.verificationId || verificationIdHint;
     if (!verificationId) return;
 
+    let stopped = false;
+    const intervalRef = { id: null };
+
     const checkStatus = async () => {
+      if (stopped) return;
       try {
         const verifications = await base44.entities.Verification.filter({
           id: verificationId,
         });
-        
+
         if (verifications.length > 0) {
           const status = verifications[0].status;
           setVerificationStatus(status);
-          
+
           if (onVerificationStatusChange) {
             onVerificationStatusChange(status);
           }
-          
+
           if (status === "approved" && onVerificationComplete) {
             onVerificationComplete(verifications[0]);
+          }
+
+          // Terminal status — stop polling.
+          if (["approved", "rejected"].includes(status)) {
+            stopped = true;
+            if (intervalRef.id) clearInterval(intervalRef.id);
           }
         }
       } catch (err) {
@@ -66,9 +77,12 @@ export default function DiditVerification({ onVerificationComplete, onVerificati
 
     // Check immediately and then every 5 seconds.
     checkStatus();
-    const interval = setInterval(checkStatus, 5000);
+    intervalRef.id = setInterval(checkStatus, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      stopped = true;
+      if (intervalRef.id) clearInterval(intervalRef.id);
+    };
   }, [session?.verificationId, verificationIdHint, onVerificationComplete, onVerificationStatusChange]);
 
   const createSession = async () => {

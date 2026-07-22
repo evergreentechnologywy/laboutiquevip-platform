@@ -1,6 +1,7 @@
 import crypto, { timingSafeEqual } from "node:crypto";
 import { verifyToken } from "@clerk/backend";
 import jwt from "jsonwebtoken";
+import busboy from "busboy";
 import { z } from "zod";
 import type { ApiRequest, ApiResponse, Role } from "../types.js";
 import {
@@ -22,9 +23,10 @@ import {
 } from "../lib/importedCatalog.js";
 import { publicProviderProfileSelect, publicProviderVisibilityWhere } from "./providerVisibility.js";
 import { sanitizeImageBuffer, validateImageMagicBytes } from "../lib/imageSanitize.js";
+import { getJwtSecret } from "../config/jwtSecret.js";
 
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
-const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
+const JWT_SECRET = getJwtSecret();
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 30;
 const ALLOWED_UPLOAD_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const BLOCKED_UPLOAD_TYPES = new Set(["image/svg+xml", "image/svg", "text/xml", "application/xml"]);
@@ -629,12 +631,10 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
 
     // Fix race condition: if ID verification was already approved before the
     // provider record existed, apply the approval now.
-    console.log("[racefix] Checking for approved verification for user_id:", parsed.data.user_id);
     const approvedVerification = await prisma.verification.findFirst({
       where: { userId: parsed.data.user_id, status: "approved" },
       orderBy: { createdAt: "desc" },
     });
-    console.log("[racefix] Found:", approvedVerification?.id ?? "none");
     if (approvedVerification) {
       const updated = await prisma.provider.update({
         where: { id: created.id },
@@ -652,6 +652,8 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
   }
 
   if (entity === "Booking") {
+    if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
+
     const parsed = bookingCreateSchema.safeParse(rawData);
     if (!parsed.success) return validationError(parsed.error);
 
@@ -663,6 +665,8 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
   }
 
   if (entity === "Message") {
+    if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
+
     const parsed = messageCreateSchema.safeParse(rawData);
     if (!parsed.success) return validationError(parsed.error);
 
@@ -828,7 +832,7 @@ export async function videoUploadHandler(req: ApiRequest): Promise<ApiResponse> 
 
   // Check body - parse multipart
   // The request body arrives as a raw Buffer from the server
-  const body = (req as any).rawBody;
+  const body = req.rawBuffer;
   if (!body || !Buffer.isBuffer(body) || body.length === 0) {
     return { statusCode: 400, body: { error: "missing_body", message: "Send file as multipart/form-data with field name 'file'" } };
   }
@@ -848,7 +852,6 @@ export async function videoUploadHandler(req: ApiRequest): Promise<ApiResponse> 
 
   try {
     // Parse multipart
-    const busboy = require("busboy");
     const bb = busboy({ headers: { "content-type": ct } });
     
     return new Promise<ApiResponse>((resolve) => {

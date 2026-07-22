@@ -1,5 +1,6 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
 import type { AuditLogger } from "../utils/auditLogger.js";
+import { applyVerificationApproval } from "../lib/verificationApproval.js";
 
 interface AdminContext {
   prisma: any;
@@ -86,6 +87,10 @@ export async function adminReviewVerificationHandler(
       reviewedAt: new Date(),
     },
   });
+
+  if (nextStatus === "approved") {
+    await applyVerificationApproval(context.prisma, verification.userId);
+  }
 
   await context.prisma.verificationEvent.create({
     data: {

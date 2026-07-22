@@ -1,4 +1,5 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
+import { fetchProxiedImage } from "../lib/proxyFetch.js";
 
 const ALLOWED_HOST_SUFFIXES = [
   ".tryst.a4cdn.org",
@@ -27,35 +28,24 @@ export async function trystPhotoProxyHandler(request: ApiRequest): Promise<ApiRe
     return { statusCode: 400, body: { error: "bad_request" } };
   }
 
-  try {
-    const response = await fetch(upstream, {
-      headers: {
-        referer: "https://tryst.link/",
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
-      },
-      redirect: "follow",
-    });
+  const result = await fetchProxiedImage(upstream, isAllowedTrystUrl, {
+    referer: "https://tryst.link/",
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+  });
 
-    if (!response.ok) {
-      return { statusCode: response.status === 404 ? 404 : 502, body: { error: "upstream_error" } };
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-
-    return {
-      statusCode: 200,
-      headers: {
-        "content-type": contentType,
-        "cache-control": "public, max-age=86400",
-        "content-length": String(buffer.length),
-      },
-      rawBuffer: buffer,
-    };
-  } catch (error) {
-    console.error("Tryst photo proxy error:", error);
-    return { statusCode: 502, body: { error: "proxy_error" } };
+  if (!result.ok) {
+    return { statusCode: result.status, body: { error: result.error } };
   }
+
+  return {
+    statusCode: 200,
+    headers: {
+      "content-type": result.contentType,
+      "cache-control": "public, max-age=86400",
+      "content-length": String(result.buffer.length),
+    },
+    rawBuffer: result.buffer,
+  };
 }

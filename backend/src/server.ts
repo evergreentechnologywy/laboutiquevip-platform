@@ -182,14 +182,16 @@ function matchProviderSlugPath(pathname: string): string | null {
 }
 
 function resolveRequestIp(req: http.IncomingMessage): string | null {
-  // Always trust Cloudflare CF-Connecting-IP header (real client IP)
-  const cfIp = req.headers["cf-connecting-ip"];
-  const cfValue = Array.isArray(cfIp) ? cfIp[0] : cfIp;
-  if (cfValue?.trim()) {
-    return cfValue.trim();
-  }
-
+  // Trust proxy headers (CF-Connecting-IP / X-Forwarded-For) only when the
+  // deployment explicitly opts in via TRUST_PROXY_FORWARDED_IP — otherwise any
+  // client can spoof them to bypass rate limits and the admin IP allowlist.
   if (trustProxyForwardedIp()) {
+    const cfIp = req.headers["cf-connecting-ip"];
+    const cfValue = Array.isArray(cfIp) ? cfIp[0] : cfIp;
+    if (cfValue?.trim()) {
+      return cfValue.trim();
+    }
+
     const forwarded = req.headers["x-forwarded-for"];
     const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
     if (value?.trim()) {
@@ -201,8 +203,6 @@ function resolveRequestIp(req: http.IncomingMessage): string | null {
 }
 
 async function routeRequest(request: ApiRequest, context: { prisma: any; auditLogger: ImmutableAuditLogger }): Promise<ApiResponse> {
-  console.log("routeRequest PATH:", request.pathname, "METHOD:", request.method);
-
   const maintenanceBlock = guardPublicCatalogMaintenance(request);
   if (maintenanceBlock) {
     return maintenanceBlock;

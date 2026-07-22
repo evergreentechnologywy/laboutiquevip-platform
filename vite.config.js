@@ -31,6 +31,14 @@ export default defineConfig(({ mode }) => {
     ].filter(Boolean),
     build: {
       rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-clerk': ['@clerk/react'],
+            'vendor-query': ['@tanstack/react-query'],
+            'vendor-motion': ['framer-motion'],
+          },
+        },
         onwarn(warning, warn) {
           // Treat import errors as fatal errors
           if (

@@ -91,7 +91,13 @@ export async function sendPaymentInitiatedEmail(input: PaymentEmailInput): Promi
   return sendTransactionalEmail({
     to: input.to,
     subject: "Your La Boutique VIP payment link is ready",
-    text: `${greeting}\n\nYour payment request for ${amount} is ready.\n\n${paymentLine}\n\nIf you did not request this, you can ignore this email.`,
+    text: `${greeting}
+
+Your payment request for ${amount} is ready.
+
+${paymentLine}
+
+If you did not request this, you can ignore this email.`,
   });
 }
 
@@ -103,7 +109,11 @@ export async function sendPaymentConfirmedEmail(input: PaymentEmailInput): Promi
   return sendTransactionalEmail({
     to: input.to,
     subject: "Payment confirmed for your La Boutique VIP listing",
-    text: `${greeting}\n\nWe confirmed your crypto payment of ${amount}. Your listing entitlement has been updated.\n\nYou can review your listing here: ${dashboardUrl}`,
+    text: `${greeting}
+
+We confirmed your crypto payment of ${amount}. Your listing entitlement has been updated.
+
+You can review your listing here: ${dashboardUrl}`,
   });
 }
 
@@ -115,7 +125,11 @@ export async function sendPaymentNeedsReviewEmail(input: PaymentEmailInput): Pro
   return sendTransactionalEmail({
     to: input.to,
     subject: "Payment received and pending review",
-    text: `${greeting}\n\nWe received a payment related to your ${amount} order, but it still needs manual review before entitlement is updated.\n\nWe will follow up if any action is required. Dashboard: ${dashboardUrl}`,
+    text: `${greeting}
+
+We received a payment related to your ${amount} order, but it still needs manual review before entitlement is updated.
+
+We will follow up if any action is required. Dashboard: ${dashboardUrl}`,
   });
 }
 
@@ -126,6 +140,10 @@ export async function sendPackageExpirationReminderEmail(input: PackageExpiratio
   return sendTransactionalEmail({
     to: input.to,
     subject: "Your La Boutique VIP package is expiring soon",
-    text: `${greeting}\n\nYour ${input.packageName} listing package expires on ${input.expiresOn}.\n\nRenew or change your package here: ${dashboardUrl}`,
+    text: `${greeting}
+
+Your ${input.packageName} listing package expires on ${input.expiresOn}.
+
+Renew or change your package here: ${dashboardUrl}`,
   });
 }

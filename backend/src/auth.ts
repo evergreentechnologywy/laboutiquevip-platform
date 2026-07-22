@@ -2,8 +2,9 @@ import jwt from "jsonwebtoken";
 import { verifyToken as clerkVerifyToken } from "@clerk/backend";
 import type { ApiRequest, AuthContext, Role } from "./types.js";
 import { allowHeaderAuthTrust } from "./config/security.js";
+import { getJwtSecret } from "./config/jwtSecret.js";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
+const JWT_SECRET = getJwtSecret();
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
 const ALLOWED_ROLES = new Set<Role>(["admin", "dev", "provider", "agency", "member", "service"]);
 

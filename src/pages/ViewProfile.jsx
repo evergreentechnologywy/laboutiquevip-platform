@@ -57,17 +57,20 @@ export default function ViewProfile() {
 
   const { data: provider, isLoading } = useQuery({
     queryKey: ['provider', providerId],
-    queryFn: async () => {
-      const currentProvider = await fetchPublicProvider(providerId);
-      if (!currentProvider) return null;
-      const viewCount = (currentProvider.views_count || 0) + 1;
-      try {
-        await base44.entities.Provider.update(currentProvider.id, { views_count: viewCount });
-      } catch { return currentProvider; }
-      return { ...currentProvider, views_count: viewCount };
-    },
+    queryFn: () => fetchPublicProvider(providerId),
     enabled: !!providerId,
   });
+
+  // Fire-and-forget view counter — exactly once per provider per mount
+  // (ref-guarded so StrictMode double-invoke and refetches never inflate it).
+  const viewCountedRef = useRef(null);
+  useEffect(() => {
+    if (!provider?.id || viewCountedRef.current === provider.id) return;
+    viewCountedRef.current = provider.id;
+    base44.entities.Provider.update(provider.id, {
+      views_count: (provider.views_count || 0) + 1,
+    }).catch(() => { /* non-critical metric */ });
+  }, [provider?.id]);
 
   const { data: reviews = [] } = useQuery({
     queryKey: ['reviews', provider?.id],
@@ -166,7 +169,6 @@ export default function ViewProfile() {
         ogTitle={`${provider.display_name} | La Boutique VIP`}
         ogDescription={provider.tagline}
         ogImage={displayPhotos[0]}
-        noindex
         jsonLd={displayPhotos[0] ? {
           "@context": "https://schema.org",
           "@type": "Person",

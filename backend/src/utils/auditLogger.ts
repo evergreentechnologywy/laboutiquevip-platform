@@ -29,8 +29,10 @@ export class ImmutableAuditLogger implements AuditLogger {
             payload: event.metadata ?? {},
           },
         });
-      } catch {
-        // Keep API path resilient if audit persistence fails.
+      } catch (err) {
+        // Keep API path resilient if audit persistence fails — but never
+        // silently: a broken audit sink must be visible in logs.
+        console.warn("[audit] persistence failed:", err instanceof Error ? err.message : err);
       }
     }
 
@@ -40,6 +42,7 @@ export class ImmutableAuditLogger implements AuditLogger {
     });
 
     // Phase 0 stub: append-only output sink placeholder.
-    process.stdout.write(`[audit] ${logLine}\n`);
+    process.stdout.write(`[audit] ${logLine}
+`);
   }
 }

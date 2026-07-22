@@ -57,6 +57,15 @@ const LIMIT_RULES: LimitRule[] = [
     windowMs: 60_000,
     maxRequests: 20,
   },
+  {
+    name: "photo-proxy",
+    matcher: (request) =>
+      request.pathname === "/api/eros-photo" ||
+      request.pathname === "/api/tryst-photo" ||
+      request.pathname.startsWith("/api/r2-photo/"),
+    windowMs: 60_000,
+    maxRequests: 120,
+  },
 ];
 
 function maybeCleanup(now: number): void {
