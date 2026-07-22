@@ -36,7 +36,15 @@ fi
 
 # ── Env ──
 cd "$REPO"
-source ./.env 2>/dev/null
+# set -a: plain `source ./.env` does NOT export vars, so node workers were
+# missing BRD_PROXY_URL and the Jina-429 fallback silently died (2026-07-22).
+set -a
+source ./.env 2>/dev/null || true
+set +a
+# Fallback loader if .env contains lines bash can't parse (CSP garbage).
+if [ -z "${BRD_PROXY_URL:-}" ] && [ -x /usr/local/bin/lbv-source-env.sh ]; then
+  source /usr/local/bin/lbv-source-env.sh ./.env
+fi
 export NODE_PATH="$PWD/node_modules"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
 export NODE_OPTIONS="--max-old-space-size=512"

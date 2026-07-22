@@ -153,6 +153,11 @@ function cleanText(input) {
 }
 
 async function fetchPageText(url, attempts = 4) {
+  // Prefer the Bright Data ISP proxy: r.jina.ai hard rate-limits (429) under
+  // 50+ parallel workers, which caused ~90% profile-fetch failures when the
+  // proxy env wasn't exported (fixed in launcher: set -a; source ./.env).
+  const proxied = await fetchTrystViaBrdProxy(url);
+  if (proxied) return proxied;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
@@ -173,9 +178,6 @@ async function fetchPageText(url, attempts = 4) {
       clearTimeout(timer);
     }
   }
-  // Fallback: same Bright Data ISP proxy as the Eros scrape when Jina fails.
-  const proxied = await fetchTrystViaBrdProxy(url);
-  if (proxied) return proxied;
   return null;
 }
 
