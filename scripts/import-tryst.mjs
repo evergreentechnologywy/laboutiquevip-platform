@@ -181,11 +181,27 @@ async function fetchPageText(url, attempts = 4) {
   return null;
 }
 
+// Per-process Bright Data sticky session: without it, all parallel workers
+// share ONE ISP exit IP and Tryst throttles them collectively (~40% errors).
+const BRD_SESSION = Math.random().toString(36).slice(2, 10);
+
+function brdProxyUrlWithSession(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    if (u.username && !u.username.includes("-session-")) {
+      u.username = `${u.username}-session-${BRD_SESSION}`;
+    }
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 async function fetchTrystViaBrdProxy(url, timeoutMs = 30000) {
   const proxyUrl = process.env.BRD_PROXY_URL;
   if (!proxyUrl) return null;
   try {
-    const agent = new ProxyAgent(proxyUrl);
+    const agent = new ProxyAgent(brdProxyUrlWithSession(proxyUrl));
     const response = await undiciFetch(url, {
       dispatcher: agent,
       signal: AbortSignal.timeout(timeoutMs),

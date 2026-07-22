@@ -47,7 +47,9 @@ if [ -z "${BRD_PROXY_URL:-}" ] && [ -x /usr/local/bin/lbv-source-env.sh ]; then
 fi
 export NODE_PATH="$PWD/node_modules"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
-export NODE_OPTIONS="--max-old-space-size=512"
+# 256MB heap/worker: 51x512MB OOM-killed the box on 2026-07-22 (took down
+# multilogin). 24 workers x 256MB ~= 6GB worst case, fits alongside services.
+export NODE_OPTIONS="--max-old-space-size=256"
 
 STATES=(
   alabama alaska arizona arkansas california colorado connecticut delaware
@@ -61,17 +63,28 @@ STATES=(
 
 echo "$(date): Starting Tryst import 50-state parallel ($(free -h | awk 'NR==2{print $7}') avail)" >> "$LOG/cron-tryst.log"
 
+# Shard states round-robin across WORKERS batches (comma-separated --states).
+WORKERS=24
+GROUPS=()
+i=0
 for st in "${STATES[@]}"; do
-  nohup node scripts/import-tryst.mjs --states="$st" \
-    > "$STATE_LOGDIR/${st}.log" 2>&1 &
-  sleep 0.3
+  idx=$((i % WORKERS))
+  if [ -z "${GROUPS[$idx]:-}" ]; then GROUPS[$idx]="$st"; else GROUPS[$idx]="${GROUPS[$idx]},$st"; fi
+  i=$((i + 1))
+done
+
+for g in "${GROUPS[@]}"; do
+  first="${g%%,*}"
+  nohup node scripts/import-tryst.mjs --states="$g" \
+    > "$STATE_LOGDIR/${first}-batch.log" 2>&1 &
+  sleep 0.5
 done
 
 sleep 5
-echo "$(date): Launched $(pgrep -cf 'import-tryst' || echo 0) Tryst workers" >> "$LOG/cron-tryst.log"
+echo "$(date): Launched $(pgrep -cf 'import-tryst' || echo 0) Tryst workers ($WORKERS batches)" >> "$LOG/cron-tryst.log"
 
-# Wait up to 90 minutes — 50 parallel workers should finish in ~30-45 min
-DEADLINE=$((SECONDS + 5400))
+# Wait up to 3 hours — 24 batched workers with proxy fetches need longer
+DEADLINE=$((SECONDS + 10800))
 while pgrep -f "import-tryst" > /dev/null 2>&1; do
   if [ $SECONDS -gt $DEADLINE ]; then
     echo "$(date): TIMEOUT — killing Tryst" >> "$LOG/cron-tryst.log"
@@ -81,5 +94,5 @@ while pgrep -f "import-tryst" > /dev/null 2>&1; do
   sleep 60
 done
 
-DONE=$(grep -l 'elapsedSeconds' "$STATE_LOGDIR"/*.log 2>/dev/null | wc -l)
-echo "$(date): Tryst import complete (${SECONDS}s, ${DONE}/${#STATES[@]} states finished)" >> "$LOG/cron-tryst.log"
+DONE=$(grep -l 'elapsedSeconds' "$STATE_LOGDIR"/*-batch.log 2>/dev/null | wc -l)
+echo "$(date): Tryst import complete (${SECONDS}s, ${DONE}/${WORKERS} batches finished)" >> "$LOG/cron-tryst.log"
