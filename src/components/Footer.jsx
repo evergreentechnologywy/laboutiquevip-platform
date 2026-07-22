@@ -96,6 +96,9 @@ export function Footer() {
                   <Link to={createPageUrl(item)} className="text-sm text-zinc-400 font-light hover:text-amber-400 transition-colors duration-300 inline-block hover:translate-x-1 transform">{item}</Link>
                 </li>
               ))}
+              <li>
+                <Link to="/states" className="text-sm text-zinc-400 font-light hover:text-amber-400 transition-colors duration-300 inline-block hover:translate-x-1 transform">Browse States</Link>
+              </li>
             </ul>
             <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white pt-4">Support</h3>
             <ul className="space-y-4">

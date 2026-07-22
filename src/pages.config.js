@@ -3,6 +3,8 @@ import __Layout from './Layout.jsx';
 
 export const PAGES = {
     "Browse": React.lazy(() => import('./pages/Browse')),
+    "BrowseStates": React.lazy(() => import('./pages/BrowseStates')),
+    "StateDetail": React.lazy(() => import('./pages/StateDetail')),
     "Home": React.lazy(() => import('./pages/Home')),
     "ProviderDashboard": React.lazy(() => import('./pages/ProviderDashboard')),
     "ViewProfile": React.lazy(() => import('./pages/ViewProfile')),

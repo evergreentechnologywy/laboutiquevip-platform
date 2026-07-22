@@ -11,6 +11,7 @@ import { buildLoginUrl, currentAppPath } from "@/lib/authUrls";
 const publicNavigation = [
   { title: "Home", url: createPageUrl("Home") },
   { title: "Browse", url: createPageUrl("Browse") },
+  { title: "Browse States", url: "/states" },
   { title: "AI Concierge", url: `${createPageUrl("Home")}#ai-concierge` },
   { title: "Pricing", url: createPageUrl("Pricing") },
   { title: "Trust", url: createPageUrl("Trust") },
@@ -26,6 +27,9 @@ function isNavActive(item, location) {
       location.pathname.toLowerCase().startsWith("/viewprofile") ||
       location.pathname.startsWith("/profile/")
     );
+  }
+  if (item.title === "Browse States") {
+    return location.pathname.startsWith("/states");
   }
   return false;
 }

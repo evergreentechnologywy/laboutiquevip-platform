@@ -73,6 +73,9 @@ const AuthenticatedApp = () => {
           {/* SEO routes: sitemap & external links use /city/:slug and /profile/:slug */}
           <Route path="/city/:citySlug" element={Pages.Browse ? <Pages.Browse /> : null} />
           <Route path="/profile/:profileSlug" element={Pages.ViewProfile ? <Pages.ViewProfile /> : null} />
+          {/* Browse-by-region: /states + /states/:stateSlug */}
+          <Route path="/states" element={Pages.BrowseStates ? <Pages.BrowseStates /> : null} />
+          <Route path="/states/:stateSlug" element={Pages.StateDetail ? <Pages.StateDetail /> : null} />
           {Object.entries(Pages).map(([path, Page]) => (
             <React.Fragment key={path}>
               <Route path={`/${path}`} element={<Page />} />
