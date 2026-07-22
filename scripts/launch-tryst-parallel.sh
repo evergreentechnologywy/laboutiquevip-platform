@@ -64,16 +64,17 @@ STATES=(
 echo "$(date): Starting Tryst import 50-state parallel ($(free -h | awk 'NR==2{print $7}') avail)" >> "$LOG/cron-tryst.log"
 
 # Shard states round-robin across WORKERS batches (comma-separated --states).
+# NB: GROUPS is a reserved readonly bash var — must not be used here.
 WORKERS=24
-GROUPS=()
+STATE_GROUPS=()
 i=0
 for st in "${STATES[@]}"; do
   idx=$((i % WORKERS))
-  if [ -z "${GROUPS[$idx]:-}" ]; then GROUPS[$idx]="$st"; else GROUPS[$idx]="${GROUPS[$idx]},$st"; fi
+  if [ -z "${STATE_GROUPS[$idx]:-}" ]; then STATE_GROUPS[$idx]="$st"; else STATE_GROUPS[$idx]="${STATE_GROUPS[$idx]},$st"; fi
   i=$((i + 1))
 done
 
-for g in "${GROUPS[@]}"; do
+for g in "${STATE_GROUPS[@]}"; do
   first="${g%%,*}"
   nohup node scripts/import-tryst.mjs --states="$g" \
     > "$STATE_LOGDIR/${first}-batch.log" 2>&1 &
