@@ -47,6 +47,9 @@ if [ -z "${BRD_PROXY_URL:-}" ] && [ -x /usr/local/bin/lbv-source-env.sh ]; then
 fi
 export NODE_PATH="$PWD/node_modules"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
+# Strict qualification gate: only providers with a P411 or review-site match
+# (TER/PD/TOB) are imported. Unqualified profiles are skipped, not soft-gated.
+export STRICT_IMPORT_VERIFICATION_GATE=1
 # 256MB heap/worker: 51x512MB OOM-killed the box on 2026-07-22 (took down
 # multilogin). 24 workers x 256MB ~= 6GB worst case, fits alongside services.
 export NODE_OPTIONS="--max-old-space-size=256"
