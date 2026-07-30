@@ -31,6 +31,7 @@ import {
   adminReviewVerificationHandler,
 } from "./routes/admin.js";
 import { adminStatsHandler } from "./routes/adminStats.js";
+import { adminPipelineRunsHandler, adminAuditEventsHandler } from "./routes/adminPipeline.js";
 import { aiAssistantHandler, applyAiTourDraftHandler } from "./routes/aiAssistant.js";
 import {
   devImportLogsHandler,
@@ -453,6 +454,18 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/admin/reports" && request.method === "GET") {
     return adminReportsQueueHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/admin/pipeline-runs" && request.method === "GET") {
+    const denied = enforceRbac(request, { resource: "admin", action: "read", allowedRoles: ["admin", "service"] });
+    if (denied) return denied;
+    return adminPipelineRunsHandler(request, context);
+  }
+
+  if (request.pathname === "/api/admin/audit-events" && request.method === "GET") {
+    const denied = enforceRbac(request, { resource: "admin", action: "read", allowedRoles: ["admin", "service"] });
+    if (denied) return denied;
+    return adminAuditEventsHandler(request, context);
   }
 
   if (request.pathname === "/api/admin/stats" && request.method === "GET") {
