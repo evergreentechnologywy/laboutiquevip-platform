@@ -15,6 +15,8 @@ import {
   fetchDevImportStatus,
   setDevMaintenance,
   triggerDevImport,
+  fetchSystemStatus,
+  fetchPipelineRuns,
 } from "@/api/devOps";
 
 const MANUAL_SOURCES = ["evergreen", "eros", "tryst", "orchestrator"];
@@ -57,6 +59,19 @@ export default function DevDashboard() {
     refetchInterval: 15_000,
   });
 
+  const { data: sysStatus, isError: sysErr } = useQuery({
+    queryKey: ["dev-system-status"],
+    queryFn: fetchSystemStatus,
+    retry: false,
+    refetchInterval: 30000,
+  });
+
+  const { data: pipelineRuns = [], isError: pipeErr } = useQuery({
+    queryKey: ["dev-pipeline-runs"],
+    queryFn: () => fetchPipelineRuns({ limit: 10 }),
+    retry: false,
+  });
+
   const { data: logs, isLoading: logsLoading } = useQuery({
     queryKey: ["dev-import-logs", logSource],
     queryFn: () => fetchDevImportLogs(logSource),
@@ -90,6 +105,22 @@ export default function DevDashboard() {
       <div className="min-h-screen bg-zinc-950 p-4 md:p-8">
         <SEO title="Dev Dashboard | La Boutique VIP" noindex />
         <div className="max-w-6xl mx-auto space-y-6">
+
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader><CardTitle className="text-zinc-100 flex items-center gap-2"><Server className="w-5 h-5" /> System Health</CardTitle></CardHeader>
+            <CardContent>
+              {sysErr ? (
+                <p className="text-zinc-400 text-sm">System status endpoint unavailable.</p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div><p className="text-zinc-500">Status</p><p className="text-zinc-100 font-medium">{sysStatus?.status || sysStatus?.state || "ok"}</p></div>
+                  <div><p className="text-zinc-500">Uptime</p><p className="text-zinc-100 font-medium">{sysStatus?.uptime ?? sysStatus?.uptimeSeconds ?? "—"}</p></div>
+                  <div><p className="text-zinc-500">Version</p><p className="text-zinc-100 font-medium">{sysStatus?.version || sysStatus?.build || "—"}</p></div>
+                  <div><p className="text-zinc-500">Pipeline runs</p><p className="text-zinc-100 font-medium">{pipeErr ? "pending" : (pipelineRuns.runs || pipelineRuns).length}</p></div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-zinc-100 mb-2">Dev Dashboard</h1>
