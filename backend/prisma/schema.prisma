@@ -484,3 +484,23 @@ model Review {
   @@index([provider_id])
   @@index([status])
 }
+
+model PipelineRun {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source            String
+  phase             String
+  status            String   @default("running")
+  startedAt         DateTime @default(now()) @map("started_at")
+  endedAt           DateTime? @map("ended_at")
+  heartbeatAt       DateTime? @map("heartbeat_at")
+  profilesScanned   Int      @default(0) @map("profiles_scanned")
+  profilesMatched   Int      @default(0) @map("profiles_matched")
+  profilesImported  Int      @default(0) @map("profiles_imported")
+  photosSynced      Int      @default(0) @map("photos_synced")
+  errorCount        Int      @default(0) @map("error_count")
+  metadata          Json?
+
+  @@index([source, startedAt])
+  @@index([status])
+  @@map("pipeline_runs")
+}
