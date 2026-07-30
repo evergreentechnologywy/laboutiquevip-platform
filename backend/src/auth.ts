@@ -6,14 +6,38 @@ import { getJwtSecret } from "./config/jwtSecret.js";
 
 const JWT_SECRET = getJwtSecret();
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? "";
-const ALLOWED_ROLES = new Set<Role>(["admin", "dev", "provider", "agency", "member", "service"]);
+const ALLOWED_ROLES = new Set<Role>(["admin", "dev", "provider", "agency", "advertiser", "member", "service"]);
 
 type TokenClaims = {
   sub?: string;
   role?: string;
+  public_metadata?: { role?: string };
+  publicMetadata?: { role?: string };
+  unsafe_metadata?: { role?: string };
   exp?: number;
   iat?: number;
 };
+
+function validRole(raw: unknown): Role | null {
+  if (typeof raw !== "string") return null;
+  const r = raw.trim().toLowerCase();
+  return ALLOWED_ROLES.has(r as Role) ? (r as Role) : null;
+}
+
+/** Resolve Clerk role with fallback chain: public_metadata.role -> publicMetadata.role -> unsafe_metadata.role -> flat role claim. */
+export function resolveClerkRoles(verified: Record<string, unknown>): Role[] {
+  const candidates = [
+    (verified.public_metadata as any)?.role,
+    (verified.publicMetadata as any)?.role,
+    (verified.unsafe_metadata as any)?.role,
+    verified.role,
+  ];
+  for (const c of candidates) {
+    const r = validRole(c);
+    if (r) return [r];
+  }
+  return ["member"];
+}
 
 function parseRoles(raw: string | undefined): Role[] {
   if (!raw) return [];
@@ -42,8 +66,7 @@ export async function authFromClerkJwt(headers: ApiRequest["headers"]): Promise<
     const verified = await clerkVerifyToken(token, { secretKey: CLERK_SECRET_KEY });
     const sub = (verified as any).sub;
     if (typeof sub !== "string") return null;
-    const role = (verified as any).role;
-    return { userId: sub, roles: role && ["member", "provider", "agency", "admin", "dev", "service"].includes(role) ? [role] : ["member"] };
+    return { userId: sub, roles: resolveClerkRoles(verified as Record<string, unknown>) };
   } catch {
     return null;
   }

@@ -12,6 +12,13 @@ export function isProduction(): boolean {
 }
 
 export function allowHeaderAuthTrust(): boolean {
+  if (isProduction()) {
+    if (envFlag(process.env.ALLOW_HEADER_AUTH_TRUST, false)) {
+      // eslint-disable-next-line no-console
+      console.warn("[security] ALLOW_HEADER_AUTH_TRUST is set but IGNORED in production (header-auth bypass disabled).");
+    }
+    return false;
+  }
   return envFlag(process.env.ALLOW_HEADER_AUTH_TRUST, false);
 }
 
