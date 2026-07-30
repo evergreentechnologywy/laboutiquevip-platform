@@ -11,7 +11,7 @@ import {
   initBackendObservability,
 } from "./observability.js";
 import { adminIpAllowlist, trustProxyForwardedIp } from "./config/security.js";
-import { enforceRbac } from "./middleware/rbac.js";
+import { enforceRbac, requireRole } from "./middleware/rbac.js";
 import { applyRateLimit } from "./middleware/rateLimit.js";
 import { corsHeaders, securityHeaders } from "./middleware/security.js";
 import {
@@ -259,11 +259,7 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
         return { statusCode: 403, body: { error: "forbidden", message: "Admin access denied for IP" } };
       }
     }
-    const denied = enforceRbac(request, {
-      resource: "admin",
-      action: request.method,
-      allowedRoles: ["admin", "service"],
-    });
+    const denied = requireRole("admin", "service")(request);
 
     if (denied) {
       await context.auditLogger.append({
@@ -347,43 +343,24 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return systemStatusHandler(request, context);
   }
 
+  if (request.pathname.startsWith("/api/v1/dev")) {
+    const devDenied = requireRole("admin", "dev")(request);
+    if (devDenied) return devDenied;
+  }
+
   if (request.pathname === "/api/v1/dev/import/status" && request.method === "GET") {
-    const denied = enforceRbac(request, {
-      resource: "dev",
-      action: "read",
-      allowedRoles: ["admin", "dev"],
-    });
-    if (denied) return denied;
     return devImportStatusHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/dev/import/trigger" && request.method === "POST") {
-    const denied = enforceRbac(request, {
-      resource: "dev",
-      action: "trigger",
-      allowedRoles: ["admin", "dev"],
-    });
-    if (denied) return denied;
     return devImportTriggerHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/dev/maintenance" && request.method === "POST") {
-    const denied = enforceRbac(request, {
-      resource: "dev",
-      action: "maintenance",
-      allowedRoles: ["admin", "dev"],
-    });
-    if (denied) return denied;
     return devMaintenanceHandler(request, context);
   }
 
   if (request.pathname === "/api/v1/dev/import/logs" && request.method === "GET") {
-    const denied = enforceRbac(request, {
-      resource: "dev",
-      action: "logs",
-      allowedRoles: ["admin", "dev"],
-    });
-    if (denied) return denied;
     return devImportLogsHandler(request, context);
   }
 

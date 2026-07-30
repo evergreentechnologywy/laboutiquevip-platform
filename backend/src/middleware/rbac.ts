@@ -25,3 +25,22 @@ export function enforceRbac(
     },
   };
 }
+
+/** Returns a preHandler-style guard: null if the request has any allowed role, else a 403 response. */
+export function requireRole(
+  ...allowedRoles: Role[]
+): (request: ApiRequest) => ApiResponse | null {
+  return (request: ApiRequest): ApiResponse | null => {
+    const roles = request.auth?.roles ?? [];
+    if (roles.some((role) => allowedRoles.includes(role))) {
+      return null;
+    }
+    return {
+      statusCode: 403,
+      body: {
+        error: "forbidden",
+        message: `requires role: ${allowedRoles.join(" | ")}`,
+      },
+    };
+  };
+}
