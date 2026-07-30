@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { SEO } from "@/components/SEO";
 import { RequireRole } from "@/components/RequireRole";
-import { fetchAdminReports, fetchAdminStats, fetchSystemStatus } from "@/api/devOps";
+import { fetchAdminReports, fetchAdminStats, fetchSystemStatus, fetchPipelineRuns, fetchAdminAuditEvents } from "@/api/devOps";
 
 export default function AdminDashboard() {
   const [user, setUser] = React.useState(null);
@@ -66,6 +66,20 @@ export default function AdminDashboard() {
     queryKey: ['admin-reports-open'],
     queryFn: () => fetchAdminReports('open'),
     enabled: !!user,
+  });
+
+  const { data: pipelineRuns = [], isError: pipelineErr } = useQuery({
+    queryKey: ['admin-pipeline-runs'],
+    queryFn: () => fetchPipelineRuns({ limit: 20 }),
+    enabled: !!user,
+    retry: false,
+  });
+
+  const { data: auditEvents = [], isError: auditErr } = useQuery({
+    queryKey: ['admin-audit-events'],
+    queryFn: () => fetchAdminAuditEvents(50),
+    enabled: !!user,
+    retry: false,
   });
 
   const approveMutation = useMutation({
@@ -359,6 +373,62 @@ export default function AdminDashboard() {
                     />
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="pipeline">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader><CardTitle className="text-zinc-100">Pipeline Run Health</CardTitle></CardHeader>
+              <CardContent>
+                {pipelineErr ? (
+                  <p className="text-zinc-400">Pipeline metrics endpoint pending (GET /api/v1/admin/pipeline-runs).</p>
+                ) : pipelineRuns.length === 0 ? (
+                  <p className="text-zinc-400">No pipeline runs recorded yet.</p>
+                ) : (
+                  <div className="overflow-x-auto"><table className="w-full text-sm text-zinc-300">
+                    <thead><tr className="text-left text-zinc-500 border-b border-zinc-800">
+                      <th className="py-2 pr-4">Source</th><th className="py-2 pr-4">Phase</th><th className="py-2 pr-4">Status</th>
+                      <th className="py-2 pr-4">Scanned</th><th className="py-2 pr-4">Imported</th><th className="py-2 pr-4">Photos</th>
+                      <th className="py-2 pr-4">Errors</th><th className="py-2 pr-4">Started</th>
+                    </tr></thead>
+                    <tbody>
+                      {(pipelineRuns.runs || pipelineRuns).map((r) => (
+                        <tr key={r.id} className="border-b border-zinc-800/50">
+                          <td className="py-2 pr-4">{r.source}</td>
+                          <td className="py-2 pr-4">{r.phase}</td>
+                          <td className="py-2 pr-4"><Badge className={r.status === "ok" || r.status === "completed" ? "bg-emerald-900 text-emerald-200" : "bg-amber-900 text-amber-200"}>{r.status}</Badge></td>
+                          <td className="py-2 pr-4">{r.profilesScanned ?? r.profiles_scanned ?? 0}</td>
+                          <td className="py-2 pr-4">{r.profilesImported ?? r.profiles_imported ?? 0}</td>
+                          <td className="py-2 pr-4">{r.photosSynced ?? r.photos_synced ?? 0}</td>
+                          <td className="py-2 pr-4">{r.errorCount ?? r.error_count ?? 0}</td>
+                          <td className="py-2 pr-4">{(r.startedAt || r.started_at) ? format(new Date(r.startedAt || r.started_at), "MMM d HH:mm") : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader><CardTitle className="text-zinc-100">Audit Log</CardTitle></CardHeader>
+              <CardContent>
+                {auditErr ? (
+                  <p className="text-zinc-400">Audit events endpoint pending (GET /api/admin/audit-events).</p>
+                ) : auditEvents.length === 0 ? (
+                  <p className="text-zinc-400">No audit events.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {(auditEvents.events || auditEvents).map((e, i) => (
+                      <div key={e.id || i} className="flex items-center justify-between border-b border-zinc-800/50 py-2 text-sm">
+                        <span className="text-zinc-300">{e.action}</span>
+                        <span className="text-zinc-500">{e.actorId || e.actor_id || "system"} · {e.createdAt || e.created_at ? format(new Date(e.createdAt || e.created_at), "MMM d HH:mm") : ""}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

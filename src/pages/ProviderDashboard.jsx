@@ -568,6 +568,7 @@ export default function ProviderDashboard() {
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="ads">Advertisement</TabsTrigger>
             <TabsTrigger value="copilot">AI Copilot</TabsTrigger>
+            <TabsTrigger value="referrals">Referrals</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -960,6 +961,9 @@ export default function ProviderDashboard() {
             <AdvertisingCopilot surface="dashboard" defaultPrompt="Review my current ad and suggest the next best advertising move." />
           </TabsContent>
 
+                  <TabsContent value="referrals" className="space-y-6">
+            <ReferralPanel provider={provider} />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -1069,5 +1073,34 @@ function MediaGrid({ title, items, emptyText }) {
         </div>
       )}
     </div>
+  );
+}
+
+
+// Affiliate referral-link generator (advertiser). Produces a trackable referral URL for the provider public profile.
+function ReferralPanel({ provider }) {
+  const [campaign, setCampaign] = React.useState("default");
+  const slug = provider?.slug || provider?.id || "profile";
+  const base = typeof window !== "undefined" ? window.location.origin : "https://www.laboutiquevip.net";
+  const referralUrl = base + "/provider/" + slug + "?ref=" + encodeURIComponent(campaign || "default");
+  const [copied, setCopied] = React.useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(referralUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+  };
+  return (
+    <Card className="bg-zinc-900 border-zinc-800">
+      <CardHeader><CardTitle className="text-zinc-100">Affiliate Referral Link</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-zinc-400">Generate a trackable referral URL for your public profile. Share it to attribute sign-ups and bookings to your campaign.</p>
+        <Field label="Campaign slug">
+          <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} placeholder="e.g. twitter-bio" className="bg-zinc-800 border-zinc-700 text-zinc-100" />
+        </Field>
+        <div className="flex items-center gap-2">
+          <Input readOnly value={referralUrl} className="bg-zinc-800 border-zinc-700 text-zinc-100 flex-1" />
+          <Button onClick={copy} className="bg-rose-600 hover:bg-rose-700">{copied ? "Copied" : "Copy"}</Button>
+        </div>
+        <p className="text-xs text-zinc-500">Clicks on this link are tracked via the ?ref= parameter for attribution reporting.</p>
+      </CardContent>
+    </Card>
   );
 }

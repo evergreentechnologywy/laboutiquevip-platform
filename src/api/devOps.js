@@ -57,3 +57,14 @@ export async function fetchAdminReports(status = 'open') {
 export async function fetchAdminStats() {
   return devApi('/api/admin/stats');
 }
+
+export async function fetchPipelineRuns({ source, limit = 20 } = {}) {
+  const qs = new URLSearchParams();
+  if (source) qs.set("source", source);
+  qs.set("limit", String(limit));
+  return devApi(`/api/v1/admin/pipeline-runs?${qs.toString()}`);
+}
+
+export async function fetchAdminAuditEvents(limit = 50) {
+  return devApi(`/api/admin/audit-events?limit=${limit}`);
+}
