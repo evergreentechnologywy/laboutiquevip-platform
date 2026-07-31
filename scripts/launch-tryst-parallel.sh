@@ -201,8 +201,10 @@ for (( start=0; start<${#REMAINING[@]}; start+=WINDOW_SIZE )); do
       done
       if [ "$already" = false ]; then COMPLETED+=("$st"); fi
       # Throughput telemetry for future tuning (parsed/error counts per state).
-      tail -1 "$STATE_LOGDIR/${st}-batch.log" 2>/dev/null | grep -oE 'parsed=[0-9]+ .*errors=[0-9]+' | \
-        xargs -r -I{} echo "$(date):   $st finished — {}" >> "$LOG/cron-tryst.log"
+      # MUST stay fail-safe: under set -e + pipefail a no-match grep kills the
+      # launcher before save_state (lost alaska's first completion 2026-07-31).
+      { tail -1 "$STATE_LOGDIR/${st}-batch.log" 2>/dev/null | grep -oE 'parsed=[0-9]+ .*errors=[0-9]+' | \
+        xargs -r -I{} echo "$(date):   $st finished — {}" >> "$LOG/cron-tryst.log"; } || true
     fi
   done
 
