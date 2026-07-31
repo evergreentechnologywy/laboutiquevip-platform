@@ -69,6 +69,19 @@ const profileProgressEvery = parseBoundedInteger(
   1,
   100,
 );
+// Pre-fetch skip for recently-processed profiles (2026-07-31): without this, a
+// killed state restarts by re-fetching EVERY profile page via Jina (the DB
+// dedupe in upsertTrystProvider runs post-fetch), so big states could never
+// finish inside a launcher window. Skip the fetch when the profile's
+// last_seen_at is fresher than TRYST_REFETCH_DAYS; last_seen_at only advances
+// on full processing, so skipped profiles are still re-fetched on the
+// refetch cadence. TRYST_SKIP_KNOWN=0 disables.
+const skipKnownRefetchDays = parseBoundedInteger(
+  process.env.TRYST_REFETCH_DAYS,
+  3,
+  0,
+  30,
+);
 const statesArg = args.get("states") ?? process.env.TRYST_STATES ?? null;
 const filteredStates = statesArg ? statesArg.split(",").map(s => s.trim().toLowerCase()).filter(Boolean) : null;
 const cacheOnly =
@@ -82,6 +95,11 @@ const cacheDir = cacheOnly
         defaultDatedCacheDir(),
     )
   : null;
+
+// Skip-known is disabled for dry-run (must exercise fetches) and cache-only
+// (cache completeness matters more than speed there).
+const skipKnownEnabled =
+  (process.env.TRYST_SKIP_KNOWN ?? "1") !== "0" && !dryRun && !cacheOnly;
 
 const dynamicImport = new Function("modulePath", "return import(modulePath)");
 
@@ -108,6 +126,7 @@ const stats = {
   cached: 0,
   skipped: 0,
   skippedNoVerification: 0,
+  skippedKnown: 0,
   verificationCacheHits: 0,
   photosUploaded: 0,
   photosFailed: 0,
@@ -569,6 +588,30 @@ async function importCity(stateSlug, citySlug) {
 
   for (const [index, profileUrl] of profileLinks.entries()) {
     try {
+      if (skipKnownEnabled && prisma) {
+        const knownSlug = parseTrystProfileUrl(profileUrl);
+        if (knownSlug) {
+          try {
+            const known = await prisma.provider.findFirst({
+              where: {
+                verification_provider: "tryst",
+                verification_username: knownSlug,
+              },
+              select: { last_seen_at: true },
+            });
+            if (
+              known?.last_seen_at &&
+              Date.now() - new Date(known.last_seen_at).getTime() <
+                skipKnownRefetchDays * 86400000
+            ) {
+              stats.skippedKnown += 1;
+              continue;
+            }
+          } catch {
+            // fail-open: fetch normally
+          }
+        }
+      }
       await sleep(crawlLimits.delayMs);
       const profileText = await fetchPageText(profileUrl, profileFetchAttempts);
       if (!profileText) {
@@ -591,7 +634,7 @@ async function importCity(stateSlug, citySlug) {
       if (completed === profileLinks.length || completed % profileProgressEvery === 0) {
         console.log(
           `  [profile-progress] ${stateSlug}/${citySlug}: ${completed}/${profileLinks.length} ` +
-            `parsed=${stats.profilesParsed} cached=${stats.cached} errors=${stats.errors}`,
+            `parsed=${stats.profilesParsed} cached=${stats.cached} known=${stats.skippedKnown} errors=${stats.errors}`,
         );
       }
     }
@@ -630,6 +673,7 @@ async function main() {
   console.log(`created: ${stats.created}`);
   console.log(`updated: ${stats.updated}`);
   console.log(`skipped: ${stats.skipped}`);
+  console.log(`skippedKnown: ${stats.skippedKnown}`);
   console.log(`skippedNoVerification: ${stats.skippedNoVerification}`);
   console.log(`errors: ${stats.errors}`);
   console.log(`elapsedSeconds: ${Math.round(process.uptime())}`);
