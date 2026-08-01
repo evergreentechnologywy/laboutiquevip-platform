@@ -131,7 +131,19 @@ const stats = {
   photosUploaded: 0,
   photosFailed: 0,
   errors: 0,
+  errReasons: {},
 };
+
+// Reason of the most recent failed page fetch (set by fetchPageText /
+// fetchTrystViaBrdProxy). Read by importCity when a fetch returns null so
+// error telemetry can be classified instead of anonymous. Not concurrency
+// safe in general, but each worker process is single-threaded per import.
+let lastFetchFailure = null;
+
+function noteErrReason(reason) {
+  const key = reason || "unknown";
+  stats.errReasons[key] = (stats.errReasons[key] || 0) + 1;
+}
 
 let _s3Client = null;
 function getS3Client() {
@@ -175,6 +187,7 @@ async function fetchPageText(url, attempts = 4) {
   // Prefer the Bright Data ISP proxy: r.jina.ai hard rate-limits (429) under
   // 50+ parallel workers, which caused ~90% profile-fetch failures when the
   // proxy env wasn't exported (fixed in launcher: set -a; source ./.env).
+  lastFetchFailure = null;
   const proxied = await fetchTrystViaBrdProxy(url);
   if (proxied) return proxied;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -186,17 +199,24 @@ async function fetchPageText(url, attempts = 4) {
         headers: { "user-agent": "Mozilla/5.0 (compatible; laboutiquevip-tryst-import/1.0)" },
       });
       if (response.status === 429) {
+        lastFetchFailure = "jina_429";
         await sleep(8000 * attempt);
         continue;
       }
-      if (!response.ok) return null;
+      if (!response.ok) {
+        lastFetchFailure = `jina_http_${response.status}`;
+        return null;
+      }
+      lastFetchFailure = null;
       return await response.text();
-    } catch {
+    } catch (e) {
+      lastFetchFailure = e?.name === "AbortError" ? "jina_timeout" : "jina_exc";
       await sleep(1200 * attempt);
     } finally {
       clearTimeout(timer);
     }
   }
+  if (lastFetchFailure === "jina_429") lastFetchFailure = "jina_429_exhausted";
   return null;
 }
 
@@ -229,10 +249,21 @@ async function fetchTrystViaBrdProxy(url, timeoutMs = 30000) {
         accept: "text/html,application/xhtml+xml",
       },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      lastFetchFailure = `brd_http_${response.status}`;
+      noteErrReason(lastFetchFailure);
+      return null;
+    }
     const text = await response.text();
-    return text || null;
-  } catch {
+    if (!text) {
+      lastFetchFailure = "brd_empty";
+      noteErrReason(lastFetchFailure);
+      return null;
+    }
+    return text;
+  } catch (e) {
+    lastFetchFailure = e?.name === "TimeoutError" ? "brd_timeout" : "brd_exc";
+    noteErrReason(lastFetchFailure);
     return null;
   }
 }
@@ -581,6 +612,7 @@ async function importCity(stateSlug, citySlug) {
   const profileLinks = await collectProfileLinksForCity(cityUrl, fetchPageText, crawlLimits);
   if (profileLinks.length === 0) {
     stats.errors += 1;
+    noteErrReason("no_profile_links");
     return;
   }
 
@@ -616,6 +648,7 @@ async function importCity(stateSlug, citySlug) {
       const profileText = await fetchPageText(profileUrl, profileFetchAttempts);
       if (!profileText) {
         stats.errors += 1;
+        noteErrReason(lastFetchFailure);
         continue;
       }
       const profile = parseProfilePage(profileText, profileUrl);
@@ -628,6 +661,7 @@ async function importCity(stateSlug, citySlug) {
         await upsertTrystProvider(profile, cityMeta, profileText);
       } catch {
         stats.errors += 1;
+        noteErrReason("upsert_exc");
       }
     } finally {
       const completed = index + 1;
@@ -676,6 +710,7 @@ async function main() {
   console.log(`skippedKnown: ${stats.skippedKnown}`);
   console.log(`skippedNoVerification: ${stats.skippedNoVerification}`);
   console.log(`errors: ${stats.errors}`);
+  console.log(`errReasons: ${JSON.stringify(stats.errReasons)}`);
   console.log(`elapsedSeconds: ${Math.round(process.uptime())}`);
 }
 
