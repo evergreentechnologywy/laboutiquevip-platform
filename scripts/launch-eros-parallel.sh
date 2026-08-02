@@ -31,7 +31,9 @@ fi
 
 # ── Env ──
 cd "$REPO"
-source ./.env 2>/dev/null
+set -a
+source ./.env 2>/dev/null || true
+set +a
 export NODE_PATH="$PWD/node_modules"
 export STRICT_IMPORT_VERIFICATION_GATE="${STRICT_IMPORT_VERIFICATION_GATE:-1}"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
