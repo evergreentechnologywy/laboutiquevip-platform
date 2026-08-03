@@ -1085,7 +1085,7 @@ function ReferralPanel({ provider }) {
   const referralUrl = base + "/provider/" + slug + "?ref=" + encodeURIComponent(campaign || "default");
   const [copied, setCopied] = React.useState(false);
   const copy = async () => {
-    try { await navigator.clipboard.writeText(referralUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch {}
+    try { await navigator.clipboard.writeText(referralUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* clipboard unavailable (permissions/non-secure ctx) — copy stays manual */ }
   };
   return (
     <Card className="bg-zinc-900 border-zinc-800">
