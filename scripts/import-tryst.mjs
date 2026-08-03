@@ -731,6 +731,26 @@ async function main() {
   console.log(`elapsedSeconds: ${Math.round(process.uptime())}`);
 }
 
+// Cron window kills workers via `pkill -f import-tryst` (SIGTERM) at window
+// timeout. Without a handler, Node dies silently and the errReasons telemetry
+// (printed only at full completion) is lost for EVERY timed-out state —
+// leaving proxy/Jina tuning blind exactly on the big states that never finish
+// in one window. Print a compact partial summary on termination signals so
+// batch logs always carry the telemetry. Exit 143 = 128+SIGTERM convention.
+function printTermTelemetry(signal) {
+  try {
+    console.log(
+      `[terminated:${signal}] partial stats: created=${stats.created} updated=${stats.updated} ` +
+        `skippedKnown=${stats.skippedKnown} errors=${stats.errors} elapsedSeconds=${Math.round(process.uptime())}`,
+    );
+    console.log(`errReasons: ${JSON.stringify(stats.errReasons)}`);
+  } finally {
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  }
+}
+process.on("SIGTERM", () => printTermTelemetry("SIGTERM"));
+process.on("SIGINT", () => printTermTelemetry("SIGINT"));
+
 main().catch((err) => {
   console.error(err);
   process.exit(1);
