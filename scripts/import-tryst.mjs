@@ -236,9 +236,25 @@ function brdProxyUrlWithSession(rawUrl) {
   }
 }
 
+// BRD circuit breaker: after BRD_CB_THRESHOLD consecutive failures (e.g.
+// account-suspended 407 storms), stop attempting BRD for the rest of the
+// process and go Jina-direct. TRYST_NO_BRD=1 forces the circuit open.
+const BRD_CB_THRESHOLD = Number(process.env.TRYST_BRD_CB_THRESHOLD ?? 10);
+let brdConsecFail = 0;
+let brdCircuitOpen = (process.env.TRYST_NO_BRD ?? "0") === "1";
+
 async function fetchTrystViaBrdProxy(url, timeoutMs = 30000) {
   const proxyUrl = process.env.BRD_PROXY_URL;
-  if (!proxyUrl) return null;
+  if (!proxyUrl || brdCircuitOpen) return null;
+  const brdFail = (reason) => {
+    brdConsecFail += 1;
+    if (brdConsecFail >= BRD_CB_THRESHOLD && !brdCircuitOpen) {
+      brdCircuitOpen = true;
+      noteErrReason("brd_circuit_open");
+      console.error(`[brd] circuit OPEN after ${brdConsecFail} consecutive failures — Jina-direct for remainder of process`);
+    }
+    return null;
+  };
   try {
     const agent = new ProxyAgent(brdProxyUrlWithSession(proxyUrl));
     const response = await undiciFetch(url, {
@@ -252,19 +268,20 @@ async function fetchTrystViaBrdProxy(url, timeoutMs = 30000) {
     if (!response.ok) {
       lastFetchFailure = `brd_http_${response.status}`;
       noteErrReason(lastFetchFailure);
-      return null;
+      return brdFail(lastFetchFailure);
     }
     const text = await response.text();
     if (!text) {
       lastFetchFailure = "brd_empty";
       noteErrReason(lastFetchFailure);
-      return null;
+      return brdFail(lastFetchFailure);
     }
+    brdConsecFail = 0;
     return text;
   } catch (e) {
     lastFetchFailure = e?.name === "TimeoutError" ? "brd_timeout" : "brd_exc";
     noteErrReason(lastFetchFailure);
-    return null;
+    return brdFail(lastFetchFailure);
   }
 }
 
