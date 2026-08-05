@@ -183,7 +183,7 @@ function cleanText(input) {
     .trim();
 }
 
-async function fetchPageText(url, attempts = 4) {
+async function fetchPageText(url, attempts = Number(process.env.TRYST_JINA_ATTEMPTS || 6)) {
   // Prefer the Bright Data ISP proxy: r.jina.ai hard rate-limits (429) under
   // 50+ parallel workers, which caused ~90% profile-fetch failures when the
   // proxy env wasn't exported (fixed in launcher: set -a; source ./.env).
@@ -200,7 +200,12 @@ async function fetchPageText(url, attempts = 4) {
       });
       if (response.status === 429) {
         lastFetchFailure = "jina_429";
-        await sleep(8000 * attempt);
+        // Jittered, longer backoff: all-providers-down mode runs Jina-direct,
+        // and the anonymous r.jina.ai rate limit is shared across the 4 window
+        // workers — synchronized 8s*attempt retries re-collide. Jitter +
+        // 10s*attempt progression lets workers de-phase (errReasons 2026-08-05:
+        // jina_429_exhausted was 100% of big-4 errors).
+        await sleep(10000 * attempt + Math.floor(Math.random() * 5000));
         continue;
       }
       if (!response.ok) {
