@@ -88,6 +88,10 @@ const options = {
   ),
   startUrl: args.get("start-url") ?? null,
   fromCities: args.has("from-cities"),
+  // Import each hub's profiles immediately after its enumeration completes (default on).
+  // Window-timeout kills then only lose the in-flight hub, not the whole run.
+  // Opt out: --no-incremental-import or EROS_INCREMENTAL_IMPORT=0.
+  incrementalImport: !args.has("no-incremental-import") && process.env.EROS_INCREMENTAL_IMPORT !== "0",
   // --hubs=florida/miami,carolinas/carolinas — bound a --from-cities run to specific hubs
   hubs: (args.get("hubs") ?? "")
     .split(",")
@@ -131,7 +135,20 @@ const stats = {
   photosUploaded: 0,
   photosFailed: 0,
   errors: 0,
+  hubsCompleted: 0,
 };
+
+// Print partial stats on window-timeout kills (launcher pkills SIGTERM at 5400s)
+// so killed runs are not telemetry-blind. Mirrors import-tryst.mjs handler.
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, () => {
+    console.log(`[terminated:${sig}] partial stats: ` +
+      `pagesFetched=${stats.pagesFetched} hubsCompleted=${stats.hubsCompleted} ` +
+      `profilesParsed=${stats.profilesParsed} created=${stats.created} updated=${stats.updated} ` +
+      `cached=${stats.cached} skipped=${stats.skipped} errors=${stats.errors}`);
+    process.exit(sig === "SIGTERM" ? 143 : 130);
+  });
+}
 
 let _s3Client = null;
 function getS3Client() {
@@ -850,7 +867,7 @@ function top5HubKeys() {
   ]);
 }
 
-async function crawlProfileUrls() {
+async function crawlProfileUrls(onHubProfiles = null) {
   if (options.startUrl) {
     return crawlProfilesLegacy([options.startUrl]);
   }
@@ -901,6 +918,14 @@ async function crawlProfileUrls() {
       const limit = profileLimitForHub(hub);
       const profiles = await crawlProfilesForHub(hub, limit, maxPagesBudget(), globalUrls);
       console.log(`[import-eros] hub ${hubKey(hub)}: ${profiles.length}/${limit} profiles`);
+      stats.hubsCompleted += 1;
+      if (onHubProfiles) {
+        try {
+          await onHubProfiles(hub, profiles);
+        } catch (err) {
+          console.warn(`[import-eros] incremental import failed for hub ${hubKey(hub)}: ${err?.message || err}`);
+        }
+      }
       allProfiles.push(...profiles);
       if (options.maxProfiles > 0 && allProfiles.length >= options.maxProfiles) break;
     }
@@ -944,26 +969,12 @@ async function crawlProfilesLegacy(seedUrls) {
   return [...profileUrls];
 }
 
-async function main() {
-  console.log(`[import-eros] start fromCities=${options.fromCities} hubs=${options.hubs.length || "all"} ` +
-    `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} ` +
-    `profilesPerTop5City=${formatCap(options.profilesPerTop5City)} ` +
-    `maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
-    `dryRun=${options.dryRun} cacheOnly=${options.cacheOnly} photos=${MAX_PROVIDER_PHOTOS}`);
+const importedUrls = new Set();
 
-  if (options.cacheOnly && options.cacheDir) initCacheDir(options.cacheDir);
-
-  let profileUrls = await crawlProfileUrls();
-  if (options.maxProfiles > 0) profileUrls = profileUrls.slice(0, options.maxProfiles);
-
-  console.log(`[import-eros] profile URLs to import: ${profileUrls.length}`);
-
-  if (options.discoverOnly) {
-    for (const url of profileUrls) console.log(url);
-    return;
-  }
-
-  for (const profileUrl of profileUrls) {
+async function importProfileBatch(urls) {
+  for (const profileUrl of urls) {
+    if (importedUrls.has(profileUrl)) continue;
+    importedUrls.add(profileUrl);
     await sleep(options.delayMs);
     const text = await fetchMirrorText(profileUrl);
     if (!text) { stats.errors += 1; continue; }
@@ -974,6 +985,35 @@ async function main() {
 
     await importProfile(profile, text);
   }
+}
+
+async function main() {
+  console.log(`[import-eros] start fromCities=${options.fromCities} hubs=${options.hubs.length || "all"} ` +
+    `profilesPerCity=${formatCap(options.profilesPerCity)} profilesPerState=${formatCap(options.profilesPerState)} ` +
+    `profilesPerTop5City=${formatCap(options.profilesPerTop5City)} ` +
+    `maxPages=${formatCap(options.maxPages)} maxProfiles=${formatCap(options.maxProfiles)} ` +
+    `dryRun=${options.dryRun} cacheOnly=${options.cacheOnly} photos=${MAX_PROVIDER_PHOTOS}`);
+
+  if (options.cacheOnly && options.cacheDir) initCacheDir(options.cacheDir);
+
+  const onHubProfiles = options.incrementalImport && !options.discoverOnly
+    ? async (hub, urls) => {
+        console.log(`[import-eros] importing ${urls.length} profiles for hub ${hubKey(hub)} (incremental)`);
+        await importProfileBatch(urls);
+      }
+    : null;
+
+  let profileUrls = await crawlProfileUrls(onHubProfiles);
+  if (options.maxProfiles > 0) profileUrls = profileUrls.slice(0, options.maxProfiles);
+
+  console.log(`[import-eros] profile URLs to import: ${profileUrls.length}`);
+
+  if (options.discoverOnly) {
+    for (const url of profileUrls) console.log(url);
+    return;
+  }
+
+  await importProfileBatch(profileUrls);
 
   console.log("[import-eros] complete:", stats);
 }
