@@ -548,7 +548,19 @@ async function importProfile(profile, markdown = "") {
     stats.updated += 1;
     if (options.dryRun) return;
     const providerId = existing.id;
-    await prisma.provider.update({ where: { id: providerId }, data });
+    try {
+      await prisma.provider.update({ where: { id: providerId }, data });
+    } catch (e) {
+      if (e && e.code === "P2002") {
+        // Another row already owns this verification_url (cross-city dupe). Keep the
+        // freshness touch but leave the unique verification fields on the winner row.
+        const { verification_provider, verification_url, ...safeData } = data;
+        console.warn(`[import-eros] P2002 on update id=${providerId} url=${profile.sourceUrl} — retrying without verification fields`);
+        await prisma.provider.update({ where: { id: providerId }, data: safeData });
+      } else {
+        throw e;
+      }
+    }
     // Upload photos on update if source URLs changed
     if (profile.photos?.length && profile.photos !== existing.photos) {
       const r2Urls = await uploadPhotos(providerId, profile.photos, false);
@@ -983,7 +995,13 @@ async function importProfileBatch(urls) {
     if (!profile || !profile.display_name) { stats.skipped += 1; continue; }
     stats.profilesParsed += 1;
 
-    await importProfile(profile, text);
+    try {
+      await importProfile(profile, text);
+    } catch (e) {
+      stats.errors += 1;
+      const msg = (e && e.message ? e.message : String(e)).split("\n").filter(Boolean)[0] || "unknown";
+      console.warn(`[import-eros] profile import failed ${profileUrl}: ${msg}`);
+    }
   }
 }
 
