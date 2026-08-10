@@ -889,14 +889,19 @@ async function crawlProfileUrls(onHubProfiles = null) {
     let hubs = sitemapHubs;
 
     if (options.hubs.length > 0) {
-      hubs = sitemapHubs.filter((hub) => options.hubs.includes(hubKey(hub)));
-      // Explicit --hubs must still run when cities sitemap is blocked (403/429).
-      if (hubs.length === 0) {
-        hubs = options.hubs.map((key) => {
-          const [state, city] = key.split("/");
-          return { state, city: city || state };
-        }).filter((h) => h.state);
-        console.warn(`[import-eros] synthesized ${hubs.length} hubs from --hubs (sitemap-cities empty/unmatched)`);
+      // In --shard mode --hubs is a FALLBACK for a dead sitemap only; a healthy
+      // sitemap takes precedence so shards cover the full catalog.
+      const shardMode = Boolean(args.get("shard") ?? process.env.EROS_SHARD);
+      if (!shardMode || sitemapHubs.length === 0) {
+        hubs = sitemapHubs.filter((hub) => options.hubs.includes(hubKey(hub)));
+        // Explicit --hubs must still run when cities sitemap is blocked (403/429).
+        if (hubs.length === 0) {
+          hubs = options.hubs.map((key) => {
+            const [state, city] = key.split("/");
+            return { state, city: city || state };
+          }).filter((h) => h.state);
+          console.warn(`[import-eros] synthesized ${hubs.length} hubs from --hubs (sitemap-cities empty/unmatched)`);
+        }
       }
     }
 
@@ -922,6 +927,50 @@ async function crawlProfileUrls(onHubProfiles = null) {
       priority: Boolean(hub.priority) || priorityKeys.has(hubKey(hub)),
     }));
     hubs.sort((a, b) => Number(b.priority) - Number(a.priority));
+
+    // --shard=K/N — deterministic parallel split for launcher workers.
+    // The hardcoded top-5 revenue hubs are included in EVERY shard (freshness
+    // weighting ~0.75/day each); all other hubs are dealt round-robin.
+    // NOTE: ~38/69 hubs carry the priority profile-cap flag — duplicating all
+    // of those would make 46-hub shards and 11-day cycles, so duplication is
+    // limited to top5HubKeys(). Combined with per-window rotation below, the
+    // full catalog cycles every ~(shard size) windows instead of lower hubs
+    // starving (2026-08-10 audit: 45/69 hubs NEVER imported by cron).
+    const shardArg = args.get("shard") ?? process.env.EROS_SHARD;
+    let shardK = 0;
+    if (shardArg && hubs.length > 0) {
+      const sm = String(shardArg).match(/^(\d+)\/(\d+)$/);
+      if (sm) {
+        const k = Number(sm[1]);
+        const n = Number(sm[2]);
+        if (n > 1 && k >= 0 && k < n) {
+          const dupKeys = top5HubKeys();
+          const dup = hubs.filter((h) => dupKeys.has(hubKey(h)));
+          const rest = hubs.filter((h) => !dupKeys.has(hubKey(h)));
+          const dealt = rest.filter((_, idx) => idx % n === k);
+          hubs = [...dup, ...dealt];
+          shardK = k;
+          console.log(
+            `[import-eros] shard ${k}/${n}: ${dup.length} top5 + ${dealt.length} catalog = ${hubs.length} hubs`,
+          );
+        }
+      }
+    }
+
+    // Per-window hub rotation (opt out: EROS_HUB_ROTATE=0). The 90-min window
+    // kill means only the first hub(s) of the sorted list import each window;
+    // without rotation the priority head monopolizes every window and the rest
+    // of the shard starves (2026-08-10 audit: 45/69 hubs NEVER imported by cron,
+    // 19/24 pinned hubs starved). Index advances per 6h cron window, staggered
+    // per shard so workers don't pile onto the same hub simultaneously.
+    if (process.env.EROS_HUB_ROTATE !== "0" && hubs.length > 1) {
+      const windowIdx = Math.floor(Date.now() / 21600000);
+      const rot = (windowIdx + shardK * 5) % hubs.length;
+      hubs = [...hubs.slice(rot), ...hubs.slice(0, rot)];
+      console.log(
+        `[import-eros] hub rotation: offset=${rot}/${hubs.length} first=${hubKey(hubs[0])}`,
+      );
+    }
 
     const globalUrls = new Set();
     const allProfiles = [];

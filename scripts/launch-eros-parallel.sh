@@ -39,7 +39,10 @@ export STRICT_IMPORT_VERIFICATION_GATE="${STRICT_IMPORT_VERIFICATION_GATE:-1}"
 export REVIEW_SEARCH_DELAY_MS="${REVIEW_SEARCH_DELAY_MS:-400}"
 export NODE_OPTIONS="--max-old-space-size=1024"
 
-# ── Launch 4 regional workers ──
+# ── Launch 4 sharded workers ──
+# --shard=K/4 deals the FULL 69-hub sitemap catalog round-robin across workers
+# (priority hubs included in every shard) + per-window rotation in import-eros.mjs
+# cycles each shard so no hub starves. --hubs retained as dead-sitemap fallback only.
 REGIONS=(
   "california/los_angeles,california/san_francisco,nevada/las_vegas,arizona/phoenix,washington/seattle,oregon/portland"
   "texas/houston,texas/dallas,texas/austin,illinois/chicago,georgia/atlanta,florida/miami"
@@ -52,7 +55,7 @@ echo "$(date): Starting Eros import ($(free -h | awk 'NR==2{print $7}') avail)" 
 for i in "${!REGIONS[@]}"; do
   W=$((i+1))
   nohup node scripts/import-eros.mjs \
-    --from-cities --hubs="${REGIONS[$i]}" \
+    --from-cities --shard="$i/4" --hubs="${REGIONS[$i]}" \
     --profiles-per-city=250 --max-pages=40 --delay-ms=250 \
     > "$LOG/eros-w${W}.log" 2>&1 &
   sleep 2
