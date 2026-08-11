@@ -183,6 +183,69 @@ function cleanText(input) {
     .trim();
 }
 
+// SOAX residential tier: metered (pay-per-GB) and shared with the opal
+// forwarder farm + GoLogin fleet, so it is NOT a primary path. It runs as a
+// rescue tier inside the Jina retry loop: only after Jina 429s do we spend
+// SOAX bandwidth to save the page. Jina-healthy windows burn ~zero SOAX.
+// TRYST_NO_SOAX=1 forces the circuit open (e.g. out-of-credit).
+const SOAX_CB_THRESHOLD = Number(process.env.TRYST_SOAX_CB_THRESHOLD ?? 8);
+let soaxConsecFail = 0;
+let soaxCircuitOpen = (process.env.TRYST_NO_SOAX ?? "0") === "1";
+const SOAX_SESSION = Math.random().toString(36).slice(2, 10);
+
+function soaxProxyUrl() {
+  const host = process.env.SOAX_PROXY_HOST;
+  const port = process.env.SOAX_PROXY_PORT;
+  const user = process.env.SOAX_PROXY_USERNAME_BASE || process.env.SOAX_PROXY_USERNAME;
+  const pass = process.env.SOAX_PROXY_PASSWORD;
+  if (!host || !port || !user || !pass) return null;
+  const u = user.includes("-session-") ? user : `${user}-session-tryst${SOAX_SESSION}`;
+  return `http://${encodeURIComponent(u)}:${encodeURIComponent(pass)}@${host}:${port}`;
+}
+
+async function fetchTrystViaSoaxProxy(url, timeoutMs = 30000) {
+  const proxyUrl = soaxProxyUrl();
+  if (!proxyUrl || soaxCircuitOpen) return null;
+  const soaxFail = (reason) => {
+    soaxConsecFail += 1;
+    if (soaxConsecFail >= SOAX_CB_THRESHOLD && !soaxCircuitOpen) {
+      soaxCircuitOpen = true;
+      noteErrReason("soax_circuit_open");
+      console.error(`[soax] circuit OPEN after ${soaxConsecFail} consecutive failures — Jina-only for remainder of process`);
+    }
+    return null;
+  };
+  try {
+    const agent = new ProxyAgent(proxyUrl);
+    const response = await undiciFetch(url, {
+      dispatcher: agent,
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!response.ok) {
+      lastFetchFailure = `soax_http_${response.status}`;
+      noteErrReason(lastFetchFailure);
+      return soaxFail(lastFetchFailure);
+    }
+    const text = await response.text();
+    if (!text) {
+      lastFetchFailure = "soax_empty";
+      noteErrReason(lastFetchFailure);
+      return soaxFail(lastFetchFailure);
+    }
+    soaxConsecFail = 0;
+    stats.soaxRescues = (stats.soaxRescues || 0) + 1;
+    return text;
+  } catch (e) {
+    lastFetchFailure = e?.name === "TimeoutError" ? "soax_timeout" : "soax_exc";
+    noteErrReason(lastFetchFailure);
+    return soaxFail(lastFetchFailure);
+  }
+}
+
 async function fetchPageText(url, attempts = Number(process.env.TRYST_JINA_ATTEMPTS || 6)) {
   // Prefer the Bright Data ISP proxy: r.jina.ai hard rate-limits (429) under
   // 50+ parallel workers, which caused ~90% profile-fetch failures when the
@@ -200,6 +263,15 @@ async function fetchPageText(url, attempts = Number(process.env.TRYST_JINA_ATTEM
       });
       if (response.status === 429) {
         lastFetchFailure = "jina_429";
+        // SOAX rescue: on the 2nd consecutive 429 for this page, spend one
+        // metered residential fetch rather than burning more anonymous-limit
+        // backoff — the 2026-08-05 jina_429_exhausted storm cost whole
+        // windows; SOAX credit was restored 2026-08-11. Circuit breaker +
+        // TRYST_NO_SOAX=1 cap the spend if SOAX degrades again.
+        if (attempt >= 2) {
+          const rescued = await fetchTrystViaSoaxProxy(url);
+          if (rescued) return rescued;
+        }
         // Jittered, longer backoff: all-providers-down mode runs Jina-direct,
         // and the anonymous r.jina.ai rate limit is shared across the 4 window
         // workers — synchronized 8s*attempt retries re-collide. Jitter +
