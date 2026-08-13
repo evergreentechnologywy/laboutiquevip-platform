@@ -1,6 +1,7 @@
 export interface SeoCityHubRecord {
   city: string;
   citySlug: string;
+  stateCode: string;
   profileCount: number;
   verifiedCount: number;
   lastUpdatedAt: Date;
@@ -14,8 +15,8 @@ export interface SeoProfileRecord {
 
 const BASE_URL = process.env.PUBLIC_BASE_URL ?? "https://example.com";
 
-export function cityHubPath(citySlug: string): string {
-  return `/city/${citySlug}`;
+export function cityHubPath(citySlug: string, stateCode: string): string {
+  return `/city/${citySlug}-${stateCode.toLowerCase()}`;
 }
 
 export function profilePath(slug: string): string {
@@ -26,7 +27,7 @@ export function generateCityHubRoutes(records: SeoCityHubRecord[]): Array<Record
   return records.map((record) => ({
     city: record.city,
     citySlug: record.citySlug,
-    path: cityHubPath(record.citySlug),
+    path: cityHubPath(record.citySlug, record.stateCode),
     profileCount: record.profileCount,
     verifiedCount: record.verifiedCount,
     lastModified: record.lastUpdatedAt.toISOString(),

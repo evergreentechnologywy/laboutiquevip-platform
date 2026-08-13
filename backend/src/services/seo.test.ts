@@ -8,11 +8,11 @@ import type { ApiRequest } from "../types.js";
 
 test("generateSitemapXml emits only city and profile paths", () => {
   const xml = generateSitemapXml(
-    [{ path: "/city/akron", lastModified: "2026-01-01T00:00:00.000Z" }],
+    [{ path: "/city/akron-oh", lastModified: "2026-01-01T00:00:00.000Z" }],
     [{ path: "/profile/sample-one", lastModified: "2026-01-02T00:00:00.000Z" }],
   );
 
-  assert.match(xml, /<loc>.*\/city\/akron<\/loc>/);
+  assert.match(xml, /<loc>.*\/city\/akron-oh<\/loc>/);
   assert.match(xml, /<loc>.*\/profile\/sample-one<\/loc>/);
   assert.equal((xml.match(/<url>/g) ?? []).length, 2);
 });
@@ -62,8 +62,8 @@ test("sitemapHandler counts match published catalog entries", async () => {
   const xml = String(res.rawBody);
   const urlCount = (xml.match(/<url>/g) ?? []).length;
   assert.equal(urlCount, 4); // 2 cities + 2 profiles
-  assert.match(xml, /\/city\/akron/);
-  assert.match(xml, /\/city\/columbus/);
+  assert.match(xml, /\/city\/akron-oh/);
+  assert.match(xml, /\/city\/columbus-oh/);
   assert.match(xml, /\/profile\/alpha/);
   assert.match(xml, /\/profile\/beta/);
 });

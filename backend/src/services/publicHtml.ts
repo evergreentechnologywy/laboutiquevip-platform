@@ -1,4 +1,6 @@
 import type { PublishedCityRecord, PublishedProfileRecord } from "../lib/publishedCatalog.js";
+import { cityHubPath } from "./seo.js";
+import { getSpaBootstrap } from "./spaShell.js";
 
 const BASE_URL = process.env.PUBLIC_BASE_URL ?? "https://www.laboutiquevip.net";
 
@@ -41,6 +43,10 @@ const PAGE_STYLES = `
 
 function layout(title: string, description: string, canonicalPath: string, body: string): string {
   const canonical = `${BASE_URL}${canonicalPath}`;
+  const spa = getSpaBootstrap();
+  const spaHead = spa.headTags ? `\n  ${spa.headTags}` : "";
+  const spaBody = spa.bodyTags ? `\n  ${spa.bodyTags}` : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,14 +56,28 @@ function layout(title: string, description: string, canonicalPath: string, body:
   <meta name="description" content="${escapeHtml(description)}">
   <link rel="canonical" href="${escapeHtml(canonical)}">
   <meta name="robots" content="index,follow">
-  <style>${PAGE_STYLES}</style>
+  <style>${PAGE_STYLES}</style>${spaHead}
 </head>
-<body id="lbv-public-directory">
-  <div class="wrap">
-    ${body}
-  </div>
+<body>
+  <div id="root">
+    <div class="wrap" id="lbv-public-directory">
+      ${body}
+    </div>
+  </div>${spaBody}
 </body>
 </html>`;
+}
+
+export function renderNotFoundPageHtml(message = "This page is not in the published directory."): string {
+  const body = `
+    <header>
+      <div class="brand">La Boutique VIP</div>
+      <h1>Page not found</h1>
+      <p class="meta">${escapeHtml(message)}</p>
+      <p class="cta"><a class="btn" href="/">Return home</a></p>
+    </header>`;
+
+  return layout("Not found — La Boutique VIP", "The requested page could not be found.", "/", body);
 }
 
 export function renderCityPageHtml(
@@ -80,12 +100,11 @@ export function renderCityPageHtml(
       <h1>${escapeHtml(city.name)}, ${escapeHtml(city.stateCode)}</h1>
       <p class="meta">${city.providerCount} providers · ${city.verifiedCount} verified</p>
     </header>
-    <main data-page="city" data-city-slug="${escapeHtml(city.slug)}">
+    <main data-page="city" data-city-slug="${escapeHtml(city.citySlug)}" data-state-code="${escapeHtml(city.stateCode)}">
       ${profiles.length > 0 ? `<ul>${profileItems}</ul>` : "<p class=\"meta\">No published listings in this city yet.</p>"}
-      <p class="cta"><a class="btn" href="/city/${escapeHtml(city.slug)}">Open interactive browse</a></p>
     </main>`;
 
-  return layout(title, description, `/city/${city.slug}`, body);
+  return layout(title, description, cityHubPath(city.citySlug, city.stateCode), body);
 }
 
 export function renderProfilePageHtml(profile: PublishedProfileRecord): string {
@@ -104,7 +123,6 @@ export function renderProfilePageHtml(profile: PublishedProfileRecord): string {
     </header>
     <main data-page="profile" data-profile-slug="${escapeHtml(profile.slug)}">
       <p class="meta">Published listing on the La Boutique VIP directory.</p>
-      <p class="cta"><a class="btn" href="/profile/${escapeHtml(profile.slug)}">View full profile</a></p>
     </main>`;
 
   return layout(title, description, `/profile/${profile.slug}`, body);

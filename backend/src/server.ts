@@ -487,12 +487,12 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     return robotsHandler();
   }
 
-  const publicCityMatch = request.pathname.match(/^\/city\/([^/]+)$/);
+  const publicCityMatch = request.pathname.match(/^\/city\/([^/]+)\/?$/);
   if (publicCityMatch && (request.method === "GET" || request.method === "HEAD")) {
     return publicCityPageHandler(request, publicCityMatch[1], context);
   }
 
-  const publicProfileMatch = request.pathname.match(/^\/profile\/([^/]+)$/);
+  const publicProfileMatch = request.pathname.match(/^\/profile\/([^/]+)\/?$/);
   if (publicProfileMatch && (request.method === "GET" || request.method === "HEAD")) {
     return publicProfilePageHandler(request, publicProfileMatch[1], context);
   }

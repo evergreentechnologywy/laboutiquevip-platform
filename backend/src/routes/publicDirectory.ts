@@ -6,7 +6,7 @@ import {
   profilesForCity,
   resolveLegacyCityListingRedirect,
 } from "../lib/publishedCatalog.js";
-import { renderCityPageHtml, renderProfilePageHtml } from "../services/publicHtml.js";
+import { renderCityPageHtml, renderNotFoundPageHtml, renderProfilePageHtml } from "../services/publicHtml.js";
 import { publicSearchCacheHeaders } from "./providerVisibility.js";
 
 interface PublicDirectoryContext {
@@ -54,10 +54,10 @@ export async function publicCityPageHandler(
 
   const city = findPublishedCity(citySlug, catalog);
   if (!city) {
-    return { statusCode: 404, body: { error: "not_found" } };
+    return html(404, renderNotFoundPageHtml());
   }
 
-  const profiles = profilesForCity(city.slug, catalog, 50);
+  const profiles = profilesForCity(city, catalog, 50);
   const page = renderCityPageHtml(city, profiles);
 
   if (request.method === "HEAD") {
@@ -80,7 +80,7 @@ export async function publicProfilePageHandler(
   const catalog = await loadPublishedCatalog(context.prisma);
   const profile = findPublishedProfile(profileSlug, catalog);
   if (!profile) {
-    return { statusCode: 404, body: { error: "not_found" } };
+    return html(404, renderNotFoundPageHtml());
   }
 
   const page = renderProfilePageHtml(profile);

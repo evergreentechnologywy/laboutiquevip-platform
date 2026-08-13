@@ -20,7 +20,8 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
   const routes = generateCityHubRoutes(
     catalog.cities.map((city) => ({
       city: city.name,
-      citySlug: city.slug,
+      citySlug: city.citySlug,
+      stateCode: city.stateCode,
       profileCount: city.providerCount,
       verifiedCount: city.verifiedCount,
       lastUpdatedAt: city.lastUpdatedAt,
@@ -48,7 +49,8 @@ export async function sitemapHandler(_request: ApiRequest, context: SeoContext):
   const cityRoutes = generateCityHubRoutes(
     catalog.cities.map((city) => ({
       city: city.name,
-      citySlug: city.slug,
+      citySlug: city.citySlug,
+      stateCode: city.stateCode,
       profileCount: city.providerCount,
       verifiedCount: city.verifiedCount,
       lastUpdatedAt: city.lastUpdatedAt,

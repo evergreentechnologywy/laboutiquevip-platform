@@ -87,6 +87,15 @@ const ctaCards = [
 
 function citySlugToReadable(slug) {
   if (!slug) return "";
+  const stateSuffix = slug.match(/^(.+)-([a-z]{2})$/);
+  if (stateSuffix) {
+    const city = stateSuffix[1]
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+    return `${city}, ${stateSuffix[2].toUpperCase()}`;
+  }
   return slug
     .split("-")
     .filter(Boolean)

@@ -53,7 +53,8 @@ test("buildCatalogFromRows keeps only canonical cities and separate profile slug
   );
 
   assert.equal(catalog.cities.length, 1);
-  assert.equal(catalog.cities[0].slug, "akron");
+  assert.equal(catalog.cities[0].slug, "akron-oh");
+  assert.equal(catalog.cities[0].citySlug, "akron");
   assert.equal(catalog.profiles.length, 2);
   assert.ok(catalog.profileSlugSet.has("abby-somers-i-am-columbus"));
   assert.ok(!catalog.citySlugSet.has("abby-somers-i-am-columbus"));
@@ -89,9 +90,31 @@ test("sitemap-sized catalog stats align with city and profile lists", () => {
 
   assert.equal(catalog.stats.providers, catalog.profiles.length);
   assert.equal(catalog.stats.cities, catalog.cities.length);
+  const laCity = catalog.cities.find((city) => city.citySlug === "los-angeles");
+  assert.ok(laCity);
+  assert.equal(findPublishedCity("los-angeles-ca", catalog)?.providerCount, 2);
   assert.equal(findPublishedCity("los-angeles", catalog)?.providerCount, 2);
-  assert.equal(profilesForCity("los-angeles", catalog).length, 2);
+  assert.equal(profilesForCity(laCity!, catalog).length, 2);
   assert.ok(findPublishedProfile("alpha", catalog));
+});
+
+test("buildCatalogFromRows disambiguates same-named cities by state", () => {
+  const catalog = buildCatalogFromRows(
+    [
+      sampleProvider("1", "Alpha", "Portland", "OR", "alpha"),
+      sampleProvider("2", "Beta", "Portland", "ME", "beta"),
+    ],
+    [],
+    0,
+  );
+
+  assert.equal(catalog.cities.length, 2);
+  assert.deepEqual(
+    catalog.cities.map((city) => city.slug).sort(),
+    ["portland-me", "portland-or"],
+  );
+  assert.equal(profilesForCity(catalog.cities[0], catalog).length, 1);
+  assert.equal(profilesForCity(catalog.cities[1], catalog).length, 1);
 });
 
 test("loadPublishedCatalog uses prisma loader and cache", async () => {

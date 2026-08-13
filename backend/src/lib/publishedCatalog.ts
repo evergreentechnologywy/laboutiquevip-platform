@@ -2,6 +2,7 @@ import {
   canonicalizePublicCity,
   isValidUsStateAbbrev,
   resolveStateAbbrev,
+  resolveStateFromCity,
   slugify,
   stateDisplayName,
 } from "./locationMatch.js";
@@ -16,6 +17,7 @@ const CATALOG_CACHE_TTL_MS = 60_000;
 
 export interface PublishedCityRecord {
   slug: string;
+  citySlug: string;
   name: string;
   stateCode: string;
   stateName: string;
@@ -142,6 +144,11 @@ async function loadModelProfileRows(prisma: any): Promise<ModelProfileRow[]> {
   }
 }
 
+/** Public URL segment for a city hub — disambiguates same-named cities across states. */
+export function publicCityPathSlug(citySlug: string, stateCode: string): string {
+  return `${citySlug}-${stateCode.toLowerCase()}`;
+}
+
 export function buildCatalogFromRows(
   providerRows: ProviderRow[],
   modelRows: ModelProfileRow[],
@@ -176,7 +183,7 @@ export function buildCatalogFromRows(
     if (!stateCode || !isValidUsStateAbbrev(stateCode) || !canonical) continue;
 
     stateCodes.add(stateCode);
-    citySlugSet.add(canonical.slug);
+    citySlugSet.add(publicCityPathSlug(canonical.slug, stateCode));
 
     const key = `${stateCode}:${canonical.slug}`;
     const existing = cityMap.get(key);
@@ -187,7 +194,8 @@ export function buildCatalogFromRows(
       if (canonical.name.length < existing.name.length) existing.name = canonical.name;
     } else {
       cityMap.set(key, {
-        slug: canonical.slug,
+        slug: publicCityPathSlug(canonical.slug, stateCode),
+        citySlug: canonical.slug,
         name: canonical.name,
         stateCode,
         stateName: stateDisplayName(stateCode),
@@ -204,7 +212,7 @@ export function buildCatalogFromRows(
     const slug = String(row.slug || "").trim().toLowerCase();
     if (!slug) continue;
 
-    const stateCode = resolveStateAbbrev(row.city) ?? "";
+    const stateCode = resolveStateFromCity(row.city) ?? "";
     const canonical = canonicalizePublicCity(row.city, stateCode || undefined);
     const updatedAt = toDate(row.updatedAt);
 
@@ -222,7 +230,7 @@ export function buildCatalogFromRows(
 
     if (canonical && stateCode && isValidUsStateAbbrev(stateCode)) {
       stateCodes.add(stateCode);
-      citySlugSet.add(canonical.slug);
+      citySlugSet.add(publicCityPathSlug(canonical.slug, stateCode));
       const key = `${stateCode}:${canonical.slug}`;
       const existing = cityMap.get(key);
       if (existing) {
@@ -231,7 +239,8 @@ export function buildCatalogFromRows(
         if (updatedAt > existing.lastUpdatedAt) existing.lastUpdatedAt = updatedAt;
       } else {
         cityMap.set(key, {
-          slug: canonical.slug,
+          slug: publicCityPathSlug(canonical.slug, stateCode),
+          citySlug: canonical.slug,
           name: canonical.name,
           stateCode,
           stateName: stateDisplayName(stateCode),
@@ -316,7 +325,11 @@ export function resolveLegacyCityListingRedirect(
 
 export function findPublishedCity(slug: string, catalog: PublishedCatalog): PublishedCityRecord | null {
   const normalized = String(slug || "").trim().toLowerCase();
-  return catalog.cities.find((city) => city.slug === normalized) ?? null;
+  const exact = catalog.cities.find((city) => city.slug === normalized);
+  if (exact) return exact;
+
+  const legacyMatches = catalog.cities.filter((city) => city.citySlug === normalized);
+  return legacyMatches.length === 1 ? legacyMatches[0] : null;
 }
 
 export function findPublishedProfile(slug: string, catalog: PublishedCatalog): PublishedProfileRecord | null {
@@ -325,10 +338,13 @@ export function findPublishedProfile(slug: string, catalog: PublishedCatalog): P
 }
 
 export function profilesForCity(
-  citySlug: string,
+  city: PublishedCityRecord,
   catalog: PublishedCatalog,
   limit = 50,
 ): PublishedProfileRecord[] {
-  const normalized = String(citySlug || "").trim().toLowerCase();
-  return catalog.profiles.filter((profile) => profile.citySlug === normalized).slice(0, limit);
+  return catalog.profiles
+    .filter(
+      (profile) => profile.citySlug === city.citySlug && profile.stateCode === city.stateCode,
+    )
+    .slice(0, limit);
 }

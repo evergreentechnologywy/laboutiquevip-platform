@@ -53,9 +53,24 @@ function mockPrisma() {
 
 test("publicCityPageHandler returns HTML for real city slug", async () => {
   reset();
-  const res = await publicCityPageHandler(req("/city/akron"), "akron", { prisma: mockPrisma() });
+  const res = await publicCityPageHandler(req("/city/akron-oh"), "akron-oh", { prisma: mockPrisma() });
   assert.equal(res.statusCode, 200);
   assert.match(String(res.headers?.["content-type"]), /text\/html/);
+  assert.match(String(res.rawBody), /<h1>Akron, OH<\/h1>/);
+});
+
+test("publicCityPageHandler returns HTML 404 for unknown city slug", async () => {
+  reset();
+  const res = await publicCityPageHandler(req("/city/unknown-city"), "unknown-city", { prisma: mockPrisma() });
+  assert.equal(res.statusCode, 404);
+  assert.match(String(res.headers?.["content-type"]), /text\/html/);
+  assert.match(String(res.rawBody), /Page not found/);
+});
+
+test("publicCityPageHandler accepts legacy city slug without state suffix", async () => {
+  reset();
+  const res = await publicCityPageHandler(req("/city/akron"), "akron", { prisma: mockPrisma() });
+  assert.equal(res.statusCode, 200);
   assert.match(String(res.rawBody), /<h1>Akron, OH<\/h1>/);
 });
 

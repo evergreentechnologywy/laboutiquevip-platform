@@ -6,6 +6,7 @@ test("renderCityPageHtml includes crawler-visible content markers", () => {
   const html = renderCityPageHtml(
     {
       slug: "akron",
+      citySlug: "akron",
       name: "Akron",
       stateCode: "OH",
       stateName: "Ohio",
@@ -27,6 +28,7 @@ test("renderCityPageHtml includes crawler-visible content markers", () => {
 
   assert.match(html, /<h1>Akron, OH<\/h1>/);
   assert.match(html, /data-page="city"/);
+  assert.match(html, /id="root"/);
   assert.match(html, /lbv-public-directory/);
   assert.match(html, /\/profile\/sample-one/);
 });
