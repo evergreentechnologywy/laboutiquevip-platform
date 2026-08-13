@@ -1,7 +1,7 @@
 import type { ApiRequest, ApiResponse } from "../types.js";
+import { loadPublishedCatalog, clearPublishedCatalogCache } from "../lib/publishedCatalog.js";
 import {
   buildPublicPhotoSearchFilter,
-  getPublicPhotoProviderIds,
   publicProviderVisibilityWhere,
   publicSearchCacheHeaders,
 } from "./providerVisibility.js";
@@ -55,6 +55,7 @@ export function clearBrowseCaches(): void {
   browseStatesCache = null;
   browseStateCitiesCache.clear();
   statsCache = null;
+  clearPublishedCatalogCache();
 }
 
 /**
@@ -262,41 +263,8 @@ export async function statsHandler(request: ApiRequest, context: BrowseRouteCont
       };
     }
 
-    const rows = await loadVisibleLocationRows(context.prisma);
-    const stateMap = aggregateRowsByState(rows);
-
-    let totalCities = 0;
-    for (const state of stateMap.values()) {
-      totalCities += state.cities.size;
-    }
-
-    // Photo total: sum jsonb_array_length over visible providers that have displayable
-    // photos. The photo-ID list is cached (60s) inside providerVisibility; on transient
-    // DB error it returns null and we fail open to summing across all visible providers.
-    const photoIds = await getPublicPhotoProviderIds(context.prisma);
-    const photoIdSet = photoIds ? new Set(photoIds) : null;
-    const eligibleIds = photoIdSet
-      ? rows.filter((row) => photoIdSet.has(row.id)).map((row) => row.id)
-      : rows.map((row) => row.id);
-
-    let photos = 0;
-    if (eligibleIds.length > 0) {
-      const sumRows = (await context.prisma.$queryRaw`
-        SELECT COALESCE(SUM(jsonb_array_length(
-          CASE WHEN jsonb_typeof(photos) = 'array' THEN photos ELSE '[]'::jsonb END
-        )), 0)::bigint AS total
-        FROM "Provider"
-        WHERE id = ANY(${eligibleIds}::uuid[])
-      `) as Array<{ total: bigint | number | string }>;
-      photos = Number(sumRows[0]?.total ?? 0);
-    }
-
-    const body = {
-      providers: Array.from(stateMap.values()).reduce((sum, s) => sum + s.providerCount, 0),
-      cities: totalCities,
-      states: stateMap.size,
-      photos,
-    };
+    const catalog = await loadPublishedCatalog(context.prisma);
+    const body = catalog.stats;
 
     statsCache = { body, expiresAt: now + AGGREGATE_CACHE_TTL_MS };
 

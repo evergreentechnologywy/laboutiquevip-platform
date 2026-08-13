@@ -13,6 +13,7 @@ test("isPlausiblePublicCityName rejects junk and bio fragments", () => {
   assert.equal(isPlausiblePublicCityName("Miami. I create a relaxed"), false);
   assert.equal(isPlausiblePublicCityName("Miami. Travel"), false);
   assert.equal(isPlausiblePublicCityName("Caters to men"), false);
+  assert.equal(isPlausiblePublicCityName("abby-somers-i-am-columbus"), false);
 });
 
 test("canonicalizePublicCity strips City, ST duplicates", () => {

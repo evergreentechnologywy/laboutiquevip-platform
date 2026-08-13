@@ -67,6 +67,7 @@ import {
   registerModelHandler,
 } from "./routes/models.js";
 import { sitemapHandler, seoCityHubsHandler, seoProfilesHandler, robotsHandler } from "./routes/seo.js";
+import { publicCityPageHandler, publicProfilePageHandler } from "./routes/publicDirectory.js";
 import { searchCitiesHandler, searchLocationsHandler, searchModelsHandler, searchProvidersHandler } from "./routes/search.js";
 import { browseStateCitiesHandler, browseStatesHandler, statsHandler } from "./routes/browse.js";
 import { getProviderBySlugHandler } from "./routes/providerPublic.js";
@@ -484,6 +485,16 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/robots.txt" && request.method === "GET") {
     return robotsHandler();
+  }
+
+  const publicCityMatch = request.pathname.match(/^\/city\/([^/]+)$/);
+  if (publicCityMatch && (request.method === "GET" || request.method === "HEAD")) {
+    return publicCityPageHandler(request, publicCityMatch[1], context);
+  }
+
+  const publicProfileMatch = request.pathname.match(/^\/profile\/([^/]+)$/);
+  if (publicProfileMatch && (request.method === "GET" || request.method === "HEAD")) {
+    return publicProfilePageHandler(request, publicProfileMatch[1], context);
   }
 
   return {
