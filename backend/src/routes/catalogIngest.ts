@@ -7,6 +7,10 @@ import {
   resolveStateFromCity,
 } from "../lib/locationMatch.js";
 import { IMPORTED_CATALOG_SYNC_SOURCES } from "../lib/catalogSyncPolicy.js";
+import {
+  readCatalogWorkerStatus,
+  writeCatalogWorkerStatus,
+} from "../lib/catalogWorkerStatus.js";
 
 const MAX_BATCH = 100;
 const MAX_PHOTOS = 32;
@@ -278,8 +282,51 @@ export async function catalogSourcesHandler(
     allowed_sources: IMPORTED_CATALOG_SYNC_SOURCES,
     rejected_sources: ["ultragfe"],
     ingest_path: "POST /api/v1/catalog/ingest",
+    worker_status_path: "POST|GET /api/v1/catalog/worker-status",
+    aura_evergreen_sync: "POST /api/v1/integrations/aura/evergreen-sync",
+    aura_evergreen_status: "GET /api/v1/integrations/aura/evergreen-status",
     auth: "Bearer JWT with role=service (or admin)",
     max_batch: MAX_BATCH,
-    note: "Eros/Tryst scrapers must live outside LBV core and post through this API.",
+    note: "Eros/Tryst scrapers live outside LBV core (Aura / lbv-catalog-workers) and post through this API.",
   });
+}
+
+const workerStatusSchema = z.object({
+  source: z.string().trim().min(1).max(40),
+  state: z.string().trim().min(1).max(40),
+  phase: z.string().trim().max(80).optional().nullable(),
+  message: z.string().trim().max(500).optional().nullable(),
+  counts: z.record(z.number()).optional().nullable(),
+  startedAt: z.string().datetime().optional().nullable(),
+  finishedAt: z.string().datetime().optional().nullable(),
+  host: z.string().trim().max(120).optional().nullable(),
+});
+
+export async function catalogWorkerStatusGetHandler(
+  request: ApiRequest,
+  _context: unknown,
+): Promise<ApiResponse> {
+  const denied = requireServiceRole(request);
+  if (denied) {
+    // Dev dashboard uses admin/dev — allow those too
+    const roles = request.auth?.roles ?? [];
+    if (!roles.includes("admin") && !roles.includes("dev")) return denied;
+  }
+  const workers = await readCatalogWorkerStatus();
+  return json(200, { ok: true, workers });
+}
+
+export async function catalogWorkerStatusPostHandler(
+  request: ApiRequest,
+  _context: unknown,
+): Promise<ApiResponse> {
+  const denied = requireServiceRole(request);
+  if (denied) return denied;
+
+  const parsed = workerStatusSchema.safeParse(request.body ?? {});
+  if (!parsed.success) {
+    return json(400, { error: "validation_error", details: parsed.error.flatten() });
+  }
+  const saved = await writeCatalogWorkerStatus(parsed.data);
+  return json(200, { ok: true, worker: saved });
 }

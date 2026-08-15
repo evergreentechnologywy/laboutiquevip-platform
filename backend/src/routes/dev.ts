@@ -19,6 +19,7 @@ import {
   type CatalogLogSource,
 } from "../lib/catalogPipeline.js";
 import { readEvergreenModelsStatus, readEvergreenLogTail } from "../lib/evergreenModels.js";
+import { readCatalogWorkerStatus } from "../lib/catalogWorkerStatus.js";
 
 interface DevContext {
   prisma: any;
@@ -48,15 +49,17 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     return json(403, { error: "forbidden", message: "Dev role required" });
   }
 
-  const [imports, maintenance, catalogPipeline, activeEvergreen, eliteActive] = await Promise.all([
-    readAllImportStatuses(),
-    readMaintenanceState(),
-    readCatalogPipelineStatus(),
-    context.prisma.provider
-      .count({ where: { status: "active", verification_provider: "evergreen" } })
-      .catch(() => null),
-    context.prisma.provider.count({ where: { status: "active", ad_package: "elite" } }).catch(() => null),
-  ]);
+  const [imports, maintenance, catalogPipeline, activeEvergreen, eliteActive, catalogWorkers] =
+    await Promise.all([
+      readAllImportStatuses(),
+      readMaintenanceState(),
+      readCatalogPipelineStatus(),
+      context.prisma.provider
+        .count({ where: { status: "active", verification_provider: "evergreen" } })
+        .catch(() => null),
+      context.prisma.provider.count({ where: { status: "active", ad_package: "elite" } }).catch(() => null),
+      readCatalogWorkerStatus().catch(() => ({})),
+    ]);
 
   const evergreenStatus = await readEvergreenModelsStatus(
     activeEvergreen != null && eliteActive != null
@@ -77,8 +80,18 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     maintenance,
     catalogPipeline,
     evergreenModels: evergreenStatus,
+    catalogWorkers,
     mergePhases: MERGE_PHASES,
     cron: catalogPipeline.schedule,
+    catalogBoundary: {
+      mode: "api_only",
+      localTriggersAllowed: ["evergreen"],
+      externalSources: ["eros", "tryst"],
+      ingest: "POST /api/v1/catalog/ingest",
+      workerStatus: "POST|GET /api/v1/catalog/worker-status",
+      auraEvergreenSync: "POST /api/v1/integrations/aura/evergreen-sync",
+      note: "Eros/Tryst scan+import run from Aura/lbv-catalog-workers and post via API.",
+    },
   });
 }
 
@@ -89,6 +102,28 @@ export async function devImportTriggerHandler(request: ApiRequest, context: DevC
 
   try {
     const payload = triggerSchema.parse(request.body ?? {});
+
+    // Production boundary: Eros/Tryst/orchestrator scrapes are external (Aura workers + catalog API).
+    if (payload.source === "eros" || payload.source === "tryst" || payload.source === "orchestrator") {
+      await context.auditLogger.append({
+        actorId: request.auth?.userId ?? null,
+        action: "dev.import.trigger_rejected_external",
+        resourceType: "import",
+        resourceId: payload.source,
+        metadata: { mode: payload.mode },
+      });
+      return json(410, {
+        ok: false,
+        queued: false,
+        error: "source_moved_external",
+        source: payload.source,
+        message:
+          "Eros/Tryst imports no longer run inside LBV production. Use Aura catalog workers → POST /api/v1/catalog/ingest.",
+        ingest_path: "/api/v1/catalog/ingest",
+        worker_home: "/root/calendar-coordinator/scripts/lbv-catalog",
+      });
+    }
+
     const result = await queueImportTrigger({
       source: payload.source as ImportSource,
       mode: payload.mode as ImportMode,

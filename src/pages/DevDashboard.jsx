@@ -19,7 +19,8 @@ import {
   fetchPipelineRuns,
 } from "@/api/devOps";
 
-const MANUAL_SOURCES = ["evergreen", "eros", "tryst", "orchestrator"];
+const MANUAL_SOURCES = ["evergreen"];
+const EXTERNAL_SOURCES = ["eros", "tryst"];
 const LOG_SOURCES = ["scan", "merge", "evergreen", "eros", "tryst", "orchestrator"];
 
 function StatusBadge({ active, label }) {
@@ -361,7 +362,7 @@ export default function DevDashboard() {
             <h2 className="text-lg font-semibold text-zinc-200 mb-3">Manual import triggers</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)
+                Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-40" />)
               ) : (
                 MANUAL_SOURCES.map((source) => {
                   const row = status?.imports?.[source] ?? {};
@@ -404,6 +405,33 @@ export default function DevDashboard() {
             </div>
           </div>
 
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-200 mb-3">External catalog workers (Aura API)</h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {EXTERNAL_SOURCES.map((source) => {
+                const worker = status?.catalogWorkers?.[source] ?? status?.catalogWorkers?.scan ?? {};
+                const boundary = status?.catalogBoundary;
+                return (
+                  <Card key={source} className="bg-zinc-900 border-zinc-800">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-zinc-100 capitalize flex items-center justify-between">
+                        {source}
+                        <Badge className="bg-sky-500/20 text-sky-300 border-0">API only</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm text-zinc-400">
+                      <p>Runs on Aura. Posts via catalog ingest API.</p>
+                      {worker.state && <p>Worker: {String(worker.state)}{worker.phase ? ` / ${worker.phase}` : ""}</p>}
+                      {worker.updatedAt && <p>Updated: {String(worker.updatedAt)}</p>}
+                      {worker.message && <p className="text-xs text-zinc-500">{String(worker.message)}</p>}
+                      <p className="text-xs text-zinc-500">{boundary?.ingest || "POST /api/v1/catalog/ingest"}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader>
               <CardTitle className="text-zinc-100 flex items-center gap-2">
@@ -438,11 +466,11 @@ export default function DevDashboard() {
           <div className="flex items-start gap-2 text-sm text-zinc-500">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
-              Production catalog updates run automatically: <strong className="text-zinc-400">8 PM</strong> cache-only
-              scan (Eros + Tryst, P411/review gate) then <strong className="text-zinc-400">midnight</strong> merge to
-              DB, staged R2, reconcile, review match, dedupe, <strong className="text-zinc-400">Evergreen elite models</strong>,
-              and full Eros/Tryst photo refresh. Manual triggers write request files under{" "}
-              <code>/var/run/lboutiquevip/</code> for the orchestrator poller.
+              Production boundary: Eros/Tryst scan + merge run on{" "}
+              <strong className="text-zinc-400">Aura catalog workers</strong> and post through{" "}
+              <code>POST /api/v1/catalog/ingest</code>. Local manual trigger is{" "}
+              <strong className="text-zinc-400">evergreen only</strong>. Worker heartbeats appear under catalog
+              workers. Docs: <code>docs/CATALOG_WORKER_BOUNDARY.md</code>.
             </p>
           </div>
         </div>

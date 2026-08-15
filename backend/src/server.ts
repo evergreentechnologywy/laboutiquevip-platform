@@ -28,6 +28,8 @@ import {
 import {
   catalogIngestHandler,
   catalogSourcesHandler,
+  catalogWorkerStatusGetHandler,
+  catalogWorkerStatusPostHandler,
 } from "./routes/catalogIngest.js";
 import {
   adminBillingReconciliationHandler,
@@ -413,6 +415,14 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
 
   if (request.pathname === "/api/v1/catalog/ingest" && request.method === "POST") {
     return catalogIngestHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/catalog/worker-status" && request.method === "GET") {
+    return catalogWorkerStatusGetHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/catalog/worker-status" && request.method === "POST") {
+    return catalogWorkerStatusPostHandler(request, context);
   }
 
   const agencyProfileId = matchAgencyProfileIdPath(request.pathname);
