@@ -170,22 +170,14 @@ export function extractTrailingKnownCity(raw) {
   text = text.replace(/\s*[-–—]\s*/g, " ");
   text = text.replace(/[.!?]+/g, " ");
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return null;
+  if (!words.length) return null;
+  // Prefer longest known city window; scan from the end (trailing bias).
+  // Never invent cities from marketing tokens (e.g. "...Chicago tonight" → Chicago).
   for (const take of [3, 2, 1]) {
-    if (words.length <= take) continue;
-    const candidate = words.slice(-take).join(" ");
-    if (knownCityState(candidate)) return titleCaseCity(candidate);
-  }
-  const last = words[words.length - 1];
-  const prefix = words.slice(0, -1).join(" ");
-  if (
-    last &&
-    /^[A-Za-z][A-Za-z.'-]{1,24}$/.test(last) &&
-    !CITY_MARKETING_RE.test(last) &&
-    (CITY_MARKETING_RE.test(prefix) || words.length >= 4) &&
-    !/^(usa|us|the|and|of|in|to|for)$/i.test(last)
-  ) {
-    return titleCaseCity(last);
+    for (let i = words.length - take; i >= 0; i--) {
+      const candidate = words.slice(i, i + take).join(" ");
+      if (knownCityState(candidate)) return titleCaseCity(candidate);
+    }
   }
   return null;
 }

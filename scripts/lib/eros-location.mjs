@@ -4,6 +4,12 @@
  * e.g. florida/miami, new_york/new_york
  */
 
+import {
+  canonicalizePublicCity,
+  knownCityState,
+  normalizeCityKey,
+} from "./city-canon.mjs";
+
 const STATE_ALIASES = {
   al: "AL",
   alabama: "AL",
@@ -232,7 +238,16 @@ export function parseErosLocationFromUrl(url) {
     /https?:\/\/(?:www|trans|massage)\.eros\.com\/([a-z0-9_-]+)\/files\//i,
   );
   if (stateOnly) {
-    return { city: null, state: stateFromSlug(stateOnly[1]), stateWide: true };
+    const stateSlug = stateOnly[1];
+    const state = stateFromSlug(stateSlug);
+    // DC / New York state-only hubs are metro markets, not true statewide ads
+    const slugWords = titleCaseWords(String(stateSlug).replace(/[_-]+/g, " "));
+    const key = normalizeCityKey(slugWords);
+    if (key === "washington dc" || key === "district of columbia" || state === "DC") {
+      const c = canonicalizePublicCity("Washington DC", "DC");
+      return { city: c?.name || "Washington DC", state: "DC", stateWide: false };
+    }
+    return { city: null, state, stateWide: true };
   }
 
   // City hub: eros.com/{state}/{city}/files/...
@@ -247,18 +262,32 @@ export function parseErosLocationFromUrl(url) {
     return { city: null, state: null, stateWide: false };
   }
 
-  // Whole-state hub when path segments match (arizona/arizona, carolinas/carolinas)
+  const state = stateFromSlug(stateSlug);
+  const cityWords = titleCaseWords(citySlug.replace(/[_-]+/g, " "));
+
+  // Equal segments: metro city (new_york/new_york) vs pure state (arizona/arizona)
   if (stateSlug.toLowerCase() === citySlug.toLowerCase()) {
-    return {
-      city: null,
-      state: stateFromSlug(stateSlug),
-      stateWide: true,
-    };
+    const key = normalizeCityKey(cityWords);
+    if (
+      key === "new york" ||
+      key === "washington dc" ||
+      key === "district of columbia" ||
+      knownCityState(cityWords)
+    ) {
+      const c = canonicalizePublicCity(cityWords, state);
+      return {
+        city: c?.name || cityWords,
+        state: state || c?.state || null,
+        stateWide: false,
+      };
+    }
+    return { city: null, state, stateWide: true };
   }
 
+  const c = canonicalizePublicCity(cityWords, state);
   return {
-    city: titleCaseWords(citySlug.replace(/[_-]+/g, " ")),
-    state: stateFromSlug(stateSlug),
+    city: c?.name || cityWords,
+    state: state || c?.state || null,
     stateWide: false,
   };
 }

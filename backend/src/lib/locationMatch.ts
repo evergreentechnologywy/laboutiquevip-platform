@@ -205,6 +205,16 @@ export function titleCaseWords(value: string): string {
     .join(" ");
 }
 
+function titleCaseCity(value: string): string {
+  const key = normalizeCityKey(value);
+  if (key === "washington dc" || key === "washington d c") return "Washington DC";
+  if (key === "st louis" || key === "st. louis" || key === "saint louis") return "St. Louis";
+  if (key === "st paul" || key === "st. paul" || key === "saint paul") return "St. Paul";
+  if (key === "st petersburg" || key === "saint petersburg") return "St. Petersburg";
+  if (key === "port st lucie" || key === "port saint lucie") return "Port St. Lucie";
+  return titleCaseWords(value);
+}
+
 function normalizeCityKey(value: string): string {
   return String(value || "")
     .toLowerCase()
@@ -224,36 +234,18 @@ function knownCityState(city: string): string | null {
 export function extractTrailingKnownCity(raw: string): string | null {
   let text = String(raw || "").trim();
   if (!text) return null;
-
-  // Collapse duplicated trailing city: "… of Chicago Chicago"
   text = text.replace(/\b([A-Za-z.'-]+(?:\s+[A-Za-z.'-]+)?)\s+\1\b/i, "$1");
-  // "New York City - Manhattan" / en-dash separators
   text = text.replace(/\s*[-–—]\s*/g, " ");
-  // Sentence end before city: "desire. Livonia"
   text = text.replace(/[.!?]+/g, " ");
-
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length < 2) return null;
-
-  for (const take of [3, 2, 1]) {
-    if (words.length <= take) continue;
-    const candidate = words.slice(-take).join(" ");
-    if (knownCityState(candidate)) {
-      return titleCaseWords(normalizeCityKey(candidate));
+  if (!words.length) return null;
+  // Prefer longest known city window; scan from the end (trailing bias).
+  // Never invent cities from marketing tokens (e.g. "...Chicago tonight" → Chicago).
+  for (const take of [3, 2, 1] as const) {
+    for (let i = words.length - take; i >= 0; i--) {
+      const candidate = words.slice(i, i + take).join(" ");
+      if (knownCityState(candidate)) return titleCaseCity(candidate);
     }
-  }
-
-  // Last bare token after marketing junk (e.g. "BIG BUTT Bellevue")
-  const last = words[words.length - 1];
-  const prefix = words.slice(0, -1).join(" ");
-  if (
-    last &&
-    /^[A-Za-z][A-Za-z.'-]{1,24}$/.test(last) &&
-    !CITY_MARKETING_RE.test(last) &&
-    (CITY_MARKETING_RE.test(prefix) || words.length >= 4) &&
-    !/^(usa|us|the|and|of|in|to|for)$/i.test(last)
-  ) {
-    return titleCaseWords(normalizeCityKey(last));
   }
   return null;
 }

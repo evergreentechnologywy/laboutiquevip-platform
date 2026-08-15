@@ -22,8 +22,9 @@ test("canonicalizePublicCity strips City, ST duplicates", () => {
   const miami = canonicalizePublicCity("Miami, FL", "FL");
   assert.deepEqual(miami, { slug: "miami", name: "Miami" });
 
-  const junk = canonicalizePublicCity("Miami. Travel", "FL");
-  assert.equal(junk, null);
+  // Period/bio suffix: recover known city (do not keep junk full string)
+  const fromBio = canonicalizePublicCity("Miami. Travel", "FL");
+  assert.deepEqual(fromBio, { slug: "miami", name: "Miami" });
 
   const unknown = canonicalizePublicCity("Unknown", "AZ");
   assert.equal(unknown, null);

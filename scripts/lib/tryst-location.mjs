@@ -1,3 +1,4 @@
+import { canonicalizePublicCity } from "./city-canon.mjs";
 /**
  * US state slug → abbrev for Tryst URLs (tryst.link/us/escorts/{state}/{city}).
  */
@@ -68,11 +69,14 @@ export function parseTrystCityUrl(url) {
   if (!match) return null;
   const stateSlug = match[1].toLowerCase();
   const citySlug = match[2].toLowerCase();
+  const stateAbbrev = TRYST_STATE_SLUGS[stateSlug] ?? stateSlug.toUpperCase();
+  const rawCity = titleCaseWords(citySlug.replace(/-/g, " "));
+  const canon = canonicalizePublicCity(rawCity, stateAbbrev);
   return {
     stateSlug,
     citySlug,
-    stateAbbrev: TRYST_STATE_SLUGS[stateSlug] ?? stateSlug.toUpperCase(),
-    cityName: titleCaseWords(citySlug.replace(/-/g, " ")),
+    stateAbbrev: canon?.state || stateAbbrev,
+    cityName: canon?.name || rawCity,
   };
 }
 
