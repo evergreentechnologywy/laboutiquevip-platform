@@ -26,6 +26,10 @@ import {
   auraEvergreenSyncHandler,
 } from "./routes/auraIntegration.js";
 import {
+  catalogIngestHandler,
+  catalogSourcesHandler,
+} from "./routes/catalogIngest.js";
+import {
   adminBillingReconciliationHandler,
   adminReportsQueueHandler,
   adminReviewVerificationHandler,
@@ -401,6 +405,14 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
     request.method === "GET"
   ) {
     return auraEvergreenStatusHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/catalog/sources" && request.method === "GET") {
+    return catalogSourcesHandler(request, context);
+  }
+
+  if (request.pathname === "/api/v1/catalog/ingest" && request.method === "POST") {
+    return catalogIngestHandler(request, context);
   }
 
   const agencyProfileId = matchAgencyProfileIdPath(request.pathname);

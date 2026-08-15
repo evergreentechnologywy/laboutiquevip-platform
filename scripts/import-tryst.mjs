@@ -2,6 +2,10 @@
 /**
  * Tryst.link US catalog import for laboutiquevip.net
  *
+ * BOUNDARY (2026-08-15): Prefer a separate worker program that posts via
+ * POST /api/v1/catalog/ingest (see docs/CATALOG_WORKER_BOUNDARY.md).
+ * This script is transitional ops continuity only — not LBV product surface.
+ *
  * Default: full US rollout (all states/cities from Tryst state pages).
  * Use --pilot-only for the small TRYST_PILOT_CITIES set.
  *

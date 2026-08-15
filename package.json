@@ -20,6 +20,8 @@
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "import:ultragfe": "node ./scripts/import-ultragfe.mjs",
     "import:ultragfe:dry": "node ./scripts/import-ultragfe.mjs --dry-run",
+    "catalog:deactivate-ultragfe": "node ./scripts/deactivate-ultragfe-providers.cjs",
+    "catalog:api-client": "node ./scripts/catalog-api-client.mjs",
     "deploy": "npm run build:backend && npm run db:generate && ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'",
     "deploy:pull": "ssh root@67.225.163.73 'cd /srv/apps/trystlike/repo && git pull origin master && npm run build:backend && npm run db:generate && systemctl restart laboutiquevip-backend'",
     "import:eros": "node ./scripts/import-eros.mjs",
