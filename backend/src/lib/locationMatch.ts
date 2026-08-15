@@ -38,6 +38,7 @@ const STATE_ALIASES: Record<string, string[]> = {
   OK: ["oklahoma"],
   OR: ["oregon"],
   PA: ["pennsylvania"],
+  PR: ["puerto rico"],
   RI: ["rhode island"],
   SC: ["south carolina"],
   SD: ["south dakota"],
@@ -425,13 +426,23 @@ export function buildStateWideLocationBranch(stateRaw: string): Record<string, u
   }
   if (!terms.size) return null;
 
+  const stateOr: Record<string, unknown>[] = Array.from(terms).map((term) => ({
+    location_state: { contains: term, mode: "insensitive" },
+  }));
+
+  // Normalized dual-region Carolinas rows keep social_media.carolinas_hub=true
+  if (abbrev === "NC" || abbrev === "SC") {
+    stateOr.push({
+      social_media: {
+        path: ["carolinas_hub"],
+        equals: true,
+      },
+    });
+  }
+
   return {
     AND: [
-      {
-        OR: Array.from(terms).map((term) => ({
-          location_state: { contains: term, mode: "insensitive" },
-        })),
-      },
+      { OR: stateOr },
       erosStateWideJsonFilter(),
     ],
   };

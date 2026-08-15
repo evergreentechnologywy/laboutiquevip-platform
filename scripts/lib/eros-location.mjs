@@ -90,6 +90,8 @@ const STATE_ALIASES = {
   oregon: "OR",
   pa: "PA",
   pennsylvania: "PA",
+  pr: "PR",
+  "puerto rico": "PR",
   ri: "RI",
   "rhode island": "RI",
   sc: "SC",
@@ -262,7 +264,8 @@ export function parseErosLocationFromUrl(url) {
     return { city: null, state: null, stateWide: false };
   }
 
-  const state = stateFromSlug(stateSlug);
+  const regionalOrAbbrev = stateFromSlug(stateSlug);
+  const stateAbbrev = resolveStateAbbrev(stateSlug);
   const cityWords = titleCaseWords(citySlug.replace(/[_-]+/g, " "));
 
   // Equal segments: metro city (new_york/new_york) vs pure state (arizona/arizona)
@@ -274,20 +277,23 @@ export function parseErosLocationFromUrl(url) {
       key === "district of columbia" ||
       knownCityState(cityWords)
     ) {
-      const c = canonicalizePublicCity(cityWords, state);
+      const c = canonicalizePublicCity(cityWords, stateAbbrev);
       return {
         city: c?.name || cityWords,
-        state: state || c?.state || null,
+        state: stateAbbrev || c?.state || regionalOrAbbrev || null,
         stateWide: false,
       };
     }
-    return { city: null, state, stateWide: true };
+    return { city: null, state: regionalOrAbbrev, stateWide: true };
   }
 
-  const c = canonicalizePublicCity(cityWords, state);
+  // City hub under regional slug (carolinas/charlotte) → prefer city-derived US state
+  const c = canonicalizePublicCity(cityWords, stateAbbrev);
+  const cityState =
+    c?.state || resolveStateFromCity(cityWords) || knownCityState(cityWords) || null;
   return {
     city: c?.name || cityWords,
-    state: state || c?.state || null,
+    state: stateAbbrev || cityState || regionalOrAbbrev || null,
     stateWide: false,
   };
 }
@@ -298,14 +304,25 @@ export function parseErosLocationFromUrl(url) {
 export function resolveErosLocationState({ location_state, location_city, verification_url } = {}) {
   let state = resolveStateAbbrev(location_state) ?? (String(location_state || "").trim() || null);
 
-  if (!state && verification_url) {
+  // Regional labels (Carolinas) are not US abbrevs — prefer URL/city derivation.
+  const needsRefine =
+    !state ||
+    (String(state).length > 2 && !resolveStateAbbrev(state));
+
+  if (needsRefine && verification_url) {
     const fromUrl = parseErosLocationFromUrl(verification_url);
-    state = fromUrl.state;
+    const urlState = resolveStateAbbrev(fromUrl.state) || fromUrl.state;
+    if (urlState && (resolveStateAbbrev(urlState) || fromUrl.city)) {
+      state = resolveStateAbbrev(urlState) || urlState;
+    }
   }
 
-  if (!state && location_city) {
+  if ((!state || !resolveStateAbbrev(state)) && location_city) {
     // State-only hubs often store the state name in location_city (e.g. "Virginia")
-    state = resolveStateAbbrev(location_city) ?? resolveStateFromCity(location_city);
+    state =
+      resolveStateAbbrev(location_city) ??
+      resolveStateFromCity(location_city) ??
+      state;
   }
 
   if (state && state.length > 2) {
