@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   canonicalizePublicCity,
+  extractTrailingKnownCity,
   isPlausiblePublicCityName,
   buildLocationFilter,
 } from "./locationMatch.js";
@@ -13,6 +14,8 @@ test("isPlausiblePublicCityName rejects junk and bio fragments", () => {
   assert.equal(isPlausiblePublicCityName("Miami. I create a relaxed"), false);
   assert.equal(isPlausiblePublicCityName("Miami. Travel"), false);
   assert.equal(isPlausiblePublicCityName("Caters to men"), false);
+  assert.equal(isPlausiblePublicCityName("Asian Beauty Chicago"), false);
+  assert.equal(isPlausiblePublicCityName("Throat Goat Chicago"), false);
 });
 
 test("canonicalizePublicCity strips City, ST duplicates", () => {
@@ -24,6 +27,22 @@ test("canonicalizePublicCity strips City, ST duplicates", () => {
 
   const unknown = canonicalizePublicCity("Unknown", "AZ");
   assert.equal(unknown, null);
+});
+
+test("canonicalizePublicCity recovers city from Eros ad-title pollution", () => {
+  assert.equal(extractTrailingKnownCity("Asian Beauty Chicago"), "Chicago");
+  assert.deepEqual(canonicalizePublicCity("Asian Beauty Chicago", "IL"), {
+    slug: "chicago",
+    name: "Chicago",
+  });
+  assert.deepEqual(canonicalizePublicCity("Vanessa Big Booty Nessa Chicago", "IL"), {
+    slug: "chicago",
+    name: "Chicago",
+  });
+  assert.deepEqual(canonicalizePublicCity("Throat Goat Chicago", "IL"), {
+    slug: "chicago",
+    name: "Chicago",
+  });
 });
 
 test("buildLocationFilter does not match state abbrev against location_city", () => {

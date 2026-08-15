@@ -63,7 +63,7 @@ const ABBREV_TO_NAMES = Object.fromEntries(
   Object.entries(STATE_ALIASES).map(([abbrev, names]) => [abbrev, names]),
 );
 
-/** Common city names → state abbrev for state-wide Eros hub matching. */
+/** Common city names → state abbrev for hub matching + ad-title city recovery. */
 const CITY_TO_STATE: Record<string, string> = {
   miami: "FL",
   orlando: "FL",
@@ -73,44 +73,115 @@ const CITY_TO_STATE: Record<string, string> = {
   "west palm beach": "FL",
   naples: "FL",
   tallahassee: "FL",
+  "st petersburg": "FL",
+  "saint petersburg": "FL",
+  "clearwater": "FL",
   "new york": "NY",
+  "new york city": "NY",
+  nyc: "NY",
   manhattan: "NY",
   brooklyn: "NY",
   queens: "NY",
+  bronx: "NY",
   "los angeles": "CA",
+  la: "CA",
   "san francisco": "CA",
   "san diego": "CA",
   "orange county": "CA",
   sacramento: "CA",
+  "long beach": "CA",
+  oakland: "CA",
+  "san jose": "CA",
   chicago: "IL",
+  naperville: "IL",
+  schaumburg: "IL",
+  springfield: "IL",
+  peoria: "IL",
   houston: "TX",
   dallas: "TX",
   austin: "TX",
   "san antonio": "TX",
+  "fort worth": "TX",
+  plano: "TX",
+  arlington: "TX",
   atlanta: "GA",
   "las vegas": "NV",
+  reno: "NV",
   phoenix: "AZ",
   tucson: "AZ",
   scottsdale: "AZ",
   mesa: "AZ",
   seattle: "WA",
+  tacoma: "WA",
   denver: "CO",
+  "colorado springs": "CO",
   boston: "MA",
+  cambridge: "MA",
   philadelphia: "PA",
+  pittsburgh: "PA",
   detroit: "MI",
   "washington dc": "DC",
+  washington: "DC",
   baltimore: "MD",
   nashville: "TN",
+  memphis: "TN",
   "new orleans": "LA",
   portland: "OR",
   minneapolis: "MN",
+  "st paul": "MN",
   charlotte: "NC",
   raleigh: "NC",
   durham: "NC",
   charleston: "SC",
   columbia: "SC",
   greenville: "SC",
+  columbus: "OH",
+  cleveland: "OH",
+  cincinnati: "OH",
+  indianapolis: "IN",
+  "kansas city": "MO",
+  "st louis": "MO",
+  "saint louis": "MO",
+  milwaukee: "WI",
+  madison: "WI",
+  "salt lake city": "UT",
+  omaha: "NE",
+  "oklahoma city": "OK",
+  tulsa: "OK",
+  albuquerque: "NM",
+  "virginia beach": "VA",
+  richmond: "VA",
+  "jersey city": "NJ",
+  newark: "NJ",
+  honolulu: "HI",
+  anchorage: "AK",
+  "o'hare airport": "IL",
+  "ohare airport": "IL",
+  "corpus christi": "TX",
+  "palm beach gardens": "FL",
+  "port st lucie": "FL",
+  "port saint lucie": "FL",
+  "grand rapids": "MI",
+  livonia: "MI",
+  bellevue: "WA",
+  "boca raton": "FL",
+  "fort myers": "FL",
+  "tysons corner": "VA",
+  "long island": "NY",
+  "north hollywood": "CA",
+  "west hollywood": "CA",
+  "atlantic city": "NJ",
+  "des moines": "IA",
+  "little rock": "AR",
+  "baton rouge": "LA",
+  "myrtle beach": "SC",
+  "cherry hill": "NJ",
+  "overland park": "KS",
 };
+
+/** Ad/bio tokens that never belong in a public city label. */
+const CITY_MARKETING_RE =
+  /\b(beauty|pornstar|porn|kink|kinky|gfe|bbbj|bbw|queen|booty|throat|goat|exotic|experience|experienc|curves|providing|royal|anal|spinner|sensual|unforgettable|muse|latina|latino|angel|seductive|authentic|witty|spicy|t-boy|tboy|deal|special|someone|control|physical|auburn|nessa|passion|pleasure|rated|afro|sexy|baby|modern|love|blonde|brunette|redhead|milf|ts\b|trans|escort|companion|available|inviting|tempt|relaxed|travel|caters)\b/i;
 
 export function stateDisplayName(abbrev: string): string {
   const code = String(abbrev || "").trim().toUpperCase();
@@ -134,9 +205,62 @@ export function titleCaseWords(value: string): string {
     .join(" ");
 }
 
+function normalizeCityKey(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function knownCityState(city: string): string | null {
+  return CITY_TO_STATE[normalizeCityKey(city)] ?? null;
+}
+
 /**
- * Reject bio fragments, placeholders, and other non-city values from public search UI.
- * Keep real place names (including multi-word cities like "New York" / "Miami Beach").
+ * Recover a real city when Eros/Tryst ad titles leak into location_city
+ * (e.g. "Asian Beauty Chicago" → "Chicago", "Vanessa Big Booty Nessa Chicago" → "Chicago").
+ */
+export function extractTrailingKnownCity(raw: string): string | null {
+  let text = String(raw || "").trim();
+  if (!text) return null;
+
+  // Collapse duplicated trailing city: "… of Chicago Chicago"
+  text = text.replace(/\b([A-Za-z.'-]+(?:\s+[A-Za-z.'-]+)?)\s+\1\b/i, "$1");
+  // "New York City - Manhattan" / en-dash separators
+  text = text.replace(/\s*[-–—]\s*/g, " ");
+  // Sentence end before city: "desire. Livonia"
+  text = text.replace(/[.!?]+/g, " ");
+
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return null;
+
+  for (const take of [3, 2, 1]) {
+    if (words.length <= take) continue;
+    const candidate = words.slice(-take).join(" ");
+    if (knownCityState(candidate)) {
+      return titleCaseWords(normalizeCityKey(candidate));
+    }
+  }
+
+  // Last bare token after marketing junk (e.g. "BIG BUTT Bellevue")
+  const last = words[words.length - 1];
+  const prefix = words.slice(0, -1).join(" ");
+  if (
+    last &&
+    /^[A-Za-z][A-Za-z.'-]{1,24}$/.test(last) &&
+    !CITY_MARKETING_RE.test(last) &&
+    (CITY_MARKETING_RE.test(prefix) || words.length >= 4) &&
+    !/^(usa|us|the|and|of|in|to|for)$/i.test(last)
+  ) {
+    return titleCaseWords(normalizeCityKey(last));
+  }
+  return null;
+}
+
+/**
+ * Reject bio fragments, ad titles, placeholders, and other non-city values.
+ * Keep real place names (including multi-word cities like "New York" / "West Palm Beach").
  */
 export function isPlausiblePublicCityName(raw: string): boolean {
   const city = String(raw || "").trim();
@@ -145,17 +269,38 @@ export function isPlausiblePublicCityName(raw: string): boolean {
   if (/^(unknown|n\/?a|none|null|statewide|caters\s*to)$/i.test(city)) return false;
   if (/\bi create\b/i.test(city)) return false;
   if (/caters\s*to/i.test(city)) return false;
-  if (city.split(/\s+/).length > 6) return false;
+  if (/[0-9]/.test(city)) return false;
+  if (/[@#*&/\\|]/.test(city)) return false;
+
+  const words = city.split(/\s+/).filter(Boolean);
+  if (words.length > 4) return false;
+
   // Sentence / bio fragment: "Miami. Travel" or longer punctuated phrases
   if (/^[A-Za-z .'-]+\.\s+[A-Za-z]/.test(city)) return false;
-  if (/[.!?]/.test(city) && city.split(/\s+/).length >= 2) return false;
-  if (/\b(travel|relaxed|tempt|available|inviting)\b/i.test(city) && /[.!]/.test(city)) return false;
+  if (/[.!?]/.test(city) && words.length >= 2) return false;
+  if (/\b(travel|relaxed|tempt|available|inviting)\b/i.test(city) && /[.!]/.test(city)) {
+    return false;
+  }
+
+  // Known multi-word cities always pass (West Palm Beach, New York City, …)
+  if (knownCityState(city)) return true;
+
+  // Ad headline leaked into city field
+  if (CITY_MARKETING_RE.test(city)) return false;
+
+  // "Something Something Chicago" — prefix + known city = ad title, not a place
+  const trailing = extractTrailingKnownCity(city);
+  if (trailing && normalizeCityKey(trailing) !== normalizeCityKey(city)) return false;
+
+  // Unknown 4-word labels are almost never real cities in this catalog
+  if (words.length >= 4) return false;
+
   return true;
 }
 
 /**
- * Canonical city label for location pickers / autocomplete.
- * Strips "City, ST" combos stuck in location_city and title-cases the result.
+ * Canonical city label for location pickers / autocomplete / browse hubs.
+ * Strips "City, ST" combos, recovers city from ad-title pollution, title-cases.
  */
 export function canonicalizePublicCity(
   rawCity: string,
@@ -164,23 +309,63 @@ export function canonicalizePublicCity(
   let city = String(rawCity || "").trim();
   if (!city) return null;
 
+  // Full known labels first (keeps "Washington DC", multi-word cities)
+  if (knownCityState(city)) {
+    const name = titleCaseWords(normalizeCityKey(city));
+    if (normalizeCityKey(city) === "washington dc") {
+      return { slug: "washington-dc", name: "Washington DC" };
+    }
+    return { slug: slugify(name), name };
+  }
+
+  // NYC hub variants → Manhattan
+  if (/^new\s+york\s+city\s*[-–—]?\s*manhattan$/i.test(city)) {
+    return { slug: "manhattan", name: "Manhattan" };
+  }
+
   if (city.includes(",")) {
     const parsed = parseCityStateCombo(city);
     if (parsed.city) city = parsed.city;
   }
 
-  // "Miami FL" / "Miami TX" trailing state token
+  // "Miami FL" trailing state token — never strip DC from "Washington DC"
   const trailingState = city.match(/^(.+?)\s+([A-Za-z]{2})$/);
   if (trailingState) {
     const maybeState = resolveStateAbbrev(trailingState[2]);
-    if (maybeState && (!stateCode || maybeState === String(stateCode).toUpperCase())) {
+    if (
+      maybeState &&
+      maybeState !== "DC" &&
+      (!stateCode || maybeState === String(stateCode).toUpperCase()) &&
+      !knownCityState(city)
+    ) {
       city = trailingState[1].trim();
+    }
+  }
+
+  // Prefer recovered trailing city when the raw value is an ad title
+  if (!isPlausiblePublicCityName(city)) {
+    const recovered = extractTrailingKnownCity(city);
+    if (!recovered || !isPlausiblePublicCityName(recovered)) return null;
+    city = recovered;
+  } else {
+    // Even if loose-plausible, collapse "… Chicago" ad titles that slipped through
+    const recovered = extractTrailingKnownCity(city);
+    if (
+      recovered &&
+      normalizeCityKey(recovered) !== normalizeCityKey(city) &&
+      (CITY_MARKETING_RE.test(city) || /[-–—]/.test(String(rawCity || "")))
+    ) {
+      city = recovered;
     }
   }
 
   if (!isPlausiblePublicCityName(city)) return null;
 
-  const name = titleCaseWords(city);
+  if (normalizeCityKey(city) === "washington dc") {
+    return { slug: "washington-dc", name: "Washington DC" };
+  }
+
+  const name = titleCaseWords(normalizeCityKey(city));
   const slug = slugify(name);
   if (!slug) return null;
   return { slug, name };
@@ -458,6 +643,16 @@ export function normalizeProviderLocation(input: {
 
   if (state && state.length > 3) {
     state = resolveStateAbbrev(state) ?? state.toUpperCase();
+  }
+
+  if (city && city.toLowerCase() !== "statewide") {
+    const canonical = canonicalizePublicCity(city, state);
+    if (canonical) {
+      city = canonical.name;
+      state = state || knownCityState(canonical.name);
+    } else if (!isPlausiblePublicCityName(city)) {
+      city = null;
+    }
   }
 
   return {

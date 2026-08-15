@@ -5,6 +5,7 @@ import {
   generateSitemapXml,
 } from "../services/seo.js";
 import { legacyProviderSlug } from "../lib/providerSlug.js";
+import { canonicalizePublicCity } from "../lib/locationMatch.js";
 
 interface SeoContext {
   prisma: any;
@@ -51,15 +52,38 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
     ORDER BY city ASC
   `;
 
-  const routes = generateCityHubRoutes(
-    (rows as Array<any>).map((row) => ({
-      city: row.city,
-      citySlug: row.city_slug,
-      profileCount: Number(row.profile_count ?? 0),
-      verifiedCount: Number(row.verified_count ?? 0),
-      lastUpdatedAt: row.last_updated_at ? new Date(row.last_updated_at) : new Date(),
-    })),
-  );
+  // Collapse ad-title pollution ("Asian Beauty Chicago" → Chicago) and drop junk hubs.
+  const cityMap = new Map<
+    string,
+    {
+      city: string;
+      citySlug: string;
+      profileCount: number;
+      verifiedCount: number;
+      lastUpdatedAt: Date;
+    }
+  >();
+  for (const row of rows as Array<any>) {
+    const canonical = canonicalizePublicCity(String(row.city || ""));
+    if (!canonical) continue;
+    const prev = cityMap.get(canonical.slug);
+    const lastUpdatedAt = row.last_updated_at ? new Date(row.last_updated_at) : new Date();
+    if (!prev) {
+      cityMap.set(canonical.slug, {
+        city: canonical.name,
+        citySlug: canonical.slug,
+        profileCount: Number(row.profile_count ?? 0),
+        verifiedCount: Number(row.verified_count ?? 0),
+        lastUpdatedAt,
+      });
+      continue;
+    }
+    prev.profileCount += Number(row.profile_count ?? 0);
+    prev.verifiedCount += Number(row.verified_count ?? 0);
+    if (lastUpdatedAt > prev.lastUpdatedAt) prev.lastUpdatedAt = lastUpdatedAt;
+  }
+
+  const routes = generateCityHubRoutes(Array.from(cityMap.values()));
 
   return json(200, { items: routes });
 }
@@ -120,11 +144,14 @@ export async function seoProfilesHandler(request: ApiRequest, context: SeoContex
       citySlug: p.citySlug,
       updatedAt: p.updatedAt,
     }))),
-    ...generateProfileRoutes(legacyProviders.map((p: any) => ({
-      slug: legacyProviderSlug(p),
-      citySlug: (p.location_city || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      updatedAt: p.updated_date,
-    }))),
+    ...generateProfileRoutes(legacyProviders.map((p: any) => {
+      const canonical = canonicalizePublicCity(String(p.location_city || ""));
+      return {
+        slug: legacyProviderSlug(p),
+        citySlug: canonical?.slug || "unknown",
+        updatedAt: p.updated_date,
+      };
+    })),
   ].slice(0, limit);
 
   return json(200, { items: profileRoutes });

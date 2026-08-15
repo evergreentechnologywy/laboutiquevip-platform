@@ -7,10 +7,10 @@
  *
  * Contracts:
  *   GET /api/v1/stats
- *     -> { providers, cities, states, photos }
+ *     -> { providers, cities, states, photos, topCities?: [{city,state,slug,providerCount}] }
  *   GET /api/v1/browse/states
- *     -> { states: [{ name, slug, region, providerCount, cityCount }],
- *          regions: { Northeast: [...slugs], ... }, totalProviders, totalCities }
+ *     -> { regions: [{ region, states: [{ code, name, slug, providerCount, cityCount }] }],
+ *          totals: { providers, states, cities } }
  *   GET /api/v1/browse/states/{slug}
  *     -> { state, providerCount, cities: [{ city, slug, providerCount, verifiedCount }] }
  */

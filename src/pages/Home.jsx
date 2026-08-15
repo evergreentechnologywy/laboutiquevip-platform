@@ -134,12 +134,35 @@ export default function Home() {
     refetchOnWindowFocus: false,
   });
 
-  // Per-city counts arrive with the browse rollout; until then, curated hubs.
-  const topCities = FALLBACK_TOP_CITIES;
+  // Live top cities from /api/v1/stats; curated fallback until counts land.
+  const topCities = React.useMemo(() => {
+    const live = Array.isArray(siteStats?.topCities) ? siteStats.topCities : [];
+    if (live.length >= 4) {
+      return live.slice(0, 8).map((row) => ({
+        city: row.city,
+        state: row.state,
+        slug: row.slug,
+        providerCount: row.providerCount ?? null,
+      }));
+    }
+    return FALLBACK_TOP_CITIES;
+  }, [siteStats]);
 
   const regionTeaser = React.useMemo(() => {
-    const states = Array.isArray(browseData?.states) ? browseData.states : US_STATES;
-    const grouped = groupStatesByRegion(states);
+    // browse/states returns { regions:[{region,states:[{name,slug,code,providerCount}]}] }
+    const liveStates = Array.isArray(browseData?.regions)
+      ? browseData.regions.flatMap((region) =>
+          (region.states || []).map((state) => ({
+            name: state.name,
+            slug: state.slug,
+            abbrev: state.code,
+            providerCount: state.providerCount,
+          })),
+        )
+      : Array.isArray(browseData?.states)
+        ? browseData.states
+        : null;
+    const grouped = groupStatesByRegion(liveStates || US_STATES);
     return grouped.map(({ region, states: regionStates }) => ({
       region,
       stateCount: regionStates.length,
@@ -149,10 +172,14 @@ export default function Home() {
   }, [browseData]);
 
   const statsBar = React.useMemo(() => {
-    const providers = formatStat(siteStats?.providers ?? browseData?.totalProviders);
-    const cities = formatStat(siteStats?.cities ?? browseData?.totalCities);
+    const providers = formatStat(
+      siteStats?.providers ?? browseData?.totals?.providers ?? browseData?.totalProviders,
+    );
+    const cities = formatStat(
+      siteStats?.cities ?? browseData?.totals?.cities ?? browseData?.totalCities,
+    );
     const photos = formatStat(siteStats?.photos);
-    const states = formatStat(siteStats?.states) || "50";
+    const states = formatStat(siteStats?.states ?? browseData?.totals?.states) || "50";
     return [
       { label: "Providers", value: providers },
       { label: "States", value: states },

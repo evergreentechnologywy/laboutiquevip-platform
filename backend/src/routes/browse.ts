@@ -291,11 +291,24 @@ export async function statsHandler(request: ApiRequest, context: BrowseRouteCont
       photos = Number(sumRows[0]?.total ?? 0);
     }
 
+    const topCities = Array.from(stateMap.values())
+      .flatMap((state) =>
+        Array.from(state.cities.values()).map((city) => ({
+          city: city.name,
+          state: state.code,
+          slug: city.slug,
+          providerCount: city.providerCount,
+        })),
+      )
+      .sort((a, b) => b.providerCount - a.providerCount || a.city.localeCompare(b.city))
+      .slice(0, 12);
+
     const body = {
       providers: Array.from(stateMap.values()).reduce((sum, s) => sum + s.providerCount, 0),
       cities: totalCities,
       states: stateMap.size,
       photos,
+      topCities,
     };
 
     statsCache = { body, expiresAt: now + AGGREGATE_CACHE_TTL_MS };
