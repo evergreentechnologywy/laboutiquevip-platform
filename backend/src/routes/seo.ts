@@ -6,6 +6,7 @@ import {
 } from "../services/seo.js";
 import { legacyProviderSlug } from "../lib/providerSlug.js";
 import { canonicalizePublicCity } from "../lib/locationMatch.js";
+import { publicProviderVisibilityWhere } from "./providerVisibility.js";
 
 interface SeoContext {
   prisma: any;
@@ -16,40 +17,26 @@ function json(statusCode: number, body: unknown): ApiResponse {
 }
 
 export async function seoCityHubsHandler(_request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
-  // Query both new model profiles AND legacy Provider table
+  // Public catalog only (Provider). Exclude signup/test provider_profiles noise.
   const rows = await context.prisma.$queryRaw`
-    SELECT city, city_slug, SUM(profile_count)::int AS profile_count, SUM(verified_count)::int AS verified_count, MAX(last_updated_at) AS last_updated_at
-    FROM (
-      SELECT
-        city,
-        city_slug,
-        COUNT(*)::int AS profile_count,
-        SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
-        MAX(updated_at) AS last_updated_at
-      FROM provider_profiles
-      WHERE is_published = true
-        AND display_name !~* ${'(batch|user|simulation|test|approval|concurrency)'}
-        AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
-      GROUP BY city, city_slug
-
-      UNION ALL
-
-      SELECT
-        location_city AS city,
-        lower(regexp_replace(location_city, ${'[^a-zA-Z0-9]+'}, ${'-'}, ${'g'})) AS city_slug,
-        COUNT(*)::int AS profile_count,
-        SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
-        MAX(updated_date) AS last_updated_at
-      FROM "Provider"
-      WHERE status = ${'active'}
-        AND is_profile_approved = true
-        AND location_city IS NOT NULL
-        AND display_name !~* ${'(batch|user|simulation|test|approval|concurrency)'}
-        AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
-      GROUP BY location_city
-    ) combined
-    GROUP BY city, city_slug
-    ORDER BY city ASC
+    SELECT
+      location_city AS city,
+      lower(regexp_replace(location_city, ${'[^a-zA-Z0-9]+'}, ${'-'}, ${'g'})) AS city_slug,
+      COUNT(*)::int AS profile_count,
+      SUM(CASE WHEN is_verified = true THEN 1 ELSE 0 END)::int AS verified_count,
+      MAX(updated_date) AS last_updated_at
+    FROM "Provider"
+    WHERE status = ${'active'}
+      AND verification_provider = ANY(${['eros', 'evergreen', 'tryst']}::text[])
+      AND location_city IS NOT NULL
+      AND btrim(location_city) <> ''
+      AND display_name !~* ${'(batch|simulation|test|approval|concurrency)'}
+      AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
+      AND photos IS NOT NULL
+      AND jsonb_typeof(photos) = 'array'
+      AND COALESCE(jsonb_array_length(photos), 0) > 0
+    GROUP BY location_city
+    ORDER BY location_city ASC
   `;
 
   // Collapse ad-title pollution ("Asian Beauty Chicago" → Chicago) and drop junk hubs.
@@ -89,70 +76,56 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
 }
 
 export async function seoProfilesHandler(request: ApiRequest, context: SeoContext): Promise<ApiResponse> {
-  const limit = Math.min(1000, Number(request.query.get("limit") ?? 500));
+  // Catalog public profiles only. Cap high enough for full crawl coverage.
+  const limit = Math.min(20000, Math.max(1, Number(request.query.get("limit") ?? 10000)));
 
-  // Get profiles from both systems
-  const newProfiles = await context.prisma.providerProfile.findMany({
-    where: {
-      isPublished: true,
-      NOT: {
-        OR: [
-          { displayName: { contains: "batch", mode: "insensitive" } },
-          { displayName: { contains: "user", mode: "insensitive" } },
-          { displayName: { contains: "simulation", mode: "insensitive" } },
-          { displayName: { contains: "test", mode: "insensitive" } },
-          { displayName: { contains: "approval", mode: "insensitive" } },
-          { displayName: { contains: "concurrency", mode: "insensitive" } },
-          { bio: { contains: "simulation", mode: "insensitive" } },
-          { bio: { contains: "test", mode: "insensitive" } },
-          { bio: { contains: "mixed live-site", mode: "insensitive" } },
-          { bio: { contains: "simultaneous approval", mode: "insensitive" } },
-          { bio: { contains: "concurrency", mode: "insensitive" } },
-          { bio: { contains: "created during", mode: "insensitive" } },
-        ],
-      },
-    },
-    select: { slug: true, citySlug: true, updatedAt: true },
-    orderBy: [{ updatedAt: "desc" }],
-    take: limit,
-  });
-
-  // Get legacy Provider profiles
   const legacyProviders = await context.prisma.provider.findMany({
     where: {
-      status: "active",
-      is_profile_approved: true,
+      ...publicProviderVisibilityWhere(),
       NOT: {
         OR: [
           { display_name: { contains: "batch", mode: "insensitive" } },
-          { display_name: { contains: "user", mode: "insensitive" } },
           { display_name: { contains: "simulation", mode: "insensitive" } },
-          { display_name: { contains: "test", mode: "insensitive" } },
-          { display_name: { contains: "approval", mode: "insensitive" } },
-          { display_name: { contains: "concurrency", mode: "insensitive" } },
+          { display_name: { startsWith: "test ", mode: "insensitive" } },
+          { display_name: { endsWith: " test", mode: "insensitive" } },
+          { display_name: { equals: "test", mode: "insensitive" } },
+          { display_name: { equals: "Page Not Found", mode: "insensitive" } },
+          { display_name: { equals: "Not Found", mode: "insensitive" } },
+          { display_name: { equals: "404", mode: "insensitive" } },
         ],
       },
     },
-    select: { id: true, location_city: true, updated_date: true, verification_username: true, verification_url: true },
+    select: {
+      id: true,
+      display_name: true,
+      location_city: true,
+      location_state: true,
+      updated_date: true,
+      verification_username: true,
+      verification_url: true,
+    },
     orderBy: [{ updated_date: "desc" }],
     take: limit,
   });
 
-  const profileRoutes = [
-    ...generateProfileRoutes(newProfiles.map((p: any) => ({
-      slug: p.slug,
-      citySlug: p.citySlug,
-      updatedAt: p.updatedAt,
-    }))),
-    ...generateProfileRoutes(legacyProviders.map((p: any) => {
-      const canonical = canonicalizePublicCity(String(p.location_city || ""));
-      return {
-        slug: legacyProviderSlug(p),
-        citySlug: canonical?.slug || "unknown",
-        updatedAt: p.updated_date,
-      };
-    })),
-  ].slice(0, limit);
+  // Prefer unique slugs; keep first (most recently updated).
+  const seen = new Set<string>();
+  const profileRoutes = generateProfileRoutes(
+    legacyProviders
+      .map((p: any) => {
+        const canonical = canonicalizePublicCity(String(p.location_city || ""), String(p.location_state || ""));
+        return {
+          slug: legacyProviderSlug(p),
+          citySlug: canonical?.slug || "unknown",
+          updatedAt: p.updated_date,
+        };
+      })
+      .filter((row: { slug: string }) => {
+        if (!row.slug || seen.has(row.slug)) return false;
+        seen.add(row.slug);
+        return true;
+      }),
+  );
 
   return json(200, { items: profileRoutes });
 }

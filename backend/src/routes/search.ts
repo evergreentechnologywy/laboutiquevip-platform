@@ -14,6 +14,7 @@ import {
 } from "../lib/locationMatch.js";
 import { dedupeProviders } from "../lib/providerDedupe.js";
 import { withPublicPhotos } from "../lib/publicPhotoUrls.js";
+import { legacyProviderSlug } from "../lib/providerSlug.js";
 
 interface SearchRouteContext {
   prisma: any;
@@ -404,7 +405,10 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           maxRate,
           cityGroups,
           // Search cards only need a tight gallery; full sets load on profile.
-          items: dedupedProviders.map((provider: any) => withPublicPhotos(provider, 8)),
+          items: dedupedProviders.map((provider: any) => ({
+            ...withPublicPhotos(provider, 8),
+            public_slug: legacyProviderSlug(provider),
+          })),
           },
         };
   } catch (error) {

@@ -28,13 +28,20 @@ export async function getProviderBySlugHandler(
   slug: string,
   context: ProviderPublicContext,
 ): Promise<ApiResponse> {
-  const normalized = String(slug || "").trim().toLowerCase();
+  let raw = String(slug || "").trim();
+  try {
+    raw = decodeURIComponent(raw);
+  } catch {
+    /* keep raw */
+  }
+  const normalized = raw.toLowerCase();
   if (!normalized) {
     return json(400, { error: "validation_error", message: "slug required" });
   }
 
   const visibility = publicProviderVisibilityWhere();
   const select = publicProviderDetailSelect;
+  const compact = normalized.replace(/[^a-z0-9]/g, "");
 
   let provider = null;
 
@@ -65,6 +72,37 @@ export async function getProviderBySlugHandler(
     });
   }
 
+  // Match frontend legacyProviderSlug: strip non-alnum from display_name
+  // (e.g. "Jessica Jentry" -> "jessicajentry").
+  if (!provider && compact.length >= 2 && typeof context.prisma.$queryRaw === "function") {
+    try {
+      const rows = (await context.prisma.$queryRaw`
+        SELECT id
+        FROM "Provider"
+        WHERE status = 'active'
+          AND lower(regexp_replace(coalesce(display_name, ''), '[^a-zA-Z0-9]+', '', 'g')) = ${compact}
+        ORDER BY updated_date DESC NULLS LAST
+        LIMIT 8
+      `) as Array<{ id: string }>;
+      if (rows.length > 0) {
+        const ids = rows.map((r) => r.id);
+        const matched = await context.prisma.provider.findMany({
+          where: { ...visibility, id: { in: ids } },
+          select,
+          take: 8,
+        });
+        provider =
+          matched.find((row: { id: string; verification_url?: string | null; verification_username?: string | null; display_name?: string | null }) =>
+            legacyProviderSlug(row) === compact || legacyProviderSlug(row) === normalized,
+          ) ??
+          matched[0] ??
+          null;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
   if (!provider) {
     const candidates = await context.prisma.provider.findMany({
       where: {
@@ -75,7 +113,7 @@ export async function getProviderBySlugHandler(
       take: 5,
     });
     provider =
-      candidates.find((row: { id: string; verification_url?: string | null }) => legacyProviderSlug(row) === normalized) ??
+      candidates.find((row: { id: string; verification_url?: string | null }) => legacyProviderSlug(row) === normalized || legacyProviderSlug(row) === compact) ??
       candidates[0] ??
       null;
   }
