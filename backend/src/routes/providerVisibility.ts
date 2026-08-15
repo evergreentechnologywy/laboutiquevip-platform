@@ -3,7 +3,12 @@ import { publicVerificationBadgeWhere } from "../lib/verificationBadges.js";
 /** Sources shown on public browse (import pipelines set verification_provider). */
 export const PUBLIC_VERIFICATION_PROVIDERS = ["eros", "evergreen", "tryst"] as const;
 
-const DEFAULT_PUBLIC_PROVIDER_NAME_BLOCKLIST = ["Jarvis Test Listing"];
+const DEFAULT_PUBLIC_PROVIDER_NAME_BLOCKLIST = [
+  "Jarvis Test Listing",
+  "Page Not Found",
+  "Not Found",
+  "404",
+];
 
 function parseConfiguredBlockedNames(): string[] {
   const configured = process.env.PUBLIC_PROVIDER_NAME_BLOCKLIST
