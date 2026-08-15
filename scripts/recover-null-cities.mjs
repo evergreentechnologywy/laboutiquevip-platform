@@ -7,6 +7,7 @@
  *  3) Tryst city URL
  *  4) display_name / tagline "in|visit City" ONLY if City is known
  *  5) Eros state-only / unknown state hub → Statewide
+ *  6) Any residual row with valid location_state → Statewide
  *
  * Usage:
  *   node scripts/recover-null-cities.mjs
@@ -227,6 +228,17 @@ function recoverOne(row) {
         source = field === row.display_name ? "display_name" : "tagline";
         break;
       }
+    }
+  }
+
+  // Profile-only Tryst/Eros rows often have state but no city URL.
+  // Statewide keeps them in state browse without inventing a city hub.
+  if (!city && state) {
+    const st = resolveStateAbbrev(state) || String(state).trim().toUpperCase();
+    if (/^[A-Z]{2}$/.test(st)) {
+      city = "Statewide";
+      state = st;
+      source = "state_only_fallback";
     }
   }
 

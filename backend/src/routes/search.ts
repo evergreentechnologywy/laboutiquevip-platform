@@ -30,6 +30,8 @@ const citySearchSchema = z.object({
 const providerSearchSchema = z.object({
   q: z.string().trim().max(120).optional().default(""),
   location: z.string().trim().max(120).optional().default(""),
+  /** Alias for location (deep links / external clients). */
+  city: z.string().trim().max(120).optional().default(""),
   verified: z.coerce.boolean().optional().default(false),
   premium: z.coerce.boolean().optional().default(false),
   minPrice: z.coerce.number().min(0).max(100000).optional().default(0),
@@ -145,6 +147,7 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
     const query = providerSearchSchema.parse({
       q: request.query.get("q") ?? undefined,
       location: request.query.get("location") ?? undefined,
+      city: request.query.get("city") ?? undefined,
       verified: request.query.get("verified") ?? undefined,
       premium: request.query.get("premium") ?? undefined,
       minPrice: request.query.get("minPrice") ?? undefined,
@@ -195,8 +198,9 @@ export async function searchProvidersHandler(request: ApiRequest, context: Searc
           andFilters.push({ OR: orBranches });
         }
 
-    if (query.location) {
-      const locationFilter = buildLocationFilter(query.location);
+    const locationQuery = (query.location || query.city || "").trim();
+    if (locationQuery) {
+      const locationFilter = buildLocationFilter(locationQuery);
       if (locationFilter) andFilters.push(locationFilter);
     }
 
