@@ -250,13 +250,25 @@ export default function Browse() {
     (selectedFilters.premium ? 1 : 0) +
     (priceRange[0] > 0 || priceRange[1] < 2000 ? 1 : 0);
 
+  const cityLabel = citySlug
+    ? citySlugToReadable(citySlug)
+    : location
+      ? location
+      : "";
+  const browseTitle = cityLabel
+    ? `${cityLabel} Verified Profiles | La Boutique VIP International`
+    : "Browse Verified Profiles & Listings | La Boutique VIP International";
+  const browseDescription = cityLabel
+    ? `Browse verified profiles in ${cityLabel}. Transparent rates, moderated reviews, and discreet discovery on La Boutique VIP.`
+    : "Explore verified profiles and listings with transparent rates, moderated reviews, and discreet discovery. Filter by verification status and premium features.";
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-rose-500/35 selection:text-white">
       <SEO
-        title="Browse Verified Profiles & Listings | La Boutique VIP International"
-        description="Explore verified profiles and listings with transparent rates, moderated reviews, and discreet discovery. Filter by verification status and premium features."
-        ogTitle="Browse Verified Profiles | La Boutique VIP"
-        ogDescription="Discreet directory of verified listings and premium profiles."
+        title={browseTitle}
+        description={browseDescription}
+        ogTitle={cityLabel ? `${cityLabel} | La Boutique VIP` : "Browse Verified Profiles | La Boutique VIP"}
+        ogDescription={cityLabel ? `Verified profiles in ${cityLabel}.` : "Discreet directory of verified listings and premium profiles."}
       />
       <div className="mx-auto max-w-7xl px-6 pt-6 pb-2 lg:px-8 relative z-10">
         <Breadcrumb className="py-2">
