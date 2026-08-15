@@ -11,6 +11,7 @@
  * one state, avoiding false-positive corrections.
  */
 
+import { applyCityCanon } from "./city-canon.mjs";
 /**
  * Map from lowercase city → single expected state code.
  * Only cities that are unambiguously associated with ONE state belong here.
@@ -389,6 +390,9 @@ export function validateCityState(city, state) {
  * @returns {{ corrected: boolean, originalState: string|null, newState: string|null, city: string|null }}
  */
 export function applyGeoValidation(payload) {
+  // City first: drop ad-title / bio junk and recover trailing known cities.
+  applyCityCanon(payload);
+
   const city = payload.location_city;
   const state = payload.location_state;
   if (!city || !state) return { corrected: false, originalState: state ?? null, newState: state ?? null, city };
