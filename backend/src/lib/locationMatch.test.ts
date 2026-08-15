@@ -44,6 +44,38 @@ test("canonicalizePublicCity recovers city from Eros ad-title pollution", () => 
     slug: "chicago",
     name: "Chicago",
   });
+  assert.deepEqual(canonicalizePublicCity("Bree Biloxi", "MS"), {
+    slug: "biloxi",
+    name: "Biloxi",
+  });
+  assert.deepEqual(canonicalizePublicCity("Addictive Medford", "OR"), {
+    slug: "medford",
+    name: "Medford",
+  });
+  assert.deepEqual(canonicalizePublicCity("Barbie Shreveport", "LA"), {
+    slug: "shreveport",
+    name: "Shreveport",
+  });
+  assert.equal(canonicalizePublicCity("Beach", "FL"), null);
+  assert.equal(canonicalizePublicCity("City", "UT"), null);
+  assert.equal(canonicalizePublicCity("Arbor", "MI"), null);
+  // Keep real multi-word geo compounds
+  assert.deepEqual(canonicalizePublicCity("Ann Arbor", "MI"), {
+    slug: "ann-arbor",
+    name: "Ann Arbor",
+  });
+  assert.deepEqual(canonicalizePublicCity("North Miami", "FL"), {
+    slug: "north-miami",
+    name: "North Miami",
+  });
+  assert.deepEqual(canonicalizePublicCity("St. Louis", "MO"), {
+    slug: "st-louis",
+    name: "St. Louis",
+  });
+  assert.deepEqual(canonicalizePublicCity("Port St. Lucie", "FL"), {
+    slug: "port-st-lucie",
+    name: "Port St. Lucie",
+  });
 });
 
 test("buildLocationFilter does not match state abbrev against location_city", () => {

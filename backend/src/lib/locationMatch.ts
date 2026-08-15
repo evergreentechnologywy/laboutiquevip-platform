@@ -76,7 +76,7 @@ const CITY_TO_STATE: Record<string, string> = {
   tallahassee: "FL",
   "st petersburg": "FL",
   "saint petersburg": "FL",
-  "clearwater": "FL",
+  clearwater: "FL",
   "new york": "NY",
   "new york city": "NY",
   nyc: "NY",
@@ -178,11 +178,217 @@ const CITY_TO_STATE: Record<string, string> = {
   "myrtle beach": "SC",
   "cherry hill": "NJ",
   "overland park": "KS",
+  biloxi: "MS",
+  jackson: "MS",
+  hartford: "CT",
+  syracuse: "NY",
+  albany: "NY",
+  buffalo: "NY",
+  rochester: "NY",
+  "new haven": "CT",
+  bridgeport: "CT",
+  stamford: "CT",
+  providence: "RI",
+  worcester: "MA",
+  bangor: "ME",
+  burlington: "VT",
+  manchester: "NH",
+  concord: "NH",
+  trenton: "NJ",
+  paterson: "NJ",
+  allentown: "PA",
+  erie: "PA",
+  harrisburg: "PA",
+  scranton: "PA",
+  wilmington: "DE",
+  norfolk: "VA",
+  roanoke: "VA",
+  charlottesville: "VA",
+  huntington: "WV",
+  lexington: "KY",
+  louisville: "KY",
+  knoxville: "TN",
+  chattanooga: "TN",
+  clarksville: "TN",
+  huntsville: "AL",
+  mobile: "AL",
+  montgomery: "AL",
+  birmingham: "AL",
+  gulfport: "MS",
+  shreveport: "LA",
+  lafayette: "LA",
+  "lake charles": "LA",
+  wichita: "KS",
+  topeka: "KS",
+  "cedar rapids": "IA",
+  davenport: "IA",
+  "sioux falls": "SD",
+  fargo: "ND",
+  boise: "ID",
+  bend: "OR",
+  medford: "OR",
+  eugene: "OR",
+  salem: "OR",
+  spokane: "WA",
+  olympia: "WA",
+  fresno: "CA",
+  bakersfield: "CA",
+  stockton: "CA",
+  "santa barbara": "CA",
+  "santa rosa": "CA",
+  "santa cruz": "CA",
+  modesto: "CA",
+  oxnard: "CA",
+  ventura: "CA",
+  henderson: "NV",
+  sparks: "NV",
+  ogden: "UT",
+  provo: "UT",
+  "fort collins": "CO",
+  boulder: "CO",
+  "grand junction": "CO",
+  "sioux city": "IA",
+  lincoln: "NE",
+  fayetteville: "AR",
+  "fort smith": "AR",
+  "st joseph": "MO",
+  "cedar park": "TX",
+  "round rock": "TX",
+  "college station": "TX",
+  beaumont: "TX",
+  lubbock: "TX",
+  amarillo: "TX",
+  waco: "TX",
+  mckinney: "TX",
+  frisco: "TX",
+  irving: "TX",
+  garland: "TX",
+  "el paso": "TX",
+  "miami beach": "FL",
+  "palm beach": "FL",
+  "daytona beach": "FL",
+  "panama city": "FL",
+  pensacola: "FL",
+  gainesville: "FL",
+  ocala: "FL",
+  lakeland: "FL",
+  "cape coral": "FL",
+  sarasota: "FL",
+  "oakland park": "FL",
+  "pompano beach": "FL",
+  hollywood: "FL",
+  hialeah: "FL",
+  kendall: "FL",
+  doral: "FL",
+  "brooklyn park": "MN",
+  bloomington: "MN",
+  duluth: "MN",
+  "ann arbor": "MI",
+  lansing: "MI",
+  flint: "MI",
+  warren: "MI",
+  "sterling heights": "MI",
+  "fort wayne": "IN",
+  evansville: "IN",
+  "south bend": "IN",
+  rockford: "IL",
+  aurora: "IL",
+  joliet: "IL",
+  "green bay": "WI",
+  "coeur d alene": "ID",
+  "coeur dalene": "ID",
+  billings: "MT",
+  missoula: "MT",
+  cheyenne: "WY",
+  casper: "WY",
+  waikiki: "HI",
+  "san juan": "PR",
+  "santa ana": "CA",
+  anaheim: "CA",
+  riverside: "CA",
+  "rancho cucamonga": "CA",
+  "palm springs": "CA",
+  "san bernardino": "CA",
+  mcallen: "TX",
+  brownsville: "TX",
+  akron: "OH",
+  toledo: "OH",
+  dayton: "OH",
+  youngstown: "OH",
+  savannah: "GA",
+  augusta: "GA",
+  macon: "GA",
+  asheville: "NC",
+  greensboro: "NC",
+  "winston salem": "NC",
+  chandler: "AZ",
+  tempe: "AZ",
+  bozeman: "MT",
+  "santa fe": "NM",
+  "las cruces": "NM",
+  fairbanks: "AK",
 };
+
+/** Single tokens that are place-name fragments, not real cities alone. */
+const BARE_CITY_FRAGMENTS = new Set([
+  "city",
+  "county",
+  "beach",
+  "bay",
+  "arbor",
+  "barbara",
+  "arrow",
+  "ana",
+  "charles",
+  "cherokee",
+  "park",
+  "falls",
+  "springs",
+  "heights",
+  "hills",
+  "grove",
+  "valley",
+  "station",
+  "center",
+  "centre",
+  "port",
+  "fort",
+  "lake",
+  "point",
+  "view",
+  "junction",
+  "crossing",
+  "island",
+  "wood",
+  "woods",
+  "land",
+  "town",
+  "ville",
+  "burg",
+  "burgh",
+  "haven",
+  "worth",
+  "wayne",
+  "bend",
+  "paul",
+  "louis",
+  "petersburg",
+  "lucie",
+  "raphael",
+  "diego",
+  "jose",
+  "francisco",
+  "antonio",
+  "angeles",
+]);
+
+/** Geographic prefixes that form real multi-word cities with a known core. */
+const GEO_CITY_PREFIX_RE =
+  /^(north|south|east|west|northeast|northwest|southeast|southwest|fort|port|saint|st|new|los|las|san|santa|des|el|la|mt|mount|lake|upper|lower|great|little|big|royal|palm|long|grand|green|red|white|black|blue)$/i;
 
 /** Ad/bio tokens that never belong in a public city label. */
 const CITY_MARKETING_RE =
-  /\b(beauty|pornstar|porn|kink|kinky|gfe|bbbj|bbw|queen|booty|throat|goat|exotic|experience|experienc|curves|providing|royal|anal|spinner|sensual|unforgettable|muse|latina|latino|angel|seductive|authentic|witty|spicy|t-boy|tboy|deal|special|someone|control|physical|auburn|nessa|passion|pleasure|rated|afro|sexy|baby|modern|love|blonde|brunette|redhead|milf|ts\b|trans|escort|companion|available|inviting|tempt|relaxed|travel|caters)\b/i;
+  /\b(beauty|pornstar|porn|kink|kinky|gfe|bbbj|bbw|queen|booty|throat|goat|exotic|experience|experienc|curves|providing|royal|anal|spinner|sensual|unforgettable|muse|latina|latino|angel|seductive|authentic|witty|spicy|t-boy|tboy|deal|special|someone|control|physical|auburn|nessa|passion|pleasure|rated|afro|sexy|baby|modern|love|blonde|brunette|redhead|milf|ts\b|trans|escort|companion|available|inviting|tempt|relaxed|travel|caters|addictive|barbie|desired|beautiful|bad-assy|letsexplore)\b/i;
 
 export function stateDisplayName(abbrev: string): string {
   const code = String(abbrev || "").trim().toUpperCase();
@@ -220,6 +426,7 @@ function normalizeCityKey(value: string): string {
   return String(value || "")
     .toLowerCase()
     .trim()
+    .replace(/\./g, "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
 }
@@ -278,12 +485,25 @@ export function isPlausiblePublicCityName(raw: string): boolean {
   // Known multi-word cities always pass (West Palm Beach, New York City, …)
   if (knownCityState(city)) return true;
 
+  // Bare place fragments ("Beach", "City", "Arbor") are not real hubs alone
+  if (words.length === 1 && BARE_CITY_FRAGMENTS.has(normalizeCityKey(city))) {
+    return false;
+  }
+
   // Ad headline leaked into city field
   if (CITY_MARKETING_RE.test(city)) return false;
 
   // "Something Something Chicago" — prefix + known city = ad title, not a place
+  // Keep geographic compounds ("North Miami", "Fort Myers") when prefix is geo-only.
   const trailing = extractTrailingKnownCity(city);
-  if (trailing && normalizeCityKey(trailing) !== normalizeCityKey(city)) return false;
+  if (trailing && normalizeCityKey(trailing) !== normalizeCityKey(city)) {
+    const recoveredWords = normalizeCityKey(trailing).split(" ").filter(Boolean);
+    const allWords = normalizeCityKey(city).split(" ").filter(Boolean);
+    const prefixWords = allWords.slice(0, Math.max(0, allWords.length - recoveredWords.length));
+    const onlyGeoPrefix =
+      prefixWords.length > 0 && prefixWords.every((w) => GEO_CITY_PREFIX_RE.test(w));
+    if (!onlyGeoPrefix) return false;
+  }
 
   // Unknown 4-word labels are almost never real cities in this catalog
   if (words.length >= 4) return false;
@@ -304,7 +524,7 @@ export function canonicalizePublicCity(
 
   // Full known labels first (keeps "Washington DC", multi-word cities)
   if (knownCityState(city)) {
-    const name = titleCaseWords(normalizeCityKey(city));
+    const name = titleCaseCity(city);
     if (normalizeCityKey(city) === "washington dc") {
       return { slug: "washington-dc", name: "Washington DC" };
     }
@@ -340,15 +560,23 @@ export function canonicalizePublicCity(
     const recovered = extractTrailingKnownCity(city);
     if (!recovered || !isPlausiblePublicCityName(recovered)) return null;
     city = recovered;
-  } else {
-    // Even if loose-plausible, collapse "… Chicago" ad titles that slipped through
+  } else if (!knownCityState(city)) {
+    // Collapse "Bree Biloxi" / "Addictive Medford" person+city labels.
+    // Keep real geo compounds ("North Miami") when every prefix is geographic.
     const recovered = extractTrailingKnownCity(city);
-    if (
-      recovered &&
-      normalizeCityKey(recovered) !== normalizeCityKey(city) &&
-      (CITY_MARKETING_RE.test(city) || /[-–—]/.test(String(rawCity || "")))
-    ) {
-      city = recovered;
+    if (recovered && normalizeCityKey(recovered) !== normalizeCityKey(city)) {
+      const recoveredWords = normalizeCityKey(recovered).split(" ").filter(Boolean);
+      const allWords = normalizeCityKey(city).split(" ").filter(Boolean);
+      const prefixWords = allWords.slice(0, Math.max(0, allWords.length - recoveredWords.length));
+      const onlyGeoPrefix =
+        prefixWords.length > 0 && prefixWords.every((w) => GEO_CITY_PREFIX_RE.test(w));
+      if (
+        !onlyGeoPrefix ||
+        CITY_MARKETING_RE.test(city) ||
+        /[-–—]/.test(String(rawCity || ""))
+      ) {
+        city = recovered;
+      }
     }
   }
 
@@ -358,7 +586,7 @@ export function canonicalizePublicCity(
     return { slug: "washington-dc", name: "Washington DC" };
   }
 
-  const name = titleCaseWords(normalizeCityKey(city));
+  const name = titleCaseCity(city);
   const slug = slugify(name);
   if (!slug) return null;
   return { slug, name };

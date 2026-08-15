@@ -117,22 +117,225 @@ const CITY_TO_STATE = {
   "myrtle beach": "SC",
   "cherry hill": "NJ",
   "overland park": "KS",
+  biloxi: "MS",
+  jackson: "MS",
+  hartford: "CT",
+  syracuse: "NY",
+  albany: "NY",
+  buffalo: "NY",
+  rochester: "NY",
+  "new haven": "CT",
+  bridgeport: "CT",
+  stamford: "CT",
+  providence: "RI",
+  worcester: "MA",
+  bangor: "ME",
+  burlington: "VT",
+  manchester: "NH",
+  concord: "NH",
+  trenton: "NJ",
+  paterson: "NJ",
+  allentown: "PA",
+  erie: "PA",
+  harrisburg: "PA",
+  scranton: "PA",
+  wilmington: "DE",
+  norfolk: "VA",
+  roanoke: "VA",
+  charlottesville: "VA",
+  huntington: "WV",
+  lexington: "KY",
+  louisville: "KY",
+  knoxville: "TN",
+  chattanooga: "TN",
+  clarksville: "TN",
+  huntsville: "AL",
+  mobile: "AL",
+  montgomery: "AL",
+  birmingham: "AL",
+  gulfport: "MS",
+  shreveport: "LA",
+  lafayette: "LA",
+  "lake charles": "LA",
+  wichita: "KS",
+  topeka: "KS",
+  "cedar rapids": "IA",
+  davenport: "IA",
+  "sioux falls": "SD",
+  fargo: "ND",
+  boise: "ID",
+  bend: "OR",
+  medford: "OR",
+  eugene: "OR",
+  salem: "OR",
+  spokane: "WA",
+  olympia: "WA",
+  fresno: "CA",
+  bakersfield: "CA",
+  stockton: "CA",
+  "santa barbara": "CA",
+  "santa rosa": "CA",
+  "santa cruz": "CA",
+  modesto: "CA",
+  oxnard: "CA",
+  ventura: "CA",
+  henderson: "NV",
+  sparks: "NV",
+  ogden: "UT",
+  provo: "UT",
+  "fort collins": "CO",
+  boulder: "CO",
+  "grand junction": "CO",
+  "sioux city": "IA",
+  lincoln: "NE",
+  fayetteville: "AR",
+  "fort smith": "AR",
+  "st joseph": "MO",
+  "cedar park": "TX",
+  "round rock": "TX",
+  "college station": "TX",
+  beaumont: "TX",
+  lubbock: "TX",
+  amarillo: "TX",
+  waco: "TX",
+  mckinney: "TX",
+  frisco: "TX",
+  irving: "TX",
+  garland: "TX",
+  "el paso": "TX",
+  "miami beach": "FL",
+  "palm beach": "FL",
+  "daytona beach": "FL",
+  "panama city": "FL",
+  pensacola: "FL",
+  gainesville: "FL",
+  ocala: "FL",
+  lakeland: "FL",
+  "cape coral": "FL",
+  sarasota: "FL",
+  "oakland park": "FL",
+  "pompano beach": "FL",
+  hollywood: "FL",
+  hialeah: "FL",
+  kendall: "FL",
+  doral: "FL",
+  "brooklyn park": "MN",
+  bloomington: "MN",
+  duluth: "MN",
+  "ann arbor": "MI",
+  lansing: "MI",
+  flint: "MI",
+  warren: "MI",
+  "sterling heights": "MI",
+  "fort wayne": "IN",
+  evansville: "IN",
+  "south bend": "IN",
+  rockford: "IL",
+  aurora: "IL",
+  joliet: "IL",
+  "green bay": "WI",
+  "coeur d alene": "ID",
+  "coeur dalene": "ID",
+  billings: "MT",
+  missoula: "MT",
+  cheyenne: "WY",
+  casper: "WY",
+  waikiki: "HI",
+  "san juan": "PR",
+  "santa ana": "CA",
+  anaheim: "CA",
+  riverside: "CA",
+  "rancho cucamonga": "CA",
+  "palm springs": "CA",
+  "san bernardino": "CA",
+  mcallen: "TX",
+  brownsville: "TX",
+  akron: "OH",
+  toledo: "OH",
+  dayton: "OH",
+  youngstown: "OH",
+  savannah: "GA",
+  augusta: "GA",
+  macon: "GA",
+  asheville: "NC",
+  greensboro: "NC",
+  "winston salem": "NC",
+  chandler: "AZ",
+  tempe: "AZ",
+  bozeman: "MT",
+  "santa fe": "NM",
+  "las cruces": "NM",
+  fairbanks: "AK",
 };
 
-const CITY_MARKETING_RE =
-  /\b(beauty|pornstar|porn|kink|kinky|gfe|bbbj|bbw|queen|booty|throat|goat|exotic|experience|experienc|curves|providing|royal|anal|spinner|sensual|unforgettable|muse|latina|latino|angel|seductive|authentic|witty|spicy|t-boy|tboy|deal|special|someone|control|physical|auburn|nessa|passion|pleasure|rated|afro|sexy|baby|modern|love|blonde|brunette|redhead|milf|ts\b|trans|escort|companion|available|inviting|tempt|relaxed|travel|caters|privacy\s*policy)\b/i;
+const BARE_CITY_FRAGMENTS = new Set([
+  "city",
+  "county",
+  "beach",
+  "bay",
+  "arbor",
+  "barbara",
+  "arrow",
+  "ana",
+  "charles",
+  "cherokee",
+  "park",
+  "falls",
+  "springs",
+  "heights",
+  "hills",
+  "grove",
+  "valley",
+  "station",
+  "center",
+  "centre",
+  "port",
+  "fort",
+  "lake",
+  "point",
+  "view",
+  "junction",
+  "crossing",
+  "island",
+  "wood",
+  "woods",
+  "land",
+  "town",
+  "ville",
+  "burg",
+  "burgh",
+  "haven",
+  "worth",
+  "wayne",
+  "bend",
+  "paul",
+  "louis",
+  "petersburg",
+  "lucie",
+  "raphael",
+  "diego",
+  "jose",
+  "francisco",
+  "antonio",
+  "angeles",
+]);
+
+const GEO_CITY_PREFIX_RE = /^(north|south|east|west|northeast|northwest|southeast|southwest|fort|port|saint|st|new|los|las|san|santa|des|el|la|mt|mount|lake|upper|lower|great|little|big|royal|palm|long|grand|green|red|white|black|blue)$/i;
+
+const CITY_MARKETING_RE = /(beauty|pornstar|porn|kink|kinky|gfe|bbbj|bbw|queen|booty|throat|goat|exotic|experience|experienc|curves|providing|royal|anal|spinner|sensual|unforgettable|muse|latina|latino|angel|seductive|authentic|witty|spicy|t-boy|tboy|deal|special|someone|control|physical|auburn|nessa|passion|pleasure|rated|afro|sexy|baby|modern|love|blonde|brunette|redhead|milf|ts|trans|escort|companion|available|inviting|tempt|relaxed|travel|caters|addictive|barbie|desired|beautiful|bad-assy|letsexplore)/i;
 
 const US_STATE_ABBREV = new Set([
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA",
   "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM",
   "NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA",
-  "WV","WI","WY",
+  "WV","WI","WY","PR",
 ]);
 
 export function normalizeCityKey(value) {
   return String(value || "")
     .toLowerCase()
     .trim()
+    .replace(/\./g, "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ");
 }
@@ -196,9 +399,20 @@ export function isPlausiblePublicCityName(raw) {
   if (/^[A-Za-z .'-]+\.\s+[A-Za-z]/.test(city)) return false;
   if (/[.!?]/.test(city) && words.length >= 2) return false;
   if (knownCityState(city)) return true;
+  // Bare place fragments ("Beach", "City", "Arbor") are not real hubs alone
+  if (words.length === 1 && BARE_CITY_FRAGMENTS.has(normalizeCityKey(city))) {
+    return false;
+  }
   if (CITY_MARKETING_RE.test(city)) return false;
   const trailing = extractTrailingKnownCity(city);
-  if (trailing && normalizeCityKey(trailing) !== normalizeCityKey(city)) return false;
+  if (trailing && normalizeCityKey(trailing) !== normalizeCityKey(city)) {
+    const recoveredWords = normalizeCityKey(trailing).split(" ").filter(Boolean);
+    const allWords = normalizeCityKey(city).split(" ").filter(Boolean);
+    const prefixWords = allWords.slice(0, Math.max(0, allWords.length - recoveredWords.length));
+    const onlyGeoPrefix =
+      prefixWords.length > 0 && prefixWords.every((w) => GEO_CITY_PREFIX_RE.test(w));
+    if (!onlyGeoPrefix) return false;
+  }
   if (words.length >= 4) return false;
   return true;
 }
@@ -242,14 +456,23 @@ export function canonicalizePublicCity(rawCity, stateCode = null) {
     const recovered = extractTrailingKnownCity(city);
     if (!recovered || !isPlausiblePublicCityName(recovered)) return null;
     city = recovered;
-  } else {
+  } else if (!knownCityState(city)) {
+    // Collapse "Bree Biloxi" / "Addictive Medford" person+city labels.
+    // Keep real geo compounds ("North Miami") when every prefix is geographic.
     const recovered = extractTrailingKnownCity(city);
-    if (
-      recovered &&
-      normalizeCityKey(recovered) !== normalizeCityKey(city) &&
-      (CITY_MARKETING_RE.test(city) || /[-–—]/.test(String(rawCity || "")))
-    ) {
-      city = recovered;
+    if (recovered && normalizeCityKey(recovered) !== normalizeCityKey(city)) {
+      const recoveredWords = normalizeCityKey(recovered).split(" ").filter(Boolean);
+      const allWords = normalizeCityKey(city).split(" ").filter(Boolean);
+      const prefixWords = allWords.slice(0, Math.max(0, allWords.length - recoveredWords.length));
+      const onlyGeoPrefix =
+        prefixWords.length > 0 && prefixWords.every((w) => GEO_CITY_PREFIX_RE.test(w));
+      if (
+        !onlyGeoPrefix ||
+        CITY_MARKETING_RE.test(city) ||
+        /[-–—]/.test(String(rawCity || ""))
+      ) {
+        city = recovered;
+      }
     }
   }
 
