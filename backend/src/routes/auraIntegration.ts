@@ -1,15 +1,25 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
 import { z } from "zod";
 import type { ApiRequest, ApiResponse } from "../types.js";
-import { queueImportTrigger, readImportStatus } from "../lib/importControl.js";
 import { readEvergreenModelsStatus } from "../lib/evergreenModels.js";
+import {
+  queueEvergreenSync,
+  readLatestEvergreenSyncRequest,
+  readEvergreenSyncQueue,
+} from "../lib/evergreenSyncQueue.js";
+import { readCatalogWorkerStatus } from "../lib/catalogWorkerStatus.js";
+
+const modelLocationSchema = z.object({
+  model: z.string().trim().min(1),
+  locationCity: z.string().trim().min(1).optional(),
+  locationState: z.string().trim().min(1).optional(),
+});
 
 const syncBodySchema = z.object({
   model: z.string().trim().min(1).optional(),
   locationCity: z.string().trim().min(1).optional(),
   locationState: z.string().trim().min(1).optional(),
   syncAll: z.boolean().optional(),
+  models: z.array(modelLocationSchema).min(1).max(50).optional(),
 });
 
 function json(statusCode: number, body: unknown): ApiResponse {
@@ -26,32 +36,6 @@ function requireServiceRole(request: ApiRequest): ApiResponse | null {
   return null;
 }
 
-function repoRoot(): string {
-  return process.env.LBV_REPO_DIR?.trim() || path.resolve(process.cwd(), "..");
-}
-
-function spawnSingleModelImport(args: {
-  model: string;
-  locationCity?: string;
-  locationState?: string;
-}): { pid: number | undefined; script: string; args: string[] } {
-  const root = repoRoot();
-  const script = path.join(root, "scripts", "import-evergreen-models.mjs");
-  const argv = [script, `--model=${args.model}`];
-  if (args.locationCity) argv.push(`--location-city=${args.locationCity}`);
-  if (args.locationState) argv.push(`--location-state=${args.locationState}`);
-
-  const child = spawn(process.execPath, argv, {
-    cwd: root,
-    detached: true,
-    stdio: "ignore",
-    env: process.env,
-  });
-  child.unref();
-
-  return { pid: child.pid, script, args: argv };
-}
-
 export async function auraEvergreenSyncHandler(
   request: ApiRequest,
   _context: unknown,
@@ -59,34 +43,92 @@ export async function auraEvergreenSyncHandler(
   const denied = requireServiceRole(request);
   if (denied) return denied;
 
-  const body = syncBodySchema.parse(request.body ?? {});
-  const syncAll = body.syncAll === true || !body.model?.trim();
-
-  if (!syncAll && body.model) {
-    const spawned = spawnSingleModelImport({
-      model: body.model.trim(),
-      locationCity: body.locationCity,
-      locationState: body.locationState,
-    });
-    return json(202, {
-      ok: true,
-      mode: "inline",
-      model: body.model.trim(),
-      pid: spawned.pid ?? null,
-      locationCity: body.locationCity ?? null,
-      locationState: body.locationState ?? null,
+  let body: z.infer<typeof syncBodySchema>;
+  try {
+    body = syncBodySchema.parse(request.body ?? {});
+  } catch (err) {
+    return json(400, {
+      error: "invalid_body",
+      message: err instanceof Error ? err.message : "Invalid evergreen sync body",
+      accepted: {
+        single: { model: "string", locationCity: "string?", locationState: "string?" },
+        batch: {
+          models: [{ model: "string", locationCity: "string?", locationState: "string?" }],
+        },
+        all: { syncAll: true },
+      },
     });
   }
 
-  const queued = await queueImportTrigger({
-    source: "evergreen",
-    mode: "full",
-    requestedBy: request.auth?.userId ?? "aura-integration",
+  const syncAll = body.syncAll === true || (!body.model?.trim() && !body.models?.length);
+  const requestedBy = request.auth?.userId ?? "aura-integration";
+
+  if (body.models?.length) {
+    const queued = [];
+    for (const entry of body.models) {
+      queued.push(
+        await queueEvergreenSync({
+          mode: "single",
+          model: entry.model.trim(),
+          locationCity: entry.locationCity ?? null,
+          locationState: entry.locationState ?? null,
+          requestedBy,
+        }),
+      );
+    }
+    return json(202, {
+      ok: true,
+      mode: "batch",
+      queued: true,
+      count: queued.length,
+      requestIds: queued.map((row) => row.id),
+      models: queued.map((row) => ({
+        requestId: row.id,
+        model: row.model,
+        locationCity: row.locationCity,
+        locationState: row.locationState,
+      })),
+      message:
+        "Evergreen roster accepted. Aura worker should publish each model via POST /api/v1/catalog/ingest with source=evergreen.",
+      worker_hook: "evergreen-sync-queue.json",
+    });
+  }
+
+  if (syncAll) {
+    const queued = await queueEvergreenSync({
+      mode: "all",
+      requestedBy,
+    });
+    return json(202, {
+      ok: true,
+      mode: "all",
+      queued: true,
+      requestId: queued.id,
+      message:
+        "Evergreen sync accepted. Aura worker should process the queue and publish via catalog ingest.",
+      worker_hook: "evergreen-sync-queue.json",
+    });
+  }
+
+  const queued = await queueEvergreenSync({
+    mode: "single",
+    model: body.model!.trim(),
+    locationCity: body.locationCity ?? null,
+    locationState: body.locationState ?? null,
+    requestedBy,
   });
 
   return json(202, {
-    mode: "queued",
-    ...queued,
+    ok: true,
+    mode: "single",
+    queued: true,
+    requestId: queued.id,
+    model: body.model!.trim(),
+    locationCity: body.locationCity ?? null,
+    locationState: body.locationState ?? null,
+    message:
+      "Evergreen model sync accepted. Aura worker should process the queue and publish via catalog ingest.",
+    worker_hook: "evergreen-sync-queue.json",
   });
 }
 
@@ -97,14 +139,23 @@ export async function auraEvergreenStatusHandler(
   const denied = requireServiceRole(request);
   if (denied) return denied;
 
-  const [importStatus, evergreenModels] = await Promise.all([
-    readImportStatus("evergreen"),
+  const [evergreenModels, syncQueue, latestSync, catalogWorkers] = await Promise.all([
     readEvergreenModelsStatus(),
+    readEvergreenSyncQueue(),
+    readLatestEvergreenSyncRequest(),
+    readCatalogWorkerStatus().catch(() => ({})),
   ]);
+
+  const workerMap = catalogWorkers as Record<string, { state?: string; phase?: string; updatedAt?: string; message?: string }>;
 
   return json(200, {
     ok: true,
-    importStatus,
     evergreenModels,
+    syncQueue: {
+      pending: syncQueue.filter((entry) => entry.state === "queued").length,
+      latest: latestSync,
+      recent: syncQueue.slice(-10),
+    },
+    catalogWorkers: workerMap.evergreen ?? workerMap.all ?? null,
   });
 }

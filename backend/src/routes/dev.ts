@@ -2,13 +2,11 @@ import { z, ZodError } from "zod";
 import type { ApiRequest, ApiResponse } from "../types.js";
 import type { AuditLogger } from "../utils/auditLogger.js";
 import {
-  queueImportTrigger,
   readAllImportStatuses,
   readImportLogTail,
   readMaintenanceState,
   sanitizeLogLine,
   writeMaintenanceState,
-  type ImportMode,
   type ImportSource,
   type MaintenanceMode,
 } from "../lib/importControl.js";
@@ -18,7 +16,7 @@ import {
   readCatalogPipelineStatus,
   type CatalogLogSource,
 } from "../lib/catalogPipeline.js";
-import { readEvergreenModelsStatus, readEvergreenLogTail } from "../lib/evergreenModels.js";
+import { readEvergreenModelsStatus } from "../lib/evergreenModels.js";
 import { readCatalogWorkerStatus } from "../lib/catalogWorkerStatus.js";
 
 interface DevContext {
@@ -85,12 +83,12 @@ export async function devImportStatusHandler(request: ApiRequest, context: DevCo
     cron: catalogPipeline.schedule,
     catalogBoundary: {
       mode: "api_only",
-      localTriggersAllowed: ["evergreen"],
-      externalSources: ["eros", "tryst"],
+      localTriggersAllowed: [],
+      externalSources: ["eros", "tryst", "evergreen"],
       ingest: "POST /api/v1/catalog/ingest",
       workerStatus: "POST|GET /api/v1/catalog/worker-status",
       auraEvergreenSync: "POST /api/v1/integrations/aura/evergreen-sync",
-      note: "Eros/Tryst scan+import run from Aura/lbv-catalog-workers and post via API.",
+      note: "Scan, vet, scrape, and import run on Aura (calendar-coordinator). LBV accepts API posts only.",
     },
   });
 }
@@ -103,47 +101,31 @@ export async function devImportTriggerHandler(request: ApiRequest, context: DevC
   try {
     const payload = triggerSchema.parse(request.body ?? {});
 
-    // Production boundary: Eros/Tryst/orchestrator scrapes are external (Aura workers + catalog API).
-    if (payload.source === "eros" || payload.source === "tryst" || payload.source === "orchestrator") {
-      await context.auditLogger.append({
-        actorId: request.auth?.userId ?? null,
-        action: "dev.import.trigger_rejected_external",
-        resourceType: "import",
-        resourceId: payload.source,
-        metadata: { mode: payload.mode },
-      });
-      return json(410, {
-        ok: false,
-        queued: false,
-        error: "source_moved_external",
-        source: payload.source,
-        message:
-          "Eros/Tryst imports no longer run inside LBV production. Use Aura catalog workers → POST /api/v1/catalog/ingest.",
-        ingest_path: "/api/v1/catalog/ingest",
-        worker_home: "/root/calendar-coordinator/scripts/lbv-catalog",
-      });
-    }
-
-    const result = await queueImportTrigger({
-      source: payload.source as ImportSource,
-      mode: payload.mode as ImportMode,
-      requestedBy: request.auth?.userId ?? null,
-    });
-
+    // Production boundary: all scan/scrape/import runs on Aura; LBV accepts API posts only.
     await context.auditLogger.append({
       actorId: request.auth?.userId ?? null,
-      action: "dev.import.trigger",
+      action: "dev.import.trigger_rejected_external",
       resourceType: "import",
       resourceId: payload.source,
-      metadata: { mode: payload.mode, path: result.path },
+      metadata: { mode: payload.mode },
     });
 
-    return json(202, {
-      ok: true,
-      queued: true,
+    const evergreenHint =
+      payload.source === "evergreen"
+        ? "POST /api/v1/integrations/aura/evergreen-sync"
+        : "POST /api/v1/catalog/ingest";
+
+    return json(410, {
+      ok: false,
+      queued: false,
+      error: "source_moved_external",
       source: payload.source,
-      mode: payload.mode,
-      triggerFile: result.path,
+      message:
+        "Scan, vet, scrape, and import no longer run inside LBV production. Use Aura workers and the catalog/evergreen APIs.",
+      ingest_path: "/api/v1/catalog/ingest",
+      evergreen_sync_path: "/api/v1/integrations/aura/evergreen-sync",
+      api_path: evergreenHint,
+      worker_home: "/root/calendar-coordinator/scripts/lbv-catalog",
     });
   } catch (error) {
     if (error instanceof ZodError) {
@@ -188,9 +170,7 @@ export async function devImportLogsHandler(request: ApiRequest, context: DevCont
   const catalogSources: CatalogLogSource[] = ["scan", "merge", "evergreen", "eros", "tryst", "orchestrator"];
   let lines: string[];
 
-  if (sourceParam === "evergreen") {
-    lines = (await readEvergreenLogTail(100)).map(sanitizeLogLine);
-  } else if (catalogSources.includes(sourceParam as CatalogLogSource)) {
+  if (catalogSources.includes(sourceParam as CatalogLogSource)) {
     lines = (await readCatalogLogTail(sourceParam as CatalogLogSource, 100)).map(sanitizeLogLine);
   } else if (["eros", "tryst", "orchestrator"].includes(sourceParam)) {
     lines = await readImportLogTail(sourceParam as ImportSource, 100);

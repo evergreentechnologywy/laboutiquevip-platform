@@ -6,7 +6,7 @@ import {
   resolveStateAbbrev,
   resolveStateFromCity,
 } from "../lib/locationMatch.js";
-import { IMPORTED_CATALOG_SYNC_SOURCES } from "../lib/catalogSyncPolicy.js";
+import { CATALOG_INGEST_SOURCES, IMPORTED_CATALOG_SYNC_SOURCES } from "../lib/catalogSyncPolicy.js";
 import {
   readCatalogWorkerStatus,
   writeCatalogWorkerStatus,
@@ -15,7 +15,7 @@ import {
 const MAX_BATCH = 100;
 const MAX_PHOTOS = 32;
 
-const sourceSchema = z.enum(IMPORTED_CATALOG_SYNC_SOURCES);
+const sourceSchema = z.enum(CATALOG_INGEST_SOURCES);
 
 const providerItemSchema = z.object({
   display_name: z.string().trim().min(1).max(160),
@@ -159,6 +159,12 @@ export async function catalogIngestHandler(
       review_provider: body.source,
     };
 
+    if (body.source === "evergreen") {
+      data.ad_package = "elite";
+      data.is_premium = true;
+      data.photo_review_status = "approved";
+    }
+
     if (item.bio !== undefined) data.bio = item.bio;
     if (item.tagline !== undefined) data.tagline = item.tagline;
     if (item.age !== undefined) data.age = item.age;
@@ -279,7 +285,8 @@ export async function catalogSourcesHandler(
 
   return json(200, {
     ok: true,
-    allowed_sources: IMPORTED_CATALOG_SYNC_SOURCES,
+    allowed_sources: [...CATALOG_INGEST_SOURCES],
+    catalog_sync_sources: [...IMPORTED_CATALOG_SYNC_SOURCES],
     rejected_sources: ["ultragfe"],
     ingest_path: "POST /api/v1/catalog/ingest",
     worker_status_path: "POST|GET /api/v1/catalog/worker-status",
@@ -287,7 +294,7 @@ export async function catalogSourcesHandler(
     aura_evergreen_status: "GET /api/v1/integrations/aura/evergreen-status",
     auth: "Bearer JWT with role=service (or admin)",
     max_batch: MAX_BATCH,
-    note: "Eros/Tryst scrapers live outside LBV core (Aura / lbv-catalog-workers) and post through this API.",
+    note: "Eros/Tryst/Evergreen workers live on Aura (calendar-coordinator) and post through this API.",
   });
 }
 

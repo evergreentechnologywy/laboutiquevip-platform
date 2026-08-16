@@ -27,8 +27,8 @@ const dryRun = args.has("dry-run");
 const base = (process.env.CATALOG_API_BASE || "http://127.0.0.1:8787").replace(/\/$/, "");
 const token = process.env.CATALOG_SERVICE_JWT || process.env.LBV_SERVICE_JWT || "";
 
-if (!["eros", "tryst"].includes(source)) {
-  console.error("Usage: --source=eros|tryst --file=batch.json [--dry-run]");
+if (!["eros", "tryst", "evergreen"].includes(source)) {
+  console.error("Usage: --source=eros|tryst|evergreen --file=batch.json [--dry-run]");
   process.exit(2);
 }
 if (!file) {
