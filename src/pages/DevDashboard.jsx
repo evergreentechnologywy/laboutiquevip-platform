@@ -9,18 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CalendarClock, Crown, Play, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
+import { AlertCircle, CalendarClock, Crown, RefreshCw, Server, Terminal, Wrench } from "lucide-react";
 import {
   fetchDevImportLogs,
   fetchDevImportStatus,
   setDevMaintenance,
-  triggerDevImport,
   fetchSystemStatus,
   fetchPipelineRuns,
 } from "@/api/devOps";
 
-const MANUAL_SOURCES = ["evergreen"];
-const EXTERNAL_SOURCES = ["eros", "tryst"];
+const EXTERNAL_SOURCES = ["eros", "tryst", "evergreen"];
 const LOG_SOURCES = ["scan", "merge", "evergreen", "eros", "tryst", "orchestrator"];
 
 function StatusBadge({ active, label }) {
@@ -85,11 +83,6 @@ export default function DevDashboard() {
     }
   }, [status?.maintenance?.mode]);
 
-  const triggerMutation = useMutation({
-    mutationFn: triggerDevImport,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dev-import-status"] }),
-  });
-
   const maintenanceMutation = useMutation({
     mutationFn: setDevMaintenance,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dev-import-status"] }),
@@ -97,7 +90,6 @@ export default function DevDashboard() {
 
   const pipeline = status?.catalogPipeline;
   const evergreen = status?.evergreenModels;
-  const evergreenImport = status?.imports?.evergreen ?? {};
   const notify = pipeline?.notify?.state;
   const lastStats = notify?.lastStats;
 
@@ -262,65 +254,36 @@ export default function DevDashboard() {
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge
-                      active={Boolean(evergreenImport.inProgress)}
-                      label={evergreenImport.inProgress ? evergreenImport.state || "running" : "idle"}
-                    />
-                    <Badge className="bg-violet-500/20 text-violet-300 border-0">Auto: midnight merge</Badge>
+                    <Badge className="bg-sky-500/20 text-sky-300 border-0">Aura API only</Badge>
+                    {evergreen?.lastSyncRequest?.state && (
+                      <StatusBadge
+                        active={evergreen.lastSyncRequest.state === "queued" || evergreen.lastSyncRequest.state === "running"}
+                        label={evergreen.lastSyncRequest.state}
+                      />
+                    )}
                   </div>
                   <p>{evergreen?.autoSync?.note}</p>
                   <p className="text-xs text-zinc-500">{evergreen?.autoSync?.schedule}</p>
 
-                  <div className="grid md:grid-cols-3 gap-3 text-xs">
-                    <div className="rounded border border-zinc-800 p-3">
-                      <p className="text-zinc-300 mb-1">SiteConsole list</p>
-                      <p>
-                        {evergreen?.sources?.sitesAvailable
-                          ? `${evergreen.sources.siteCount} sites`
-                          : "sites.json not on this host"}
-                      </p>
-                      {evergreen?.sources?.siteDomains?.length > 0 && (
-                        <p className="mt-1 text-zinc-500 break-all">
-                          {evergreen.sources.siteDomains.slice(0, 8).join(", ")}
-                          {evergreen.sources.siteDomains.length > 8 ? "…" : ""}
-                        </p>
-                      )}
-                    </div>
-                    <div className="rounded border border-zinc-800 p-3">
-                      <p className="text-zinc-300 mb-1">Calendar profiles</p>
-                      <p>
-                        {evergreen?.sources?.modelProfilesAvailable
-                          ? `${evergreen.sources.modelProfileCount} models`
-                          : "model-profiles.json missing"}
-                      </p>
-                      {evergreen?.sources?.modelNames?.length > 0 && (
-                        <p className="mt-1 text-zinc-500">{evergreen.sources.modelNames.slice(0, 6).join(", ")}…</p>
-                      )}
-                    </div>
+                  <div className="grid md:grid-cols-2 gap-3 text-xs">
                     <div className="rounded border border-zinc-800 p-3">
                       <p className="text-zinc-300 mb-1">LBV catalog</p>
                       <p>Evergreen active: {evergreen?.catalog?.activeEvergreenProviders ?? "—"}</p>
                       <p>Elite tier: {evergreen?.catalog?.eliteProviders ?? "—"}</p>
-                      {evergreen?.lastRun?.finishedAt && (
-                        <p className="mt-1 text-zinc-500">Last sync: {String(evergreen.lastRun.finishedAt)}</p>
-                      )}
-                      {evergreen?.lastRun?.stats && (
-                        <p className="text-zinc-500">
-                          +{evergreen.lastRun.stats.created ?? 0} created · {evergreen.lastRun.stats.updated ?? 0}{" "}
-                          updated · {evergreen.lastRun.stats.skipped ?? 0} skipped
-                        </p>
+                    </div>
+                    <div className="rounded border border-zinc-800 p-3">
+                      <p className="text-zinc-300 mb-1">Last sync request</p>
+                      <p>Mode: {evergreen?.lastSyncRequest?.mode ?? "—"}</p>
+                      <p>Model: {evergreen?.lastSyncRequest?.model ?? "—"}</p>
+                      {evergreen?.lastSyncRequest?.requestedAt && (
+                        <p className="mt-1 text-zinc-500">Requested: {String(evergreen.lastSyncRequest.requestedAt)}</p>
                       )}
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    disabled={triggerMutation.isPending || evergreenImport.inProgress}
-                    onClick={() => triggerMutation.mutate({ source: "evergreen", mode: "full" })}
-                  >
-                    <Play className="w-3 h-3 mr-1" />
-                    Sync Evergreen models now
-                  </Button>
+                  <p className="text-xs text-zinc-500">
+                    Trigger via Aura/Hermes: <code>POST /api/v1/integrations/aura/evergreen-sync</code>
+                  </p>
                 </>
               )}
             </CardContent>
@@ -359,53 +322,6 @@ export default function DevDashboard() {
           </Card>
 
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Manual import triggers</h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {isLoading ? (
-                Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-40" />)
-              ) : (
-                MANUAL_SOURCES.map((source) => {
-                  const row = status?.imports?.[source] ?? {};
-                  const inProgress = Boolean(row.inProgress);
-                  return (
-                    <Card key={source} className="bg-zinc-900 border-zinc-800">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-zinc-100 capitalize flex items-center justify-between">
-                          {source}
-                          <StatusBadge active={inProgress} label={inProgress ? "queued" : row.state || "idle"} />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 text-sm text-zinc-400">
-                        {row.lastRunAt && <p>Last run: {String(row.lastRunAt)}</p>}
-                        {row.finishedAt && <p>Finished: {String(row.finishedAt)}</p>}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-zinc-700 flex-1"
-                            disabled={triggerMutation.isPending || inProgress}
-                            onClick={() => triggerMutation.mutate({ source, mode: "pilot" })}
-                          >
-                            <Play className="w-3 h-3 mr-1" /> Pilot
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            disabled={triggerMutation.isPending || inProgress}
-                            onClick={() => triggerMutation.mutate({ source, mode: "full" })}
-                          >
-                            <Server className="w-3 h-3 mr-1" /> Full
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div>
             <h2 className="text-lg font-semibold text-zinc-200 mb-3">External catalog workers (Aura API)</h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               {EXTERNAL_SOURCES.map((source) => {
@@ -420,7 +336,12 @@ export default function DevDashboard() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm text-zinc-400">
-                      <p>Runs on Aura. Posts via catalog ingest API.</p>
+                      <p>
+                        Runs on Aura.
+                        {source === "evergreen"
+                          ? " Sync via evergreen-sync API; publish via catalog ingest."
+                          : " Posts via catalog ingest API."}
+                      </p>
                       {worker.state && <p>Worker: {String(worker.state)}{worker.phase ? ` / ${worker.phase}` : ""}</p>}
                       {worker.updatedAt && <p>Updated: {String(worker.updatedAt)}</p>}
                       {worker.message && <p className="text-xs text-zinc-500">{String(worker.message)}</p>}
@@ -466,11 +387,12 @@ export default function DevDashboard() {
           <div className="flex items-start gap-2 text-sm text-zinc-500">
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>
-              Production boundary: Eros/Tryst scan + merge run on{" "}
-              <strong className="text-zinc-400">Aura catalog workers</strong> and post through{" "}
-              <code>POST /api/v1/catalog/ingest</code>. Local manual trigger is{" "}
-              <strong className="text-zinc-400">evergreen only</strong>. Worker heartbeats appear under catalog
-              workers. Docs: <code>docs/CATALOG_WORKER_BOUNDARY.md</code>.
+              Production boundary: scan, vet, scrape, and import run on{" "}
+              <strong className="text-zinc-400">Aura (calendar-coordinator)</strong>. LBV accepts API posts through{" "}
+              <code>POST /api/v1/catalog/ingest</code> and{" "}
+              <code>POST /api/v1/integrations/aura/evergreen-sync</code>. Dev dashboard triggers return{" "}
+              <strong className="text-zinc-400">410 Gone</strong>. Docs:{" "}
+              <code>docs/CATALOG_WORKER_BOUNDARY.md</code>.
             </p>
           </div>
         </div>

@@ -214,10 +214,10 @@ export async function readCatalogPipelineStatus(): Promise<CatalogPipelineStatus
   return {
     schedule: {
       timezone: "America/Denver",
-      scanCron: "0 20 * * * (8:00 PM — cache-only Eros + Tryst scrape)",
-      mergeCron: "0 0 * * * (midnight — production merge + R2 + reconcile + Evergreen models)",
-      failsafeCron: "*/15 * * * * (stale lock / import flag cleanup)",
-      orchestratorPoll: "* * * * * (manual Dev Dashboard triggers only)",
+      scanCron: "External — Aura run-scan.sh (20:00)",
+      mergeCron: "External — Aura run-merge.sh → POST /api/v1/catalog/ingest (00:05)",
+      failsafeCron: "External — Aura worker monitoring",
+      orchestratorPoll: "Disabled — LBV does not run local import orchestrator",
     },
     caps: parseCaps(),
     staging: {
@@ -248,8 +248,8 @@ export async function readCatalogPipelineStatus(): Promise<CatalogPipelineStatus
       state: await readJsonIfExists(stateFile),
     },
     legacyOrchestrator: {
-      note: "Midnight production path is run-us-verified-catalog-merge.sh; orchestrator steps are disabled except optional manual review-match.",
-      stepsEnabled: ["review-match (manual trigger only)"],
+      note: "Scan, vet, scrape, and import run on Aura (calendar-coordinator). LBV accepts API posts only.",
+      stepsEnabled: [],
     },
   };
 }

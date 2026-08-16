@@ -1,49 +1,34 @@
-# Trystlike Hybrid App (Phase 0)
+# La Boutique VIP Platform
 
-This repo keeps the current Vite/Base44 frontend running while introducing a backend foundation for production migration.
+Production web app for [laboutiquevip.net](https://www.laboutiquevip.net): public directory, search, SEO, accounts, billing, and catalog ingest APIs.
 
-## Current Runtime
-- Frontend remains the active runtime.
-- Existing UI functionality is preserved.
+## Runtime
 
-## Added in Phase 0
-- Architecture and migration docs:
-  - `architecture.md`
-  - `runbook.md`
-  - `docs/audit.md`
-  - `docs/phase-plan.md`
-- Backend scaffold in `backend/`:
-  - TypeScript API skeleton
-  - Prisma schema + initial migration files
-  - Model onboarding APIs (`/api/v1/models/*`)
-  - Calendar + tours APIs (`/api/v1/models/me/calendar`, `/api/v1/models/me/tours`)
-  - Public search APIs (`/api/v1/search/cities`, `/api/v1/search/models`)
-  - NOWPayments order + webhook ingestion path (`/api/v1/orders`, `/api/v1/webhooks/nowpayments`)
-  - RBAC enforcement (provider self-service, admin override via `?user_id=`)
-  - Audit logging for provider profile and tour mutations
+- **Frontend:** Vite + React (`npm run dev`, `npm run build`)
+- **Backend:** TypeScript API in `backend/` (`npm run build:backend`, `npm run start:backend`)
 
 ## Scripts
-- `npm run dev` / `npm run dev:frontend`: run current frontend (Vite)
-- `npm run dev:backend:typecheck`: typecheck backend TypeScript
-- `npm run build:backend`: compile backend to `backend/dist`
-- `npm run test:backend`: compile + run backend tests
-- `npm run start:backend`: start compiled backend server
-- `npm run import:ultragfe:dry`: crawl ultragfe.com in dry-run mode (no DB writes)
-- `npm run import:ultragfe -- --state=california --max-cities=3`: scrape/import provider content into `Provider` via Prisma
-- `npm run dev:hybrid`: alias to frontend in Phase 0
-- `npm run db:generate`: prisma client generation
-- `npm run db:migrate:dev`: apply prisma migrations in dev
-- `npm run db:migrate:deploy`: apply prisma migrations in deploy
+
+- `npm run dev` — frontend dev server
+- `npm run build:backend` — compile backend
+- `npm run test:backend` — compile + run backend tests
+- `npm run start:backend` — run compiled API server
+- `npm run db:generate` / `db:migrate:dev` / `db:migrate:deploy` — Prisma
+
+## Catalog workers (external)
+
+Scan, vet, scrape, and import **do not run in this repo**. Operators use **Aura** (calendar-coordinator); workers post via:
+
+- `POST /api/v1/catalog/ingest`
+- `POST /api/v1/integrations/aura/evergreen-sync`
+
+See `docs/CATALOG_WORKER_BOUNDARY.md`.
 
 ## Environment
+
 Use `.env.example` as the template. Do not commit secrets.
 
-### Upload storage
-- Default behavior stays the same: uploads are written to `backend/uploads` and served by the backend from `PUBLIC_UPLOAD_BASE` (default `/uploads`).
-- To switch to S3-compatible storage, set `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`.
-- Recommended for production/CDN use: also set `S3_ENDPOINT` (for R2/MinIO/etc.) and `S3_PUBLIC_BASE_URL` so returned image URLs point at the public bucket/CDN host.
-- Optional knobs: `S3_REGION` (defaults to `auto`), `S3_KEY_PREFIX` (defaults to `uploads`), and `S3_FORCE_PATH_STYLE` (defaults to `true`, which is usually safer for S3-compatible providers).
+## Deployment
 
-## Deployment docs
-- Current production runbook: `runbook.md`
-- Hetzner + Cloudflare migration guide: `docs/hetzner-cloudflare-migration-2026-03-20.md`
+- `runbook.md` — production deploy and smoke checks
+- `docs/hetzner-cloudflare-migration-2026-03-20.md` — migration reference
