@@ -7,6 +7,11 @@ export const IMPORTED_CATALOG_SYNC_SOURCES = ["eros", "tryst"] as const;
 
 export type ImportedCatalogSyncSource = (typeof IMPORTED_CATALOG_SYNC_SOURCES)[number];
 
+/** Sources accepted by POST /api/v1/catalog/ingest (includes Aura evergreen roster). */
+export const CATALOG_INGEST_SOURCES = ["eros", "tryst", "evergreen"] as const;
+
+export type CatalogIngestSource = (typeof CATALOG_INGEST_SOURCES)[number];
+
 export const CATALOG_STALE_HIDE_NOTE = "catalog-sync: stale hide (not seen in 15d)";
 
 /**

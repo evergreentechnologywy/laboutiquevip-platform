@@ -275,6 +275,12 @@ export default function DevDashboard() {
                       <p className="text-zinc-300 mb-1">Last sync request</p>
                       <p>Mode: {evergreen?.lastSyncRequest?.mode ?? "—"}</p>
                       <p>Model: {evergreen?.lastSyncRequest?.model ?? "—"}</p>
+                      <p>
+                        City: {evergreen?.lastSyncRequest?.locationCity ?? "—"}
+                        {evergreen?.lastSyncRequest?.locationState
+                          ? `, ${evergreen.lastSyncRequest.locationState}`
+                          : ""}
+                      </p>
                       {evergreen?.lastSyncRequest?.requestedAt && (
                         <p className="mt-1 text-zinc-500">Requested: {String(evergreen.lastSyncRequest.requestedAt)}</p>
                       )}

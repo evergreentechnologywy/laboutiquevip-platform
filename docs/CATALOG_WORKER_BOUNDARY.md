@@ -75,12 +75,39 @@ Single model:
 ```json
 {
   "model": "Sofia",
-  "locationCity": "Denver",
-  "locationState": "CO"
+  "locationCity": "Memphis",
+  "locationState": "TN"
 }
 ```
 
-Returns **202 Accepted** with a `requestId`. Aura workers read `evergreen-sync-queue.json` on the LBV host (or poll status) and publish roster rows via `POST /api/v1/catalog/ingest`.
+Calendar roster batch (preferred for full sync — include cities from Aura Calendar):
+
+```json
+{
+  "models": [
+    { "model": "Alice", "locationCity": "Memphis", "locationState": "TN" },
+    { "model": "Bea", "locationCity": "Norfolk", "locationState": "VA" }
+  ]
+}
+```
+
+Returns **202 Accepted** with `requestId`(s). Aura workers publish roster rows via ingest:
+
+```http
+POST /api/v1/catalog/ingest
+Authorization: Bearer <JWT role=service>
+
+{
+  "source": "evergreen",
+  "providers": [{
+    "display_name": "Sofia",
+    "verification_url": "https://sofia.example.site",
+    "location_city": "Memphis",
+    "location_state": "TN",
+    "photos": ["https://..."]
+  }]
+}
+```
 
 SiteConsole `sites.json` and calendar `model-profiles.json` are read **on Aura**, not on LBV production.
 

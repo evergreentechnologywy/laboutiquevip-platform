@@ -26,11 +26,12 @@ test("catalogSourcesHandler denies non-service roles", async () => {
   assert.equal(response.statusCode, 403);
 });
 
-test("catalogSourcesHandler lists eros+tryst only", async () => {
+test("catalogSourcesHandler lists eros+tryst+evergreen", async () => {
   const response = await catalogSourcesHandler(makeRequest({ method: "GET" }), {});
   assert.equal(response.statusCode, 200);
   const body = response.body as any;
-  assert.deepEqual(body.allowed_sources, ["eros", "tryst"]);
+  assert.deepEqual(body.allowed_sources, ["eros", "tryst", "evergreen"]);
+  assert.deepEqual(body.catalog_sync_sources, ["eros", "tryst"]);
   assert.deepEqual(body.rejected_sources, ["ultragfe"]);
 });
 
@@ -129,4 +130,45 @@ test("catalogIngestHandler updates existing row", async () => {
   assert.equal(body.counts.updated, 1);
   assert.equal(body.results[0].action, "updated");
   assert.equal(body.results[0].id, "p1");
+});
+
+test("catalogIngestHandler creates evergreen elite row with calendar city", async () => {
+  let createdData: any = null;
+  const prisma = {
+    provider: {
+      findFirst: async () => null,
+      create: async ({ data }: any) => {
+        createdData = data;
+        return { id: "eg-1", ...data };
+      },
+      update: async () => {
+        throw new Error("should create");
+      },
+    },
+  };
+
+  const response = await catalogIngestHandler(
+    makeRequest({
+      body: {
+        source: "evergreen",
+        providers: [
+          {
+            display_name: "Sofia",
+            verification_url: "https://sofia.example.site",
+            location_city: "Memphis",
+            location_state: "TN",
+            photos: ["https://cuentas.evergreentech.site/calendar/sofia.jpg"],
+          },
+        ],
+      },
+    }),
+    { prisma },
+  );
+
+  assert.equal(response.statusCode, 201);
+  const body = response.body as any;
+  assert.equal(body.counts.created, 1);
+  assert.equal(createdData?.ad_package, "elite");
+  assert.equal(createdData?.location_city, "Memphis");
+  assert.equal(createdData?.location_state, "TN");
 });

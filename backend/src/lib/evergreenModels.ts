@@ -14,6 +14,8 @@ export interface EvergreenModelsStatus {
     id: string | null;
     mode: string | null;
     model: string | null;
+    locationCity: string | null;
+    locationState: string | null;
     state: string | null;
     requestedAt: string | null;
     finishedAt: string | null;
@@ -46,6 +48,8 @@ export async function readEvergreenModelsStatus(
       id: latest?.id ?? null,
       mode: latest?.mode ?? null,
       model: latest?.model ?? null,
+      locationCity: latest?.locationCity ?? null,
+      locationState: latest?.locationState ?? null,
       state: latest?.state ?? null,
       requestedAt: latest?.requestedAt ?? null,
       finishedAt: latest?.finishedAt ?? null,

@@ -8,11 +8,18 @@ import {
 } from "../lib/evergreenSyncQueue.js";
 import { readCatalogWorkerStatus } from "../lib/catalogWorkerStatus.js";
 
+const modelLocationSchema = z.object({
+  model: z.string().trim().min(1),
+  locationCity: z.string().trim().min(1).optional(),
+  locationState: z.string().trim().min(1).optional(),
+});
+
 const syncBodySchema = z.object({
   model: z.string().trim().min(1).optional(),
   locationCity: z.string().trim().min(1).optional(),
   locationState: z.string().trim().min(1).optional(),
   syncAll: z.boolean().optional(),
+  models: z.array(modelLocationSchema).min(1).max(50).optional(),
 });
 
 function json(statusCode: number, body: unknown): ApiResponse {
@@ -45,13 +52,47 @@ export async function auraEvergreenSyncHandler(
       message: err instanceof Error ? err.message : "Invalid evergreen sync body",
       accepted: {
         single: { model: "string", locationCity: "string?", locationState: "string?" },
+        batch: {
+          models: [{ model: "string", locationCity: "string?", locationState: "string?" }],
+        },
         all: { syncAll: true },
       },
     });
   }
 
-  const syncAll = body.syncAll === true || !body.model?.trim();
+  const syncAll = body.syncAll === true || (!body.model?.trim() && !body.models?.length);
   const requestedBy = request.auth?.userId ?? "aura-integration";
+
+  if (body.models?.length) {
+    const queued = [];
+    for (const entry of body.models) {
+      queued.push(
+        await queueEvergreenSync({
+          mode: "single",
+          model: entry.model.trim(),
+          locationCity: entry.locationCity ?? null,
+          locationState: entry.locationState ?? null,
+          requestedBy,
+        }),
+      );
+    }
+    return json(202, {
+      ok: true,
+      mode: "batch",
+      queued: true,
+      count: queued.length,
+      requestIds: queued.map((row) => row.id),
+      models: queued.map((row) => ({
+        requestId: row.id,
+        model: row.model,
+        locationCity: row.locationCity,
+        locationState: row.locationState,
+      })),
+      message:
+        "Evergreen roster accepted. Aura worker should publish each model via POST /api/v1/catalog/ingest with source=evergreen.",
+      worker_hook: "evergreen-sync-queue.json",
+    });
+  }
 
   if (syncAll) {
     const queued = await queueEvergreenSync({
