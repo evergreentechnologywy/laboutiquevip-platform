@@ -33,8 +33,12 @@ export async function seoCityHubsHandler(_request: ApiRequest, context: SeoConte
       AND display_name !~* ${'(batch|simulation|test|approval|concurrency)'}
       AND (bio IS NULL OR bio !~* ${'(simulation|test|mixed live-site|simultaneous approval|concurrency|created during)'})
       AND photos IS NOT NULL
-      AND jsonb_typeof(photos) = 'array'
-      AND COALESCE(jsonb_array_length(photos), 0) > 0
+      AND CASE
+        WHEN jsonb_typeof(photos) = 'array' THEN COALESCE(jsonb_array_length(photos), 0) > 0
+        WHEN jsonb_typeof(photos) = 'object' AND jsonb_typeof(photos->'photoUrls') = 'array'
+          THEN COALESCE(jsonb_array_length(photos->'photoUrls'), 0) > 0
+        ELSE false
+      END
     GROUP BY location_city
     ORDER BY location_city ASC
   `;
