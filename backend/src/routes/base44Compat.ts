@@ -434,6 +434,35 @@ function validationError(error: z.ZodError): ApiResponse {
   };
 }
 
+const messageUpdateSchema = z.object({
+  is_read: z.boolean(),
+}).strict();
+
+export async function updateMessageHandler(req: ApiRequest, id: string, ctx: Ctx): Promise<ApiResponse> {
+  const { prisma } = ctx;
+  const userId = getAuthUserId(req);
+  if (!userId) return { statusCode: 401, body: { error: "unauthorized" } };
+
+  const parsed = messageUpdateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return validationError(parsed.error);
+
+  const existing = await prisma.message.findUnique({ where: { id } });
+  if (!existing) return { statusCode: 404, body: { error: "not_found" } };
+
+  if (!isAdmin(req)) {
+    const owned = await resolveOwnedProviderIds(prisma, userId);
+    if (!owned.includes(existing.provider_id)) {
+      return { statusCode: 403, body: { error: "forbidden" } };
+    }
+  }
+
+  const updated = await prisma.message.update({
+    where: { id },
+    data: { is_read: parsed.data.is_read },
+  });
+  return { statusCode: 200, body: normalizeDates(updated) };
+}
+
 function deriveProviderState(input: Record<string, any>, existing?: Record<string, any> | null, options?: { isAdmin?: boolean }) {
   const isAdmin = options?.isAdmin ?? false;
   const adPackage = isAdmin ? (input.ad_package ?? existing?.ad_package ?? "none") : (existing?.ad_package ?? "none");
@@ -665,10 +694,20 @@ export async function createEntityHandler(req: ApiRequest, entity: string, { pri
   }
 
   if (entity === "Message") {
-    if (!req.auth?.userId) return { statusCode: 401, body: { error: "unauthorized" } };
-
     const parsed = messageCreateSchema.safeParse(rawData);
     if (!parsed.success) return validationError(parsed.error);
+
+    const listed = await prisma.provider.findFirst({
+      where: {
+        id: parsed.data.provider_id,
+        status: "active",
+        is_profile_approved: true,
+      },
+      select: { id: true },
+    });
+    if (!listed) {
+      return { statusCode: 404, body: { error: "provider_not_found" } };
+    }
 
     const spam = enforceAntiSpam(req, "message.create", parsed.data.provider_id);
     if (spam) return spam;

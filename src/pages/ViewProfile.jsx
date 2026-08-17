@@ -20,6 +20,7 @@ import { getProviderImportantLinks } from "@/lib/providerImportantLinks";
 import { ProfileImage } from "@/components/ProfileImage";
 import { VerificationBadges } from "@/components/VerificationBadges";
 import { ProviderContactAndSocial } from "@/components/ProviderContactAndSocial";
+import { ProviderInquiryForm } from "@/components/ProviderInquiryForm";
 import { SEO } from "@/components/SEO";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink,
@@ -28,7 +29,7 @@ import {
 import { createPageUrl } from "@/utils";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 
-const MAX_PROVIDER_PHOTOS = 8;
+const MAX_PROVIDER_PHOTOS = 16;
 
 function resolveProviderId(profileSlug, queryId) {
   return queryId || profileSlug || null;
@@ -193,7 +194,7 @@ export default function ViewProfile() {
       {/* ── Immersive Photo Gallery ── */}
       <section
         className={`relative w-full overflow-hidden ${
-          hasPhotos ? "h-[52vh] min-h-[420px] sm:h-[62vh] lg:h-[68vh]" : "h-[36vh] min-h-[300px]"
+          hasPhotos ? "h-[58vh] min-h-[460px] sm:h-[68vh] lg:h-[74vh]" : "h-[36vh] min-h-[300px]"
         }`}
         ref={galleryRef}
         aria-label={`${provider.display_name} photo gallery`}
@@ -258,12 +259,12 @@ export default function ViewProfile() {
                 <div className="flex gap-2 sm:gap-3 p-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 overflow-x-auto max-w-full hide-scrollbar">
                   {displayPhotos.map((photo, i) => (
                     <button
-                      key={i}
+                      key={`${photo}-${i}`}
                       onClick={() => setSelectedPhoto(i)}
                       type="button"
                       aria-label={`Show photo ${i + 1} of ${displayPhotos.length}`}
                       aria-pressed={selectedPhoto === i}
-                      className={`relative flex-shrink-0 w-12 h-16 sm:w-16 sm:h-20 rounded-xl overflow-hidden transition-all duration-300 ${
+                      className={`relative flex-shrink-0 w-14 h-20 sm:w-16 sm:h-24 rounded-xl overflow-hidden transition-all duration-300 ${
                         selectedPhoto === i ? "ring-2 ring-amber-400 scale-105" : "opacity-50 hover:opacity-100"
                       }`}
                     >
@@ -616,10 +617,11 @@ export default function ViewProfile() {
               </CardContent>
             </Card>
 
-            {/* Contact & social wrapped in glass */}
+            {/* Contact & inquiry */ }
             <div className="bg-white/[0.02] backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none" />
-              <div className="relative z-10">
+              <div className="relative z-10 space-y-6">
+                <ProviderInquiryForm provider={provider} />
                 <ProviderContactAndSocial provider={provider} />
               </div>
             </div>
@@ -632,33 +634,18 @@ export default function ViewProfile() {
       {/* ── Mobile CTA bar (fixed bottom) with glassmorphism ── */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/80 backdrop-blur-2xl border-t border-white/10 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.8)] pb-safe">
               <div className="flex items-stretch gap-3 px-4 py-4 max-w-lg mx-auto">
+                <a
+                  href="#advertiser-inquiry"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
+                >
+                  <MessageCircle className="w-4 h-4" /> Message
+                </a>
                 {importantLinks.contact?.find((c) => c.key === "call" || c.key === "text") && (
-                  <>
-                    {importantLinks.contact.find((c) => c.key === "call" || c.key === "text") && (
-                      <a
-                        href={importantLinks.contact.find((c) => c.key === "call" || c.key === "text").href}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
-                      >
-                        <Phone className="w-4 h-4" /> {importantLinks.contact.some((c) => c.key === "text") ? "Text" : "Call"}
-                      </a>
-                    )}
-                    {importantLinks.contact.find((c) => c.key === "email") && (
-                      <a
-                        href={importantLinks.contact.find((c) => c.key === "email").href}
-                        className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold text-sm active:scale-95 transition-transform"
-                      >
-                        <MessageCircle className="w-4 h-4" /> Email
-                      </a>
-                    )}
-                  </>
-                )}
-                {!importantLinks.contact?.some((c) => c.key === "call" || c.key === "text") &&
-                  importantLinks.contact?.find((c) => c.key === "email") && (
                   <a
-                    href={importantLinks.contact.find((c) => c.key === "email").href}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 text-white font-bold text-sm shadow-lg shadow-rose-500/20 active:scale-95 transition-transform"
+                    href={importantLinks.contact.find((c) => c.key === "call" || c.key === "text").href}
+                    className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 text-white font-bold text-sm active:scale-95 transition-transform"
                   >
-                    <MessageCircle className="w-4 h-4" /> Email
+                    <Phone className="w-4 h-4" /> {importantLinks.contact.some((c) => c.key === "text") ? "Text" : "Call"}
                   </a>
                 )}
               </div>

@@ -3,33 +3,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Mail, MessageSquare, Loader2, CheckCircle2 } from "lucide-react";
+import { Mail, CheckCircle2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
-import { base44 } from "@/api/base44Client";
+
+const SUPPORT_EMAIL = "support@laboutiquevip.net";
 
 export default function Contact() {
   const [submitted, setSubmitted] = React.useState(false);
-  const [sending, setSending] = React.useState(false);
-  const [error, setError] = React.useState(null);
   const [form, setForm] = React.useState({ name: "", email: "", message: "" });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setSending(true);
-    setError(null);
-    try {
-      await base44.entities.Message.create({
-        sender_name: form.name,
-        sender_email: form.email,
-        content: form.message,
-        type: "contact",
-      });
-      setSubmitted(true);
-    } catch (err) {
-      setError("Failed to send. Please try again or email support@laboutiquevip.net.");
-    } finally {
-      setSending(false);
-    }
+    const subject = encodeURIComponent(`LBV support from ${form.name.trim()}`);
+    const body = encodeURIComponent(
+      `Name: ${form.name.trim()}\nEmail: ${form.email.trim()}\n\n${form.message.trim()}`,
+    );
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    setSubmitted(true);
   };
 
   const update = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -41,6 +31,7 @@ export default function Contact() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-serif font-bold tracking-tight text-zinc-100">Contact Support</h1>
           <p className="mt-4 text-zinc-400 font-light">Have questions? Our team is here to assist.</p>
+          <p className="mt-2 text-sm text-zinc-500">To write a listed advertiser, open that profile and use Message this advertiser.</p>
         </div>
 
         {submitted ? (
@@ -48,10 +39,10 @@ export default function Contact() {
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-md">
               <CheckCircle2 className="h-6 w-6" />
             </div>
-            <h2 className="mt-6 text-2xl font-serif font-bold text-zinc-100">Message sent</h2>
-            <p className="mt-3 text-sm leading-6 text-zinc-400 font-light">Thank you for reaching out. Our support team will respond to your enquiry via email shortly.</p>
+            <h2 className="mt-6 text-2xl font-serif font-bold text-zinc-100">Email draft opened</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-400 font-light">Send the message from your email client. If it did not open, write to {SUPPORT_EMAIL}.</p>
             <Button variant="outline" onClick={() => { setSubmitted(false); setForm({ name: "", email: "", message: "" }); }} className="mt-8 rounded-full border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-900 hover:text-white px-8">
-              Send another message
+              Write another message
             </Button>
           </div>
         ) : (
@@ -68,13 +59,12 @@ export default function Contact() {
               <Label htmlFor="contact-message" className="text-xs uppercase tracking-wider font-semibold text-zinc-400">Message</Label>
               <Textarea id="contact-message" placeholder="How can we help you?" rows={5} required value={form.message} onChange={update("message")} className="bg-zinc-950/70 border-zinc-800 rounded-2xl text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 text-sm leading-6" />
             </div>
-            {error && <p className="text-sm text-red-400 bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>}
-            <Button type="submit" disabled={sending} className="w-full rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold hover:opacity-95 h-12 border-0 shadow-lg glow-rose disabled:opacity-70">
-              {sending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> : "Send Message"}
+            <Button type="submit" className="w-full rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white font-semibold hover:opacity-95 h-12 border-0 shadow-lg glow-rose">
+              Open email draft
             </Button>
             <div className="pt-6 border-t border-zinc-900 flex items-center justify-center gap-2 text-xs text-zinc-500 tracking-wide font-light">
               <Mail className="h-4 w-4 text-rose-400" />
-              <span>Or email us at: support@laboutiquevip.net</span>
+              <span>Or email us at: {SUPPORT_EMAIL}</span>
             </div>
           </form>
         )}

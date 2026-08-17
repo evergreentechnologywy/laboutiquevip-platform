@@ -20,7 +20,9 @@ import {
   Eye,
   EyeOff,
   ImagePlus,
+  Inbox,
   Loader2,
+  Mail,
   Save,
   Shield,
   Star,
@@ -282,6 +284,20 @@ export default function ProviderDashboard() {
     },
   });
 
+  const { data: inboxMessages = [] } = useQuery({
+    queryKey: ["provider-inbox", provider?.id],
+    queryFn: () => base44.entities.Message.filter({ provider_id: provider.id }, "-created_date", 100),
+    enabled: Boolean(provider?.id),
+  });
+  const unreadCount = inboxMessages.filter((row) => !row.is_read).length;
+
+  const markReadMutation = useMutation({
+    mutationFn: async (messageId) => base44.entities.Message.update(messageId, { is_read: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["provider-inbox", provider?.id] });
+    },
+  });
+
   const checkoutMutation = useMutation({
     mutationFn: async ({ productSku }) => base44.orders.create({
       productSku,
@@ -540,7 +556,7 @@ export default function ProviderDashboard() {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard icon={Eye} label="Profile views" value={provider?.views_count || 0} hint="Public profile traffic" />
-          <StatCard icon={Shield} label="Listing status" value={provider?.status || "draft"} hint="Approval and moderation state" />
+          <StatCard icon={Inbox} label="Unread inquiries" value={unreadCount} hint="Guest messages waiting in Inbox" />
           <StatCard icon={ImagePlus} label="Pending photos" value={(provider?.pending_photos || []).length} hint="Awaiting manual review" />
           <StatCard icon={Star} label="Reviews" value={reviews.length} hint="Published feedback count" />
         </div>
@@ -565,11 +581,73 @@ export default function ProviderDashboard() {
         <Tabs value={tab} onValueChange={setTab} className="space-y-6">
           <TabsList className="bg-zinc-900 border border-zinc-800 flex flex-wrap h-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="inbox">
+              Inbox{unreadCount > 0 ? ` (${unreadCount})` : ""}
+            </TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="ads">Advertisement</TabsTrigger>
             <TabsTrigger value="copilot">AI Copilot</TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="inbox" className="space-y-6">
+            <Card className="bg-zinc-900 border-zinc-800">
+              <CardHeader>
+                <CardTitle className="text-zinc-100 flex items-center gap-2">
+                  <Inbox className="h-5 w-5 text-rose-300" /> Advertiser inbox
+                </CardTitle>
+                <CardDescription className="text-zinc-400">
+                  Guest inquiries from your public profile. Reply by email.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {inboxMessages.length === 0 ? (
+                  <EmptyState icon={Mail} title="No inquiries yet" description="When a visitor sends a message on your profile, it appears here." />
+                ) : (
+                  inboxMessages.map((row) => (
+                    <div
+                      key={row.id}
+                      className={`rounded-xl border p-4 ${row.is_read ? "border-zinc-800 bg-zinc-950/40" : "border-rose-500/30 bg-rose-500/5"}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-100">{row.subject || "Inquiry"}</p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {row.sender_name || "Visitor"} · {row.sender_email || "no email"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!row.is_read ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => markReadMutation.mutate(row.id)}
+                              className="border-zinc-700 text-zinc-200"
+                            >
+                              Mark read
+                            </Button>
+                          ) : null}
+                          {row.sender_email ? (
+                            <a
+                              href={`mailto:${row.sender_email}?subject=${encodeURIComponent(`Re: ${row.subject || "your inquiry"}`)}`}
+                              className="inline-flex h-8 items-center rounded-md border border-zinc-700 px-3 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+                            >
+                              Reply
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-zinc-300 whitespace-pre-wrap">{row.message}</p>
+                      <p className="mt-2 text-[11px] uppercase tracking-wider text-zinc-600">
+                        {row.created_date ? new Date(row.created_date).toLocaleString() : ""}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid lg:grid-cols-2 gap-6">

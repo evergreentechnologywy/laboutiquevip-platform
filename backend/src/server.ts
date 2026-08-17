@@ -58,6 +58,7 @@ import {
   logoutHandler,
   meHandler,
   registerHandler,
+  updateMessageHandler,
   updateProviderHandler,
   uploadHandler,
 } from "./routes/base44Compat.js";
@@ -233,6 +234,9 @@ async function routeRequest(request: ApiRequest, context: { prisma: any; auditLo
   const entityId = matchEntityIdPath(request.pathname);
   if (entityId && entityId.entity === "Provider" && request.method === "PATCH") {
     return updateProviderHandler(request, entityId.id, context);
+  }
+  if (entityId && entityId.entity === "Message" && request.method === "PATCH") {
+    return updateMessageHandler(request, entityId.id, context);
   }
 
   if (request.pathname === "/api/upload" && request.method === "POST") return uploadHandler(request);

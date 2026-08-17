@@ -23,6 +23,7 @@ const ALLOWED_HOST_PATTERNS = [
   // Evergreen model sites often host first-party gallery assets
   /\.site\/assets\//i,
   /\.com\/assets\//i,
+  /aura\.evergreentech\.site\/model-images\//i,
 ];
 
 export function isValidProfilePhoto(url) {
@@ -151,6 +152,11 @@ export function photoMatchesProvider(url, provider) {
 
   // First-party evergreen sites: host carries model identity
   if (/\.(site|com)\/assets\//i.test(lower) && nameHits >= 1) return true;
+  if (/aura\.evergreentech\.site\/model-images\//i.test(lower)) {
+    const folder = String(url).match(/\/model-images\/([^/]+)\//i)?.[1] || "";
+    const folderTokens = extractNameTokens(folder.replace(/-/g, " "));
+    if (folderTokens.some((token) => identityTokens.includes(token))) return true;
+  }
 
   if (/^[a-f0-9]{16,}\.[a-z0-9]+$/i.test(filename)) {
     return false;

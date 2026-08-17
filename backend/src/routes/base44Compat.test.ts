@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { authFromHeaders } from "../auth.js";
 import { setUploadStorageForTests } from "../storage/uploads.js";
-import { createEntityHandler, listOrFilterEntityHandler, updateProviderHandler, uploadHandler } from "./base44Compat.js";
+import { createEntityHandler, listOrFilterEntityHandler, updateMessageHandler, updateProviderHandler, uploadHandler } from "./base44Compat.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 const MINIMAL_PNG_BASE64 =
@@ -452,6 +452,123 @@ test("Upload returns local file url when using local storage", async () => {
   assert.ok(Buffer.isBuffer(uploaded.fileBuffer));
   assert.ok(uploaded.fileBuffer.length > 0);
   assert.equal((res.body as any).file_url, "/uploads/local-file.png");
+});
+
+test("Message create is public for an approved listing", async () => {
+  let created: any = null;
+  const prisma = {
+    provider: {
+      findFirst: async () => ({ id: "00000000-0000-4000-8000-000000000111" }),
+    },
+    message: {
+      create: async ({ data }: any) => {
+        created = data;
+        return { id: "m1", ...data };
+      },
+    },
+  };
+
+  const res = await createEntityHandler(
+    makeReq({
+      auth: { userId: null, roles: [] },
+      body: {
+        provider_id: "00000000-0000-4000-8000-000000000111",
+        sender_name: "Alex",
+        sender_email: "alex@example.com",
+        subject: "Availability",
+        message: "Are you in Chicago this week?",
+      },
+    }),
+    "Message",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(created.sender_email, "alex@example.com");
+  assert.equal(created.provider_id, "00000000-0000-4000-8000-000000000111");
+});
+
+test("Message create rejects a listing that is not public", async () => {
+  const prisma = {
+    provider: {
+      findFirst: async () => null,
+    },
+    message: {
+      create: async () => {
+        throw new Error("should not create");
+      },
+    },
+  };
+
+  const res = await createEntityHandler(
+    makeReq({
+      auth: { userId: null, roles: [] },
+      body: {
+        provider_id: "00000000-0000-4000-8000-000000000111",
+        sender_name: "Alex",
+        sender_email: "alex@example.com",
+        subject: "Availability",
+        message: "Are you in Chicago this week?",
+      },
+    }),
+    "Message",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 404);
+});
+
+test("Message owner can mark an inquiry read", async () => {
+  let updated: any = null;
+  const prisma = {
+    message: {
+      findUnique: async () => ({ id: "m1", provider_id: "p1", is_read: false }),
+      update: async ({ data }: any) => {
+        updated = data;
+        return { id: "m1", provider_id: "p1", ...data };
+      },
+    },
+    provider: {
+      findMany: async () => [{ id: "p1" }],
+    },
+  };
+
+  const res = await updateMessageHandler(
+    makeReq({
+      auth: { userId: "owner-1", roles: ["provider"] },
+      body: { is_read: true },
+    }),
+    "m1",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(updated.is_read, true);
+});
+
+test("Message update is forbidden for a non-owner", async () => {
+  const prisma = {
+    message: {
+      findUnique: async () => ({ id: "m1", provider_id: "p1", is_read: false }),
+      update: async () => {
+        throw new Error("should not update");
+      },
+    },
+    provider: {
+      findMany: async () => [{ id: "other" }],
+    },
+  };
+
+  const res = await updateMessageHandler(
+    makeReq({
+      auth: { userId: "other-1", roles: ["provider"] },
+      body: { is_read: true },
+    }),
+    "m1",
+    { prisma },
+  );
+
+  assert.equal(res.statusCode, 403);
 });
 
 test("Upload can return an absolute S3 url", async () => {
