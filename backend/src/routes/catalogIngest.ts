@@ -195,17 +195,50 @@ export async function catalogIngestHandler(
         continue;
       }
 
-      const row = await prisma.provider.update({
-        where: { id: existing.id },
-        data,
-      });
-      results.push({
-        verification_url: item.verification_url,
-        action: "updated",
-        id: row.id,
-      });
-      updated += 1;
-      continue;
+      try {
+        const row = await prisma.provider.update({
+          where: { id: existing.id },
+          data,
+        });
+        results.push({
+          verification_url: item.verification_url,
+          action: "updated",
+          id: row.id,
+        });
+        updated += 1;
+        continue;
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isHexEscape = msg.includes("hex escape") || msg.includes("InvalidArg") || err?.code === "P2000" || msg.includes("unexpected");
+        if (isHexEscape) {
+          const fallbackData: Record<string, unknown> = { ...data };
+          for (const k of ["display_name", "bio", "tagline", "ad_headline", "ad_body"]) {
+            if (typeof fallbackData[k] === "string") {
+              fallbackData[k] = String(fallbackData[k]).replace(/\\\\/g, "");
+            }
+          }
+          try {
+            const row2 = await prisma.provider.update({
+              where: { id: existing.id },
+              data: fallbackData,
+            });
+            results.push({
+              verification_url: item.verification_url,
+              action: "updated",
+              id: row2.id,
+            });
+            updated += 1;
+            continue;
+          } catch (err2: any) {}
+        }
+        skipped += 1;
+        results.push({
+          verification_url: item.verification_url,
+          action: "skipped",
+          reason: msg.slice(0, 300),
+        });
+        continue;
+      }
     }
 
     if (dryRun) {
