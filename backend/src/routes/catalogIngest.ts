@@ -6,7 +6,7 @@ import {
   resolveStateAbbrev,
   resolveStateFromCity,
 } from "../lib/locationMatch.js";
-import { CATALOG_INGEST_SOURCES, IMPORTED_CATALOG_SYNC_SOURCES } from "../lib/catalogSyncPolicy.js";
+import { IMPORTED_CATALOG_SYNC_SOURCES } from "../lib/catalogSyncPolicy.js";
 import {
   readCatalogWorkerStatus,
   writeCatalogWorkerStatus,
@@ -15,7 +15,7 @@ import {
 const MAX_BATCH = 100;
 const MAX_PHOTOS = 32;
 
-const sourceSchema = z.enum(CATALOG_INGEST_SOURCES);
+const sourceSchema = z.enum(IMPORTED_CATALOG_SYNC_SOURCES);
 
 const providerItemSchema = z.object({
   display_name: z.string().trim().min(1).max(160),
@@ -91,6 +91,21 @@ function normalizeCityState(item: z.infer<typeof providerItemSchema>): {
   return { location_city: cityRaw, location_state: stateHint };
 }
 
+function sanitizeText(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  let s = value;
+  // Remove lone surrogates (unpaired high/low) that produce invalid JSON/Postgres e.g. truncated emoji \ud83d
+  s = s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+  // Strip control chars except \n \r \t
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // Fix truncated hex escapes that cause Postgres "unexpected end of hex escape" via Prisma
+  s = s.replace(/\\x(?![0-9A-Fa-f]{2})/g, "x");
+  s = s.replace(/\\u(?![0-9A-Fa-f]{4})/g, "u");
+  s = s.replace(/\\$/g, "");
+  if (s.endsWith("\\")) s = s.slice(0, -1);
+  return s;
+}
+
 function mergePhotos(existing: unknown, incoming: string[] | null | undefined): string[] | undefined {
   if (!incoming) return undefined;
   const prior = Array.isArray(existing)
@@ -137,7 +152,9 @@ export async function catalogIngestHandler(
   let skipped = 0;
 
   for (const item of body.providers) {
-    const { location_city, location_state } = normalizeCityState(item);
+    const { location_city: rawCity, location_state: rawState } = normalizeCityState(item);
+    const location_city = sanitizeText(rawCity) as string | null;
+    const location_state = sanitizeText(rawState) as string | null;
     const existing = await prisma.provider.findFirst({
       where: {
         verification_provider: body.source,
@@ -149,7 +166,7 @@ export async function catalogIngestHandler(
     const photos = mergePhotos(existing?.photos, item.photos ?? null);
 
     const data: Record<string, unknown> = {
-      display_name: item.display_name,
+      display_name: String(sanitizeText(item.display_name) ?? item.display_name),
       verification_provider: body.source,
       verification_url: item.verification_url,
       location_city,
@@ -159,21 +176,15 @@ export async function catalogIngestHandler(
       review_provider: body.source,
     };
 
-    if (body.source === "evergreen") {
-      data.ad_package = "elite";
-      data.is_premium = true;
-      data.photo_review_status = "approved";
-    }
-
-    if (item.bio !== undefined) data.bio = item.bio;
-    if (item.tagline !== undefined) data.tagline = item.tagline;
+    if (item.bio !== undefined) data.bio = sanitizeText(item.bio);
+    if (item.tagline !== undefined) data.tagline = sanitizeText(item.tagline);
     if (item.age !== undefined) data.age = item.age;
     if (item.phone !== undefined) data.phone = item.phone;
     if (item.email !== undefined) data.email = item.email;
     if (photos !== undefined) data.photos = photos;
     if (item.services_offered !== undefined) data.services_offered = item.services_offered;
-    if (item.ad_headline !== undefined) data.ad_headline = item.ad_headline;
-    if (item.ad_body !== undefined) data.ad_body = item.ad_body;
+    if (item.ad_headline !== undefined) data.ad_headline = sanitizeText(item.ad_headline);
+    if (item.ad_body !== undefined) data.ad_body = sanitizeText(item.ad_body);
     if (item.review_url !== undefined) data.review_url = item.review_url;
 
     if (existing) {
@@ -318,8 +329,7 @@ export async function catalogSourcesHandler(
 
   return json(200, {
     ok: true,
-    allowed_sources: [...CATALOG_INGEST_SOURCES],
-    catalog_sync_sources: [...IMPORTED_CATALOG_SYNC_SOURCES],
+    allowed_sources: IMPORTED_CATALOG_SYNC_SOURCES,
     rejected_sources: ["ultragfe"],
     ingest_path: "POST /api/v1/catalog/ingest",
     worker_status_path: "POST|GET /api/v1/catalog/worker-status",
@@ -327,7 +337,7 @@ export async function catalogSourcesHandler(
     aura_evergreen_status: "GET /api/v1/integrations/aura/evergreen-status",
     auth: "Bearer JWT with role=service (or admin)",
     max_batch: MAX_BATCH,
-    note: "Eros/Tryst/Evergreen workers live on Aura (calendar-coordinator) and post through this API.",
+    note: "Eros/Tryst scrapers live outside LBV core (Aura / lbv-catalog-workers) and post through this API.",
   });
 }
 
