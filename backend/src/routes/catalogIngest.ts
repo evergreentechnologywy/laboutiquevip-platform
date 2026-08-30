@@ -106,6 +106,21 @@ function sanitizeText(value: unknown): unknown {
   return s;
 }
 
+function sanitizePhotos(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return (value as unknown[]).filter((u) => {
+    if (typeof u !== "string") return false;
+    const t = (u as string).trim();
+    if (t.length === 0 || t.length > 1000) return false;
+    try {
+      const parsed = new URL(t);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }).slice(0, MAX_PHOTOS);
+}
+
 function mergePhotos(existing: unknown, incoming: string[] | null | undefined): string[] | undefined {
   if (!incoming) return undefined;
   const prior = Array.isArray(existing)
@@ -120,6 +135,15 @@ export async function catalogIngestHandler(
 ): Promise<ApiResponse> {
   const denied = requireServiceRole(request);
   if (denied) return denied;
+
+  // Pre-sanitize photos arrays: filter invalid URLs to prevent batch failure on one bad photo (e.g. tryst markdown link)
+  if (Array.isArray((request.body as any)?.providers)) {
+    for (const prov of (request.body as any).providers) {
+      if (Array.isArray(prov.photos)) {
+        prov.photos = sanitizePhotos(prov.photos) as string[];
+      }
+    }
+  }
 
   let body: z.infer<typeof ingestBodySchema>;
   try {
