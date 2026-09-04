@@ -32,3 +32,6 @@ Use `.env.example` as the template. Do not commit secrets.
 
 - `runbook.md` — production deploy and smoke checks
 - `docs/hetzner-cloudflare-migration-2026-03-20.md` — migration reference
+
+
+<!-- Security scan triggered at 2026-09-04 13:03:03 -->
