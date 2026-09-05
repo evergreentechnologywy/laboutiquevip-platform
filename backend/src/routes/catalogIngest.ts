@@ -106,6 +106,15 @@ function sanitizeText(value: unknown): unknown {
   return s;
 }
 
+// Sanitize email: Tryst masks addresses in rendered markdown (me...user@host) and Zod email()
+// rejects the whole batch on one invalid element. Drop anything that is not a plausible address.
+function sanitizeEmail(value: unknown): unknown {
+  if (value == null) return value;
+  const raw = String(value).trim();
+  if (/\.\.\./.test(raw)) return null;
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(raw) ? raw : null;
+}
+
 function sanitizePhotos(value: unknown): unknown {
   if (!Array.isArray(value)) return value;
   return (value as unknown[]).filter((u) => {
@@ -141,6 +150,9 @@ export async function catalogIngestHandler(
     for (const prov of (request.body as any).providers) {
       if (Array.isArray(prov.photos)) {
         prov.photos = sanitizePhotos(prov.photos) as string[];
+      }
+      if (prov.email !== undefined) {
+        prov.email = sanitizeEmail(prov.email);
       }
     }
   }
@@ -204,7 +216,7 @@ export async function catalogIngestHandler(
     if (item.tagline !== undefined) data.tagline = sanitizeText(item.tagline);
     if (item.age !== undefined) data.age = item.age;
     if (item.phone !== undefined) data.phone = item.phone;
-    if (item.email !== undefined) data.email = item.email;
+    if (item.email !== undefined) data.email = sanitizeEmail(item.email);
     if (photos !== undefined) data.photos = photos;
     if (item.services_offered !== undefined) data.services_offered = item.services_offered;
     if (item.ad_headline !== undefined) data.ad_headline = sanitizeText(item.ad_headline);
